@@ -18,14 +18,16 @@ defmodule ExClaw.Application do
       ExClaw.Security.Supervisor,
 
       # Phase 2: LLM Provider
-      ExClaw.LLM.Supervisor
+      ExClaw.LLM.Supervisor,
+
+      # Phase 3: Agent Session
+      ExClaw.Agent.Supervisor
 
       # Future phases (uncomment as implemented):
       # ExClaw.Config,
       # ExClaw.Memory.Supervisor,
       # ExClaw.Tools.Supervisor,
       # ExClaw.Channels.Supervisor,
-      # ExClaw.Agent.Supervisor,
       # ExClaw.Scheduler,
     ]
 
