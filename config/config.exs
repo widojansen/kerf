@@ -16,4 +16,12 @@ config :exclaw, ExClaw.LLM.RateLimiter,
   max_requests_per_minute: 50,
   max_tokens_per_minute: 40_000
 
+config :exclaw, ExClaw.Memory.Store,
+  data_dir: "priv/data/#{config_env()}"
+
+config :exclaw, ExClaw.Channels.CLI,
+  group_id: "cli",
+  base_prompt: "You are ExClaw, a personal AI assistant running in a terminal. Be concise and helpful.",
+  model: "claude-sonnet-4-20250514"
+
 import_config "#{config_env()}.exs"

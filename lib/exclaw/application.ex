@@ -21,11 +21,13 @@ defmodule ExClaw.Application do
       ExClaw.LLM.Supervisor,
 
       # Phase 3: Agent Session
-      ExClaw.Agent.Supervisor
+      ExClaw.Agent.Supervisor,
+
+      # Phase 4: Memory Store
+      ExClaw.Memory.Supervisor
 
       # Future phases (uncomment as implemented):
       # ExClaw.Config,
-      # ExClaw.Memory.Supervisor,
       # ExClaw.Tools.Supervisor,
       # ExClaw.Channels.Supervisor,
       # ExClaw.Scheduler,

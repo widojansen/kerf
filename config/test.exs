@@ -12,4 +12,12 @@ config :exclaw, ExClaw.LLM.RateLimiter,
   max_requests_per_minute: 1000,
   max_tokens_per_minute: 1_000_000
 
+config :exclaw, ExClaw.Memory.Store,
+  data_dir: "priv/data/test"
+
+config :exclaw, ExClaw.Channels.CLI,
+  group_id: "cli_test",
+  base_prompt: "You are a test assistant.",
+  model: "claude-sonnet-4-20250514"
+
 config :logger, level: :warning
