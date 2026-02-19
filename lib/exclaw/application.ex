@@ -15,12 +15,14 @@ defmodule ExClaw.Application do
       {Registry, keys: :unique, name: ExClaw.SessionRegistry},
 
       # Phase 1: Security (built first via TDD)
-      ExClaw.Security.Supervisor
+      ExClaw.Security.Supervisor,
+
+      # Phase 2: LLM Provider
+      ExClaw.LLM.Supervisor
 
       # Future phases (uncomment as implemented):
       # ExClaw.Config,
       # ExClaw.Memory.Supervisor,
-      # ExClaw.LLM.Supervisor,
       # ExClaw.Tools.Supervisor,
       # ExClaw.Channels.Supervisor,
       # ExClaw.Agent.Supervisor,
