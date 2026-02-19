@@ -382,4 +382,55 @@ defmodule ExClaw.Agent.SessionTest do
       assert Process.alive?(pid)
     end
   end
+
+  # --- Session introspection ---
+
+  describe "get_info/1" do
+    test "returns session info after creation" do
+      %{pid: pid, group_id: group_id} = start_session([text_response("ok")])
+
+      info = Session.get_info(pid)
+      assert info.group_id == group_id
+      assert info.message_count == 0
+      assert info.model == "claude-sonnet-4-20250514"
+      assert %DateTime{} = info.started_at
+      assert %DateTime{} = info.last_activity
+    end
+
+    test "message_count increases after sending messages" do
+      responses = [text_response("Reply 1"), text_response("Reply 2")]
+      %{pid: pid} = start_session(responses)
+
+      Session.send_message(pid, "Hello")
+      info = Session.get_info(pid)
+      # 1 user + 1 assistant = 2
+      assert info.message_count == 2
+
+      Session.send_message(pid, "Again")
+      info = Session.get_info(pid)
+      # 2 + 1 user + 1 assistant = 4
+      assert info.message_count == 4
+    end
+
+    test "last_activity updates after message" do
+      %{pid: pid} = start_session([text_response("ok")])
+      info_before = Session.get_info(pid)
+
+      Process.sleep(1100)
+      Session.send_message(pid, "Hi")
+      info_after = Session.get_info(pid)
+
+      assert DateTime.compare(info_after.last_activity, info_before.last_activity) in [:gt, :eq]
+    end
+
+    test "started_at stays constant" do
+      %{pid: pid} = start_session([text_response("ok")])
+      info1 = Session.get_info(pid)
+
+      Session.send_message(pid, "Hi")
+      info2 = Session.get_info(pid)
+
+      assert info1.started_at == info2.started_at
+    end
+  end
 end

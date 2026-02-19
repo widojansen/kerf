@@ -24,4 +24,18 @@ config :exclaw, ExClaw.Channels.CLI,
   base_prompt: "You are ExClaw, a personal AI assistant running in a terminal. Be concise and helpful.",
   model: "claude-sonnet-4-20250514"
 
+config :exclaw, ExClaw.Scheduler,
+  provider: ExClaw.LLM.Provider,
+  model: "claude-sonnet-4-20250514"
+
+config :exclaw, ExClaw.Dashboard.Endpoint,
+  url: [host: "localhost"],
+  adapter: Bandit.PhoenixAdapter,
+  pubsub_server: ExClaw.PubSub,
+  live_view: [signing_salt: "exclaw_lv_salt"],
+  render_errors: [formats: [html: ExClaw.Dashboard.ErrorHTML]]
+
+config :exclaw, ExClaw.Dashboard.EventLog,
+  max_size: 500
+
 import_config "#{config_env()}.exs"

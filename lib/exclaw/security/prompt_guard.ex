@@ -91,15 +91,19 @@ defmodule ExClaw.Security.PromptGuard do
   # This prevents attacks that hide the payload in a different field (e.g.
   # %{text: "normal", command: "ignore previous instructions..."}).
   def check(input) when is_map(input) do
-    input
-    |> Map.values()
-    |> Enum.filter(&is_binary/1)
-    |> Enum.find_value(:ok, fn value ->
-      case find_injection(value) do
-        nil         -> false
-        {_, reason} -> {:denied, reason}
-      end
-    end)
+    result =
+      input
+      |> Map.values()
+      |> Enum.filter(&is_binary/1)
+      |> Enum.find_value(:ok, fn value ->
+        case find_injection(value) do
+          nil         -> false
+          {_, reason} -> {:denied, reason}
+        end
+      end)
+
+    maybe_log_denial(result, "PromptGuard", input)
+    result
   end
 
   # --- private ---
@@ -109,6 +113,21 @@ defmodule ExClaw.Security.PromptGuard do
       Regex.match?(pattern, text)
     end)
   end
+
+  defp maybe_log_denial({:denied, reason}, module, input_preview) do
+    try do
+      ExClaw.Dashboard.EventLog.log(:security_denial, %{
+        module: module,
+        reason: reason,
+        input_preview: String.slice(inspect(input_preview), 0, 200),
+        timestamp: DateTime.utc_now()
+      })
+    rescue
+      _ -> :ok
+    end
+  end
+
+  defp maybe_log_denial(:ok, _module, _input), do: :ok
 
   @impl true
   def init(_opts), do: {:ok, %{}}

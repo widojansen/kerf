@@ -16,22 +16,20 @@ defmodule ExClaw.Security.FileGuard do
   # Only file_read and file_write need path validation; all other tools pass through.
   def check(tool_name, _input) when tool_name not in @file_tools, do: :ok
 
-  def check(_tool_name, %{path: path}) do
-    # Checks run in order of cheapest-to-detect to most nuanced.
-    # Raw path checks come first (before normalization) because some attacks
-    # only survive in their encoded or injected form — normalization would
-    # silently swallow the evidence.
-    with :ok <- check_null_bytes(path),
-         :ok <- check_url_encoded_traversal(path),
-         :ok <- check_home_directory(path),
-         # Normalize before the remaining checks so that traversal sequences
-         # like /workspace/foo/../../etc are resolved to their true destination.
-         normalized = normalize(path),
-         :ok <- check_traversal(normalized),
-         :ok <- check_absolute_outside_workspace(normalized),
-         :ok <- check_sensitive_dotfiles(normalized) do
-      :ok
-    end
+  def check(tool_name, %{path: path}) do
+    result =
+      with :ok <- check_null_bytes(path),
+           :ok <- check_url_encoded_traversal(path),
+           :ok <- check_home_directory(path),
+           normalized = normalize(path),
+           :ok <- check_traversal(normalized),
+           :ok <- check_absolute_outside_workspace(normalized),
+           :ok <- check_sensitive_dotfiles(normalized) do
+        :ok
+      end
+
+    maybe_log_denial(result, "FileGuard", %{tool: tool_name, path: path})
+    result
   end
 
   # --- private checks ---
@@ -116,6 +114,21 @@ defmodule ExClaw.Security.FileGuard do
       do: {:denied, "access to sensitive dotfile is not allowed"},
       else: :ok
   end
+
+  defp maybe_log_denial({:denied, reason}, module, input_preview) do
+    try do
+      ExClaw.Dashboard.EventLog.log(:security_denial, %{
+        module: module,
+        reason: reason,
+        input_preview: String.slice(inspect(input_preview), 0, 200),
+        timestamp: DateTime.utc_now()
+      })
+    rescue
+      _ -> :ok
+    end
+  end
+
+  defp maybe_log_denial(:ok, _module, _input), do: :ok
 
   @impl true
   def init(_opts), do: {:ok, %{}}

@@ -12,6 +12,7 @@ defmodule ExClaw.Application do
     children = [
       # Phase 1: Foundation
       ExClaw.Repo,
+      {Phoenix.PubSub, name: ExClaw.PubSub},
       {Registry, keys: :unique, name: ExClaw.SessionRegistry},
 
       # Phase 1: Security (built first via TDD)
@@ -24,13 +25,13 @@ defmodule ExClaw.Application do
       ExClaw.Agent.Supervisor,
 
       # Phase 4: Memory Store
-      ExClaw.Memory.Supervisor
+      ExClaw.Memory.Supervisor,
 
-      # Future phases (uncomment as implemented):
-      # ExClaw.Config,
-      # ExClaw.Tools.Supervisor,
-      # ExClaw.Channels.Supervisor,
-      # ExClaw.Scheduler,
+      # Phase 6: Scheduler
+      ExClaw.Scheduler.Supervisor,
+
+      # Phase 7: Dashboard
+      ExClaw.Dashboard.Supervisor
     ]
 
     opts = [strategy: :one_for_one, name: ExClaw.Supervisor]

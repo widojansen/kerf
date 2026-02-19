@@ -30,10 +30,11 @@ defmodule ExClaw.MixProject do
       {:jason, "~> 1.4"},
       {:req, "~> 0.5"},
 
-      # Web dashboard (optional)
-      # {:phoenix, "~> 1.7"},
-      # {:phoenix_live_view, "~> 1.0"},
-      # {:phoenix_html, "~> 4.0"},
+      # Web dashboard
+      {:phoenix, "~> 1.7"},
+      {:phoenix_live_view, "~> 1.0"},
+      {:phoenix_html, "~> 4.0"},
+      {:bandit, "~> 1.0"},
 
       # Tools
       {:quantum, "~> 3.5"},
@@ -43,6 +44,7 @@ defmodule ExClaw.MixProject do
       {:plug_crypto, "~> 2.0"},
 
       # Dev/Test
+      {:lazy_html, ">= 0.1.0", only: :test},
       {:mox, "~> 1.0", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test]},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}

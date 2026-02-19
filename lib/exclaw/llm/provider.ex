@@ -70,13 +70,18 @@ defmodule ExClaw.LLM.Provider do
   defp do_complete(model, messages, opts, state) do
     with :ok <- check_rate_limit(state) do
       body = build_request_body(model, messages, opts, state)
+      started_at = System.monotonic_time(:millisecond)
 
       case make_request(state.req, body) do
         {:ok, response} ->
+          duration_ms = System.monotonic_time(:millisecond) - started_at
           record_usage(response, state)
+          log_llm_call(model, duration_ms, response)
           {:ok, response}
 
-        {:error, _} = error ->
+        {:error, reason} = error ->
+          duration_ms = System.monotonic_time(:millisecond) - started_at
+          log_llm_error(model, duration_ms, reason)
           error
       end
     end
@@ -169,6 +174,36 @@ defmodule ExClaw.LLM.Provider do
   end
 
   defp record_usage(_, _), do: :ok
+
+  defp log_llm_call(model, duration_ms, response) do
+    try do
+      usage = Map.get(response, :usage, %{})
+
+      ExClaw.Dashboard.EventLog.log(:llm_call, %{
+        model: model,
+        duration_ms: duration_ms,
+        input_tokens: Map.get(usage, :input_tokens),
+        output_tokens: Map.get(usage, :output_tokens),
+        response_type: response.type,
+        timestamp: DateTime.utc_now()
+      })
+    rescue
+      _ -> :ok
+    end
+  end
+
+  defp log_llm_error(model, duration_ms, reason) do
+    try do
+      ExClaw.Dashboard.EventLog.log(:llm_error, %{
+        model: model,
+        duration_ms: duration_ms,
+        error: inspect(reason),
+        timestamp: DateTime.utc_now()
+      })
+    rescue
+      _ -> :ok
+    end
+  end
 
   defp resolve_api_key({:system, env_var}), do: System.get_env(env_var)
   defp resolve_api_key(nil), do: nil

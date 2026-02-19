@@ -20,4 +20,13 @@ config :exclaw, ExClaw.Channels.CLI,
   base_prompt: "You are a test assistant.",
   model: "claude-sonnet-4-20250514"
 
+config :exclaw, ExClaw.Scheduler,
+  provider: ExClaw.LLM.Provider,
+  model: "claude-sonnet-4-20250514"
+
+config :exclaw, ExClaw.Dashboard.Endpoint,
+  http: [ip: {127, 0, 0, 1}, port: 4002],
+  server: false,
+  secret_key_base: "test-only-secret-key-base-that-is-at-least-64-bytes-long-for-phoenix-to-accept-it"
+
 config :logger, level: :warning

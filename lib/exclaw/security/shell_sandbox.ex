@@ -84,13 +84,32 @@ defmodule ExClaw.Security.ShellSandbox do
 
   # Only shell_exec commands need sandboxing; all other tools pass through.
   def check("shell_exec", %{command: command}) do
-    case Enum.find(@blocked_patterns, fn {pattern, _} -> Regex.match?(pattern, command) end) do
-      nil              -> :ok
-      {_, reason}      -> {:denied, reason}
-    end
+    result =
+      case Enum.find(@blocked_patterns, fn {pattern, _} -> Regex.match?(pattern, command) end) do
+        nil              -> :ok
+        {_, reason}      -> {:denied, reason}
+      end
+
+    maybe_log_denial(result, "ShellSandbox", %{command: String.slice(command, 0, 200)})
+    result
   end
 
   def check(_tool_name, _input), do: :ok
+
+  defp maybe_log_denial({:denied, reason}, module, input_preview) do
+    try do
+      ExClaw.Dashboard.EventLog.log(:security_denial, %{
+        module: module,
+        reason: reason,
+        input_preview: String.slice(inspect(input_preview), 0, 200),
+        timestamp: DateTime.utc_now()
+      })
+    rescue
+      _ -> :ok
+    end
+  end
+
+  defp maybe_log_denial(:ok, _module, _input), do: :ok
 
   @impl true
   def init(_opts), do: {:ok, %{}}

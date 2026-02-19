@@ -27,10 +27,16 @@ defmodule ExClaw.Agent.Session do
     GenServer.call(pid, {:message, message}, 60_000)
   end
 
+  def get_info(pid) do
+    GenServer.call(pid, :get_info)
+  end
+
   # --- GenServer callbacks ---
 
   @impl true
   def init(opts) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
     state = %{
       group_id: Keyword.fetch!(opts, :group_id),
       model: Keyword.fetch!(opts, :model),
@@ -40,14 +46,30 @@ defmodule ExClaw.Agent.Session do
       provider: Keyword.fetch!(opts, :provider),
       system_prompt: Keyword.get(opts, :system_prompt),
       max_iterations: Keyword.get(opts, :max_iterations, @default_max_iterations),
-      idle_timeout: Keyword.get(opts, :idle_timeout, @default_idle_timeout)
+      idle_timeout: Keyword.get(opts, :idle_timeout, @default_idle_timeout),
+      started_at: now,
+      last_activity: now
     }
 
     {:ok, state}
   end
 
   @impl true
+  def handle_call(:get_info, _from, state) do
+    info = %{
+      group_id: state.group_id,
+      message_count: length(state.messages),
+      model: state.model,
+      started_at: state.started_at,
+      last_activity: state.last_activity
+    }
+
+    {:reply, info, state, idle_timeout(state)}
+  end
+
+  @impl true
   def handle_call({:message, message}, _from, state) do
+    state = %{state | last_activity: DateTime.utc_now() |> DateTime.truncate(:second)}
     state = append_user_message(state, message)
 
     case agent_loop(state, 0) do
