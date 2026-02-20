@@ -9,6 +9,7 @@ defmodule ExClaw.Channels.CLI do
 
   alias ExClaw.Agent.Supervisor, as: AgentSupervisor
   alias ExClaw.Memory.Store
+  alias ExClaw.Tools.Dispatcher
 
   @exit_commands ~w(exit quit :q /exit /quit)
 
@@ -75,8 +76,21 @@ defmodule ExClaw.Channels.CLI do
     model = Keyword.get(opts, :model, "claude-sonnet-4-20250514")
     system_prompt = Keyword.get(opts, :system_prompt)
 
+    container_manager = Keyword.get(opts, :container_manager, ExClaw.Container.Manager)
+    workspaces_dir = Keyword.get(opts, :workspaces_dir,
+      Application.get_env(:exclaw, ExClaw.Container.Manager, [])[:workspaces_dir] || "priv/workspaces")
+
+    tool_executor = Keyword.get(opts, :tool_executor,
+      Dispatcher.build_executor(
+        container_manager: container_manager,
+        group_id: group_id,
+        workspaces_dir: workspaces_dir
+      ))
+
+    tools = Keyword.get(opts, :tools, Dispatcher.tool_definitions())
+
     session_opts =
-      [provider: provider, model: model]
+      [provider: provider, model: model, tool_executor: tool_executor, tools: tools]
       |> maybe_put(:system_prompt, system_prompt)
 
     result =

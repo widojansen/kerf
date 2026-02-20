@@ -60,3 +60,9 @@ out/
 *.log
 logs/
 
+# Docker sandbox workspaces (per-group bind mounts)
+/priv/workspaces/
+
+# Telemetry fallback logs
+/priv/telemetry_fallback/
+

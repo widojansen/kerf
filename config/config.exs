@@ -38,6 +38,24 @@ config :exclaw, ExClaw.Dashboard.Endpoint,
 config :exclaw, ExClaw.Dashboard.EventLog,
   max_size: 500
 
+config :exclaw, ExClaw.Container.Manager,
+  workspaces_dir: "priv/workspaces",
+  image: "exclaw-sandbox:latest",
+  exec_timeout: 30_000,
+  max_output_size: 102_400,
+  container_opts: [
+    read_only: true,
+    network: "none",
+    memory: "512m",
+    cpus: "1",
+    pids_limit: 256,
+    cap_drop: ["ALL"],
+    cap_add: ["CHOWN"],
+    security_opt: ["no-new-privileges"],
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=256m"],
+    user: "1000:1000"
+  ]
+
 config :exclaw, ExClaw.Telemetry.Logger,
   enabled: true,
   flush_interval_ms: 5_000,

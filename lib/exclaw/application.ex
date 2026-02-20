@@ -24,6 +24,12 @@ defmodule ExClaw.Application do
       # Phase 1: Security (built first via TDD)
       ExClaw.Security.Supervisor,
 
+      # Phase 9: Container Manager (Docker sandbox per group)
+      {ExClaw.Container.Supervisor,
+       manager_opts:
+         Application.get_env(:exclaw, ExClaw.Container.Manager, [])
+         |> Keyword.put(:name, ExClaw.Container.Manager)},
+
       # Phase 2: LLM Provider
       ExClaw.LLM.Supervisor,
 

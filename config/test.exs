@@ -29,6 +29,10 @@ config :exclaw, ExClaw.Dashboard.Endpoint,
   server: false,
   secret_key_base: "test-only-secret-key-base-that-is-at-least-64-bytes-long-for-phoenix-to-accept-it"
 
+config :exclaw, ExClaw.Container.Manager,
+  workspaces_dir: "priv/workspaces/test",
+  exec_timeout: 5_000
+
 config :exclaw, ExClaw.Telemetry.Logger,
   enabled: false,
   ch_opts: nil
