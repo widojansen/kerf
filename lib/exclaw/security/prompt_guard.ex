@@ -91,6 +91,8 @@ defmodule ExClaw.Security.PromptGuard do
   # This prevents attacks that hide the payload in a different field (e.g.
   # %{text: "normal", command: "ignore previous instructions..."}).
   def check(input) when is_map(input) do
+    started_at = System.monotonic_time(:microsecond)
+
     result =
       input
       |> Map.values()
@@ -102,7 +104,9 @@ defmodule ExClaw.Security.PromptGuard do
         end
       end)
 
+    duration_us = System.monotonic_time(:microsecond) - started_at
     maybe_log_denial(result, "PromptGuard", input)
+    emit_telemetry(result, duration_us)
     result
   end
 
@@ -128,6 +132,26 @@ defmodule ExClaw.Security.PromptGuard do
   end
 
   defp maybe_log_denial(:ok, _module, _input), do: :ok
+
+  defp emit_telemetry(result, duration_us) do
+    try do
+      {security_result, error_message} =
+        case result do
+          :ok -> {"ok", nil}
+          {:denied, reason} -> {"denied", reason}
+        end
+
+      ExClaw.Telemetry.emit(:security_check, %{
+        module: "PromptGuard",
+        tool_name: "prompt_check",
+        security_result: security_result,
+        error_message: error_message,
+        duration_ms: div(duration_us, 1000)
+      })
+    rescue
+      _ -> :ok
+    end
+  end
 
   @impl true
   def init(_opts), do: {:ok, %{}}

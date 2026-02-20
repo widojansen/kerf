@@ -178,15 +178,19 @@ defmodule ExClaw.LLM.Provider do
   defp log_llm_call(model, duration_ms, response) do
     try do
       usage = Map.get(response, :usage, %{})
+      mem = process_memory()
 
-      ExClaw.Dashboard.EventLog.log(:llm_call, %{
+      event = %{
         model: model,
         duration_ms: duration_ms,
         input_tokens: Map.get(usage, :input_tokens),
         output_tokens: Map.get(usage, :output_tokens),
         response_type: response.type,
         timestamp: DateTime.utc_now()
-      })
+      }
+
+      ExClaw.Dashboard.EventLog.log(:llm_call, event)
+      ExClaw.Telemetry.emit(:llm_call, Map.put(event, :process_memory_bytes, mem))
     rescue
       _ -> :ok
     end
@@ -194,15 +198,28 @@ defmodule ExClaw.LLM.Provider do
 
   defp log_llm_error(model, duration_ms, reason) do
     try do
-      ExClaw.Dashboard.EventLog.log(:llm_error, %{
+      event = %{
         model: model,
         duration_ms: duration_ms,
         error: inspect(reason),
         timestamp: DateTime.utc_now()
+      }
+
+      ExClaw.Dashboard.EventLog.log(:llm_error, event)
+      ExClaw.Telemetry.emit(:llm_error, %{
+        model: model,
+        duration_ms: duration_ms,
+        error_type: "llm_error",
+        error_message: inspect(reason)
       })
     rescue
       _ -> :ok
     end
+  end
+
+  defp process_memory do
+    {:memory, bytes} = Process.info(self(), :memory)
+    bytes
   end
 
   defp resolve_api_key({:system, env_var}), do: System.get_env(env_var)

@@ -17,6 +17,8 @@ defmodule ExClaw.Security.FileGuard do
   def check(tool_name, _input) when tool_name not in @file_tools, do: :ok
 
   def check(tool_name, %{path: path}) do
+    started_at = System.monotonic_time(:microsecond)
+
     result =
       with :ok <- check_null_bytes(path),
            :ok <- check_url_encoded_traversal(path),
@@ -28,7 +30,9 @@ defmodule ExClaw.Security.FileGuard do
         :ok
       end
 
+    duration_us = System.monotonic_time(:microsecond) - started_at
     maybe_log_denial(result, "FileGuard", %{tool: tool_name, path: path})
+    emit_telemetry(result, tool_name, duration_us)
     result
   end
 
@@ -129,6 +133,26 @@ defmodule ExClaw.Security.FileGuard do
   end
 
   defp maybe_log_denial(:ok, _module, _input), do: :ok
+
+  defp emit_telemetry(result, tool_name, duration_us) do
+    try do
+      {security_result, error_message} =
+        case result do
+          :ok -> {"ok", nil}
+          {:denied, reason} -> {"denied", reason}
+        end
+
+      ExClaw.Telemetry.emit(:security_check, %{
+        module: "FileGuard",
+        tool_name: tool_name,
+        security_result: security_result,
+        error_message: error_message,
+        duration_ms: div(duration_us, 1000)
+      })
+    rescue
+      _ -> :ok
+    end
+  end
 
   @impl true
   def init(_opts), do: {:ok, %{}}

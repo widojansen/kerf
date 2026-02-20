@@ -68,6 +68,7 @@ defmodule ExClaw.Channels.CLI do
   Returns `{:respond, text}` or `{:error, reason}`.
   """
   def process_input(input, group_id, opts \\ []) do
+    started_at = System.monotonic_time(:millisecond)
     sup = Keyword.get(opts, :agent_supervisor, AgentSupervisor)
     registry = Keyword.get(opts, :registry, ExClaw.SessionRegistry)
     provider = Keyword.get(opts, :provider, ExClaw.LLM.Provider)
@@ -78,10 +79,31 @@ defmodule ExClaw.Channels.CLI do
       [provider: provider, model: model]
       |> maybe_put(:system_prompt, system_prompt)
 
-    case AgentSupervisor.handle_message(sup, registry, group_id, input, session_opts) do
-      {:ok, text} -> {:respond, text}
-      {:error, reason} -> {:error, reason}
+    result =
+      case AgentSupervisor.handle_message(sup, registry, group_id, input, session_opts) do
+        {:ok, text} -> {:respond, text}
+        {:error, reason} -> {:error, reason}
+      end
+
+    duration_ms = System.monotonic_time(:millisecond) - started_at
+    response_type = case result do
+      {:respond, _} -> "text"
+      {:error, _} -> "error"
     end
+
+    try do
+      ExClaw.Telemetry.emit(:channel_event, %{
+        channel: "cli",
+        group_id: group_id,
+        event: "message_processed",
+        duration_ms: duration_ms,
+        response_type: response_type
+      })
+    rescue
+      _ -> :ok
+    end
+
+    result
   end
 
   @doc """

@@ -38,4 +38,10 @@ config :exclaw, ExClaw.Dashboard.Endpoint,
 config :exclaw, ExClaw.Dashboard.EventLog,
   max_size: 500
 
+config :exclaw, ExClaw.Telemetry.Logger,
+  enabled: true,
+  flush_interval_ms: 5_000,
+  max_buffer_size: 100,
+  fallback_dir: "priv/telemetry_fallback"
+
 import_config "#{config_env()}.exs"

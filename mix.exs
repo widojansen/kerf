@@ -43,6 +43,9 @@ defmodule ExClaw.MixProject do
       # Security
       {:plug_crypto, "~> 2.0"},
 
+      # Telemetry / ClickHouse
+      {:ch, "~> 0.7"},
+
       # Dev/Test
       {:lazy_html, ">= 0.1.0", only: :test},
       {:mox, "~> 1.0", only: :test},

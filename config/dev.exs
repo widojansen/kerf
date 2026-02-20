@@ -9,4 +9,7 @@ config :exclaw, ExClaw.Dashboard.Endpoint,
   debug_errors: true,
   secret_key_base: "dev-only-secret-key-base-that-is-at-least-64-bytes-long-for-phoenix-to-accept-it"
 
+config :exclaw, ExClaw.Telemetry.Logger,
+  ch_opts: nil
+
 config :logger, level: :debug

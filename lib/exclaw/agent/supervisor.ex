@@ -54,9 +54,16 @@ defmodule ExClaw.Agent.Supervisor do
           )
 
         case start_registered_session(sup, registry, group_id, session_opts) do
-          {:ok, pid} -> {:ok, pid}
-          {:error, {:already_started, pid}} -> {:ok, pid}
-          {:error, reason} -> {:error, reason}
+          {:ok, pid} ->
+            emit_telemetry(:session_lifecycle, %{group_id: group_id, event: "session_created"})
+            {:ok, pid}
+
+          {:error, {:already_started, pid}} ->
+            {:ok, pid}
+
+          {:error, reason} ->
+            emit_telemetry(:session_lifecycle, %{group_id: group_id, event: "session_start_failed", error_message: inspect(reason)})
+            {:error, reason}
         end
     end
   end
@@ -66,5 +73,13 @@ defmodule ExClaw.Agent.Supervisor do
     session_opts = Keyword.put(opts, :name, via)
 
     DynamicSupervisor.start_child(sup, {Session, session_opts})
+  end
+
+  defp emit_telemetry(category, data) do
+    try do
+      ExClaw.Telemetry.emit(category, data)
+    rescue
+      _ -> :ok
+    end
   end
 end

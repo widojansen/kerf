@@ -383,6 +383,12 @@ defmodule ExClaw.Scheduler.Scheduler do
         _ -> "scheduler:#{task_id}:#{System.unique_integer([:positive])}"
       end
 
+    emit_telemetry(:scheduler_event, %{
+      group_id: effective_group_id,
+      event: "fired",
+      metadata: Jason.encode!(%{task_id: task_id, schedule_type: task.schedule_type})
+    })
+
     Task.Supervisor.start_child(state.task_runner, fn ->
       started_at = DateTime.utc_now() |> DateTime.truncate(:second)
 
@@ -421,6 +427,13 @@ defmodule ExClaw.Scheduler.Scheduler do
         _ -> :ok
       end
 
+      emit_telemetry(:scheduler_event, %{
+        group_id: effective_group_id,
+        event: status == "success" && "completed" || "failed",
+        duration_ms: duration_ms,
+        metadata: Jason.encode!(%{task_id: task_id, status: status})
+      })
+
       send(scheduler_pid, {:task_completed, task_id, {status, result, error}})
     end)
   end
@@ -451,4 +464,12 @@ defmodule ExClaw.Scheduler.Scheduler do
   defp format_outcome({"success", result, _}), do: result
   defp format_outcome({"error", _, error}), do: "ERROR: #{error}"
   defp format_outcome(_), do: nil
+
+  defp emit_telemetry(category, data) do
+    try do
+      ExClaw.Telemetry.emit(category, data)
+    rescue
+      _ -> :ok
+    end
+  end
 end

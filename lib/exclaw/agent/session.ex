@@ -48,8 +48,11 @@ defmodule ExClaw.Agent.Session do
       max_iterations: Keyword.get(opts, :max_iterations, @default_max_iterations),
       idle_timeout: Keyword.get(opts, :idle_timeout, @default_idle_timeout),
       started_at: now,
-      last_activity: now
+      last_activity: now,
+      session_id: "#{Keyword.fetch!(opts, :group_id)}_#{System.unique_integer([:positive])}"
     }
+
+    emit_telemetry(:session_lifecycle, state, %{event: "started"})
 
     {:ok, state}
   end
@@ -69,14 +72,32 @@ defmodule ExClaw.Agent.Session do
 
   @impl true
   def handle_call({:message, message}, _from, state) do
+    started_at = System.monotonic_time(:millisecond)
     state = %{state | last_activity: DateTime.utc_now() |> DateTime.truncate(:second)}
     state = append_user_message(state, message)
 
     case agent_loop(state, 0) do
       {:ok, text, state} ->
+        duration_ms = System.monotonic_time(:millisecond) - started_at
+
+        emit_telemetry(:message_round_trip, state, %{
+          duration_ms: duration_ms,
+          message_count: length(state.messages),
+          response_type: "text"
+        })
+
         {:reply, {:ok, text}, state, idle_timeout(state)}
 
       {:error, reason, state} ->
+        duration_ms = System.monotonic_time(:millisecond) - started_at
+
+        emit_telemetry(:message_round_trip, state, %{
+          duration_ms: duration_ms,
+          message_count: length(state.messages),
+          response_type: "error",
+          error_message: inspect(reason)
+        })
+
         {:reply, {:error, reason}, state, idle_timeout(state)}
     end
   end
@@ -122,22 +143,37 @@ defmodule ExClaw.Agent.Session do
   end
 
   defp execute_single_tool(call, state) do
+    started_at = System.monotonic_time(:millisecond)
+
     # Anthropic returns string-keyed maps; security modules expect atom keys.
     # If atomization fails (unknown keys), deny security-sensitive tools rather
     # than silently passing unchecked string-keyed maps to security guards.
-    case atomize_keys(call.input) do
-      {:ok, atom_input} ->
-        with :ok <- FileGuard.check(call.name, atom_input),
-             :ok <- ShellSandbox.check(call.name, atom_input),
-             :ok <- PromptGuard.check(call.input) do
-          run_tool_executor(call, state)
-        else
-          {:denied, reason} -> "Security denied: #{reason}"
-        end
+    result =
+      case atomize_keys(call.input) do
+        {:ok, atom_input} ->
+          with :ok <- FileGuard.check(call.name, atom_input),
+               :ok <- ShellSandbox.check(call.name, atom_input),
+               :ok <- PromptGuard.check(call.input) do
+            run_tool_executor(call, state)
+          else
+            {:denied, reason} -> "Security denied: #{reason}"
+          end
 
-      :atomize_failed ->
-        "Security denied: unrecognized tool input keys"
-    end
+        :atomize_failed ->
+          "Security denied: unrecognized tool input keys"
+      end
+
+    duration_ms = System.monotonic_time(:millisecond) - started_at
+    security_result = if String.starts_with?(result, "Security denied:"), do: "denied", else: "ok"
+
+    emit_telemetry(:tool_execution, state, %{
+      tool_name: call.name,
+      duration_ms: duration_ms,
+      security_result: security_result,
+      output_data: String.slice(result, 0, 200)
+    })
+
+    result
   end
 
   defp run_tool_executor(call, state) do
@@ -203,5 +239,17 @@ defmodule ExClaw.Agent.Session do
      end)}
   rescue
     ArgumentError -> :atomize_failed
+  end
+
+  defp emit_telemetry(category, state, data) do
+    try do
+      ExClaw.Telemetry.emit(category, Map.merge(data, %{
+        group_id: state.group_id,
+        session_id: state.session_id,
+        model: state.model
+      }))
+    rescue
+      _ -> :ok
+    end
   end
 end

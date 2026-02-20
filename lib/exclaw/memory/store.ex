@@ -55,73 +55,61 @@ defmodule ExClaw.Memory.Store do
 
   @impl true
   def handle_call({:save_fact, group_id, key, value, source}, _from, state) do
-    attrs = %{group_id: group_id, key: key, value: value, source: source}
+    result = timed_op("save_fact", group_id, fn ->
+      attrs = %{group_id: group_id, key: key, value: value, source: source}
 
-    result =
-      try do
-        %Fact{}
-        |> Fact.changeset(attrs)
-        |> state.repo.insert(
-          on_conflict: {:replace, [:value, :source, :updated_at]},
-          conflict_target: [:group_id, :key],
-          returning: true
-        )
-      rescue
-        e -> {:error, Exception.message(e)}
-      end
+      %Fact{}
+      |> Fact.changeset(attrs)
+      |> state.repo.insert(
+        on_conflict: {:replace, [:value, :source, :updated_at]},
+        conflict_target: [:group_id, :key],
+        returning: true
+      )
+    end)
 
     {:reply, result, state}
   end
 
   def handle_call({:get_facts, group_id}, _from, state) do
-    result =
-      try do
-        facts =
-          from(f in Fact, where: f.group_id == ^group_id, order_by: f.key)
-          |> state.repo.all()
+    result = timed_op("get_facts", group_id, fn ->
+      facts =
+        from(f in Fact, where: f.group_id == ^group_id, order_by: f.key)
+        |> state.repo.all()
 
-        {:ok, facts}
-      rescue
-        e -> {:error, Exception.message(e)}
-      end
+      {:ok, facts}
+    end)
 
     {:reply, result, state}
   end
 
   def handle_call({:search, group_id, query}, _from, state) do
-    result =
-      try do
-        escaped = escape_like(query)
-        pattern = "%#{escaped}%"
+    result = timed_op("search", group_id, fn ->
+      escaped = escape_like(query)
+      pattern = "%#{escaped}%"
 
-        facts =
-          from(f in Fact,
-            where:
-              f.group_id == ^group_id and
-                (fragment("? LIKE ? ESCAPE '\\'", f.key, ^pattern) or
-                   fragment("? LIKE ? ESCAPE '\\'", f.value, ^pattern)),
-            order_by: f.key
-          )
-          |> state.repo.all()
+      facts =
+        from(f in Fact,
+          where:
+            f.group_id == ^group_id and
+              (fragment("? LIKE ? ESCAPE '\\'", f.key, ^pattern) or
+                 fragment("? LIKE ? ESCAPE '\\'", f.value, ^pattern)),
+          order_by: f.key
+        )
+        |> state.repo.all()
 
-        {:ok, facts}
-      rescue
-        e -> {:error, Exception.message(e)}
-      end
+      {:ok, facts}
+    end)
 
     {:reply, result, state}
   end
 
   def handle_call({:delete_fact, group_id, key}, _from, state) do
-    result =
-      try do
-        from(f in Fact, where: f.group_id == ^group_id and f.key == ^key)
-        |> state.repo.delete_all()
+    result = timed_op("delete_fact", group_id, fn ->
+      from(f in Fact, where: f.group_id == ^group_id and f.key == ^key)
+      |> state.repo.delete_all()
 
-        :ok
-      rescue
-        e -> {:error, Exception.message(e)}
-      end
+      :ok
+    end)
 
     {:reply, result, state}
   end
@@ -129,28 +117,30 @@ defmodule ExClaw.Memory.Store do
   # ── MEMORY.md ──
 
   def handle_call({:load_group, group_id}, _from, state) do
-    path = group_memory_path(state.data_dir, group_id)
+    result = timed_op("load_group", group_id, fn ->
+      path = group_memory_path(state.data_dir, group_id)
 
-    result =
       case File.read(path) do
         {:ok, data} -> {:ok, data}
         {:error, :enoent} -> {:ok, ""}
         {:error, reason} -> {:error, "could not read MEMORY.md: #{inspect(reason)}"}
       end
+    end)
 
     {:reply, result, state}
   end
 
   def handle_call({:update_group, group_id, content}, _from, state) do
-    path = group_memory_path(state.data_dir, group_id)
+    result = timed_op("update_group", group_id, fn ->
+      path = group_memory_path(state.data_dir, group_id)
 
-    result =
       with :ok <- File.mkdir_p(Path.dirname(path)),
            :ok <- File.write(path, content) do
         :ok
       else
         {:error, reason} -> {:error, "could not write MEMORY.md: #{inspect(reason)}"}
       end
+    end)
 
     {:reply, result, state}
   end
@@ -158,29 +148,26 @@ defmodule ExClaw.Memory.Store do
   # ── Messages ──
 
   def handle_call({:save_message, group_id, role, content, opts}, _from, state) do
-    result =
-      try do
-        tool_input =
-          case Keyword.get(opts, :tool_input) do
-            nil -> nil
-            map when is_map(map) -> Jason.encode!(map)
-            other -> other
-          end
+    result = timed_op("save_message", group_id, fn ->
+      tool_input =
+        case Keyword.get(opts, :tool_input) do
+          nil -> nil
+          map when is_map(map) -> Jason.encode!(map)
+          other -> other
+        end
 
-        attrs = %{
-          group_id: group_id,
-          role: role,
-          content: content,
-          tool_name: Keyword.get(opts, :tool_name),
-          tool_input: tool_input
-        }
+      attrs = %{
+        group_id: group_id,
+        role: role,
+        content: content,
+        tool_name: Keyword.get(opts, :tool_name),
+        tool_input: tool_input
+      }
 
-        %Message{}
-        |> Message.changeset(attrs)
-        |> state.repo.insert()
-      rescue
-        e -> {:error, Exception.message(e)}
-      end
+      %Message{}
+      |> Message.changeset(attrs)
+      |> state.repo.insert()
+    end)
 
     {:reply, result, state}
   end
@@ -188,22 +175,19 @@ defmodule ExClaw.Memory.Store do
   def handle_call({:get_messages, group_id, opts}, _from, state) do
     limit = Keyword.get(opts, :limit, 50)
 
-    result =
-      try do
-        # Fetch the N most recent messages (desc), then reverse to chronological order
-        messages =
-          from(m in Message,
-            where: m.group_id == ^group_id,
-            order_by: [desc: m.inserted_at, desc: m.id],
-            limit: ^limit
-          )
-          |> state.repo.all()
-          |> Enum.reverse()
+    result = timed_op("get_messages", group_id, fn ->
+      # Fetch the N most recent messages (desc), then reverse to chronological order
+      messages =
+        from(m in Message,
+          where: m.group_id == ^group_id,
+          order_by: [desc: m.inserted_at, desc: m.id],
+          limit: ^limit
+        )
+        |> state.repo.all()
+        |> Enum.reverse()
 
-        {:ok, messages}
-      rescue
-        e -> {:error, Exception.message(e)}
-      end
+      {:ok, messages}
+    end)
 
     {:reply, result, state}
   end
@@ -235,5 +219,27 @@ defmodule ExClaw.Memory.Store do
     |> String.replace("\\", "\\\\")
     |> String.replace("%", "\\%")
     |> String.replace("_", "\\_")
+  end
+
+  defp timed_op(op_type, group_id, fun) do
+    started_at = System.monotonic_time(:millisecond)
+
+    try do
+      fun.()
+    rescue
+      e -> {:error, Exception.message(e)}
+    after
+      duration_ms = System.monotonic_time(:millisecond) - started_at
+
+      try do
+        ExClaw.Telemetry.emit(:memory_operation, %{
+          op_type: op_type,
+          group_id: group_id,
+          duration_ms: duration_ms
+        })
+      rescue
+        _ -> :ok
+      end
+    end
   end
 end

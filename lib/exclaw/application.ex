@@ -15,6 +15,12 @@ defmodule ExClaw.Application do
       {Phoenix.PubSub, name: ExClaw.PubSub},
       {Registry, keys: :unique, name: ExClaw.SessionRegistry},
 
+      # Phase 8: Telemetry (started early so all modules can emit)
+      {ExClaw.Telemetry.Supervisor,
+       logger_opts:
+         Application.get_env(:exclaw, ExClaw.Telemetry.Logger, [])
+         |> Keyword.put(:name, ExClaw.Telemetry.Logger)},
+
       # Phase 1: Security (built first via TDD)
       ExClaw.Security.Supervisor,
 
