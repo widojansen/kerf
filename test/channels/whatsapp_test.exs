@@ -4,6 +4,7 @@ defmodule ExClaw.Channels.WhatsAppTest do
   alias ExClaw.Channels.WhatsApp
   alias ExClaw.LLM.{Provider, RateLimiter}
   alias ExClaw.Memory.Store
+  alias ExClaw.Tools.Registry, as: ToolRegistry
 
   # --- Anthropic response helpers (same shape as CLITest) ---
 
@@ -77,6 +78,10 @@ defmodule ExClaw.Channels.WhatsAppTest do
 
     Ecto.Adapters.SQL.Sandbox.allow(ExClaw.Repo, self(), store_pid)
 
+    # Start a Tool Registry for tests (empty — no tools needed for basic tests)
+    tool_registry_name = :"test_tool_reg_wa_#{suffix}"
+    {:ok, _} = ToolRegistry.start_link(name: tool_registry_name)
+
     on_exit(fn ->
       File.rm_rf!(tmp_dir)
     end)
@@ -86,6 +91,7 @@ defmodule ExClaw.Channels.WhatsAppTest do
       registry: registry_name,
       agent_supervisor: sup_name,
       store: store_name,
+      tool_registry: tool_registry_name,
       tmp_dir: tmp_dir,
       group_id: Keyword.get(opts, :group_id, "wa_test_#{suffix}")
     }
@@ -312,6 +318,7 @@ defmodule ExClaw.Channels.WhatsAppTest do
           registry: infra.registry,
           provider: infra.provider,
           store: infra.store,
+          tool_registry: infra.tool_registry,
           model: "claude-sonnet-4-20250514",
           group_id_prefix: "wa",
           base_prompt: "You are a test bot."

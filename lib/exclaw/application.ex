@@ -31,6 +31,9 @@ defmodule ExClaw.Application do
            Application.get_env(:exclaw, ExClaw.Container.Manager, [])
            |> Keyword.put(:name, ExClaw.Container.Manager)},
 
+        # Phase 11: Tool Registry (ETS-backed, auto-registers builtins)
+        {ExClaw.Tools.Registry, name: ExClaw.Tools.Registry, register_builtins: true},
+
         # Phase 2: LLM Provider
         ExClaw.LLM.Supervisor,
 

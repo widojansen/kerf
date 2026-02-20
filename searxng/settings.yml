@@ -1,0 +1,10 @@
+server:
+  bind_address: "0.0.0.0"
+  port: 8080
+  secret_key: "exclaw-dev-only-key"
+
+search:
+  formats:
+    - html
+    - json
+  default_lang: "en"

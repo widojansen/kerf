@@ -56,6 +56,15 @@ config :exclaw, ExClaw.Container.Manager,
     user: "1000:1000"
   ]
 
+config :exclaw, ExClaw.Tools.WebFetch,
+  timeout: 15_000,
+  max_content_chars: 50_000,
+  user_agent: "ExClaw/0.1"
+
+config :exclaw, ExClaw.Tools.WebSearch,
+  searxng_url: "http://localhost:8080",
+  timeout: 10_000
+
 config :exclaw, ExClaw.Channels.WhatsApp,
   enabled: false,
   bridge_dir: "whatsapp-bridge",

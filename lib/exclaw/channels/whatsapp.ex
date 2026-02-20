@@ -139,6 +139,9 @@ defmodule ExClaw.Channels.WhatsApp do
     provider =
       Keyword.get(opts, :provider, ExClaw.LLM.Provider)
 
+    tool_registry =
+      Keyword.get(opts, :tool_registry, ExClaw.Tools.Registry)
+
     state = %{
       port: nil,
       status: :starting,
@@ -159,7 +162,8 @@ defmodule ExClaw.Channels.WhatsApp do
       agent_supervisor: agent_supervisor,
       registry: registry,
       store: store,
-      provider: provider
+      provider: provider,
+      tool_registry: tool_registry
     }
 
     port = open_port(state)
@@ -377,6 +381,7 @@ defmodule ExClaw.Channels.WhatsApp do
     model = state.config.model
     base_prompt = state.config.base_prompt
     store = state.store
+    tool_registry = state.tool_registry
 
     spawn(fn ->
       system_prompt = build_system_prompt_for_group(group_id, base_prompt, store)
@@ -391,7 +396,8 @@ defmodule ExClaw.Channels.WhatsApp do
         Dispatcher.build_executor(
           container_manager: ExClaw.Container.Manager,
           group_id: group_id,
-          workspaces_dir: workspaces_dir
+          workspaces_dir: workspaces_dir,
+          registry: tool_registry
         )
 
       session_opts = [
@@ -399,7 +405,7 @@ defmodule ExClaw.Channels.WhatsApp do
         model: model,
         system_prompt: system_prompt,
         tool_executor: tool_executor,
-        tools: Dispatcher.tool_definitions()
+        tools: Dispatcher.tool_definitions(registry: tool_registry)
       ]
 
       result = AgentSupervisor.handle_message(sup, registry, group_id, text, session_opts)

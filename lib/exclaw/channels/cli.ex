@@ -87,7 +87,7 @@ defmodule ExClaw.Channels.CLI do
         workspaces_dir: workspaces_dir
       ))
 
-    tools = Keyword.get(opts, :tools, Dispatcher.tool_definitions())
+    tools = Keyword.get_lazy(opts, :tools, fn -> Dispatcher.tool_definitions() end)
 
     session_opts =
       [provider: provider, model: model, tool_executor: tool_executor, tools: tools]

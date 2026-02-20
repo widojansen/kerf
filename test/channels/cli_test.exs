@@ -186,7 +186,8 @@ defmodule ExClaw.Channels.CLITest do
                  agent_supervisor: infra.agent_supervisor,
                  registry: infra.registry,
                  provider: infra.provider,
-                 model: "claude-sonnet-4-20250514"
+                 model: "claude-sonnet-4-20250514",
+                 tools: []
                )
     end
 
@@ -215,7 +216,8 @@ defmodule ExClaw.Channels.CLITest do
                  agent_supervisor: sup_name,
                  registry: registry_name,
                  provider: provider_name,
-                 model: "claude-sonnet-4-20250514"
+                 model: "claude-sonnet-4-20250514",
+                 tools: []
                )
 
       assert reason =~ "budget"
@@ -232,7 +234,8 @@ defmodule ExClaw.Channels.CLITest do
         agent_supervisor: infra.agent_supervisor,
         registry: infra.registry,
         provider: infra.provider,
-        model: "claude-sonnet-4-20250514"
+        model: "claude-sonnet-4-20250514",
+        tools: []
       ]
 
       assert {:respond, "First"} = CLI.process_input("Hello", infra.group_id, opts)

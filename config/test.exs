@@ -33,6 +33,14 @@ config :exclaw, ExClaw.Container.Manager,
   workspaces_dir: "priv/workspaces/test",
   exec_timeout: 5_000
 
+config :exclaw, ExClaw.Tools.WebFetch,
+  timeout: 5_000,
+  max_content_chars: 10_000
+
+config :exclaw, ExClaw.Tools.WebSearch,
+  searxng_url: "http://localhost:8080",
+  timeout: 5_000
+
 config :exclaw, ExClaw.Channels.WhatsApp,
   enabled: false
 
