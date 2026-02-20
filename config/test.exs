@@ -33,6 +33,9 @@ config :exclaw, ExClaw.Container.Manager,
   workspaces_dir: "priv/workspaces/test",
   exec_timeout: 5_000
 
+config :exclaw, ExClaw.Channels.WhatsApp,
+  enabled: false
+
 config :exclaw, ExClaw.Telemetry.Logger,
   enabled: false,
   ch_opts: nil

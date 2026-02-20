@@ -56,6 +56,16 @@ config :exclaw, ExClaw.Container.Manager,
     user: "1000:1000"
   ]
 
+config :exclaw, ExClaw.Channels.WhatsApp,
+  enabled: false,
+  bridge_dir: "whatsapp-bridge",
+  auth_dir: "priv/whatsapp_auth",
+  node_path: "node",
+  group_id_prefix: "wa",
+  mention_required_in_groups: true,
+  model: "claude-sonnet-4-20250514",
+  base_prompt: "You are ExClaw, a personal AI assistant on WhatsApp. Be concise and helpful. Keep responses under 4000 characters."
+
 config :exclaw, ExClaw.Telemetry.Logger,
   enabled: true,
   flush_interval_ms: 5_000,
