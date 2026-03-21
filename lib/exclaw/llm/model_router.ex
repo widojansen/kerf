@@ -3,7 +3,7 @@ defmodule ExClaw.LLM.ModelRouter do
   Routes LLM completion requests to the correct backend based on model name.
 
   Each route is a {regex, backend_name} tuple evaluated in order --
-  first match wins. Enables Anthropic + multiple Ollama models simultaneously
+  first match wins. Enables Anthropic + vLLM + Ollama simultaneously
   with zero changes to Session, CLI, or Scheduler callers.
   """
 
@@ -43,6 +43,7 @@ defmodule ExClaw.LLM.ModelRouter do
         {:ok, backend} -> dispatch(backend, model, messages, opts)
         :error         -> {:error, "no route for model: " <> model}
       end
+
     {:reply, result, state}
   end
 
@@ -65,21 +66,29 @@ defmodule ExClaw.LLM.ModelRouter do
     end
   end
 
+  # Dispatch to the correct provider module based on what's registered.
+  # All three providers share the same complete/4 API shape.
   defp dispatch(backend, model, messages, opts) do
-    if ollama_backend?(backend) do
-      ExClaw.LLM.OllamaProvider.complete(backend, model, messages, opts)
-    else
-      ExClaw.LLM.Provider.complete(backend, model, messages, opts)
+    case backend_module(backend) do
+      ExClaw.LLM.VLLMProvider ->
+        ExClaw.LLM.VLLMProvider.complete(backend, model, messages, opts)
+
+      ExClaw.LLM.OllamaProvider ->
+        ExClaw.LLM.OllamaProvider.complete(backend, model, messages, opts)
+
+      _ ->
+        ExClaw.LLM.Provider.complete(backend, model, messages, opts)
     end
   end
 
-  defp ollama_backend?(backend) do
+  # Detect the module of a registered GenServer by inspecting $initial_call.
+  defp backend_module(backend) do
     with pid when pid != nil <- Process.whereis(backend),
          {:dictionary, dict} <- Process.info(pid, :dictionary),
          {mod, _, _}         <- Keyword.get(dict, :"$initial_call") do
-      mod == ExClaw.LLM.OllamaProvider
+      mod
     else
-      _ -> false
+      _ -> nil
     end
   end
 end

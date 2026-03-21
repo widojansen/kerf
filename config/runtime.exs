@@ -4,17 +4,30 @@ import Config
 # Runtime configuration -- evaluated at startup, not compile time.
 # ---------------------------------------------------------------------------
 
-# When LLM_BACKEND=ollama, OllamaProvider starts and ModelRouter routes
-# local model names to it. Anthropic Provider is always started for
-# claude-* models. Both can run simultaneously -- 128GB unified RAM on
-# the Spark means qwen3:8b, qwen3:32b, deepseek-r1:32b can all be loaded.
+# LLM_BACKEND selects the local inference engine:
+#   "vllm"   -> VLLMProvider (OpenAI-compatible, production throughput)
+#   "ollama" -> OllamaProvider (legacy, single-user convenience)
+#   unset    -> Anthropic-only mode
+#
+# vLLM uses NVFP4-quantized HuggingFace models (e.g. nvidia/Qwen3-32B-NVFP4)
+# served via /v1/chat/completions on port 8000.
+# Ollama uses GGUF models served via /api/chat on port 11434.
 
-ollama_url =
-  if System.get_env("LLM_BACKEND") == "ollama" do
-    System.get_env("OLLAMA_URL", "http://localhost:11434")
-  end
+llm_backend = System.get_env("LLM_BACKEND")
 
-if ollama_url do
+if llm_backend == "vllm" do
+  vllm_url = System.get_env("VLLM_URL", "http://localhost:8000")
+
+  config :exclaw, ExClaw.LLM.VLLMProvider,
+    name: ExClaw.LLM.VLLMProvider,
+    base_url: vllm_url,
+    default_model: System.get_env("VLLM_MODEL", "nvidia/Qwen3-32B-NVFP4"),
+    default_max_tokens: 8192
+end
+
+if llm_backend == "ollama" do
+  ollama_url = System.get_env("OLLAMA_URL", "http://localhost:11434")
+
   config :exclaw, ExClaw.LLM.OllamaProvider,
     name: ExClaw.LLM.OllamaProvider,
     base_url: ollama_url,
@@ -28,7 +41,10 @@ if api_key = System.get_env("ANTHROPIC_API_KEY") do
 end
 
 # Default model for CLI and new Agent sessions.
-# Example: EXCLAW_DEFAULT_MODEL=qwen3:8b to use local inference by default.
+# Examples:
+#   EXCLAW_DEFAULT_MODEL=nvidia/Qwen3-32B-NVFP4  (vLLM)
+#   EXCLAW_DEFAULT_MODEL=qwen3:8b                 (Ollama)
+#   EXCLAW_DEFAULT_MODEL=claude-sonnet-4-6         (Anthropic)
 if model = System.get_env("EXCLAW_DEFAULT_MODEL") do
   config :exclaw, ExClaw.Channels.CLI, model: model
   config :exclaw, ExClaw.Scheduler, model: model
