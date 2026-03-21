@@ -2,40 +2,39 @@ import Config
 
 # ---------------------------------------------------------------------------
 # Runtime configuration -- evaluated at startup, not compile time.
-# Sensitive values and environment-specific overrides go here.
 # ---------------------------------------------------------------------------
 
-# LLM backend selection.
-# Set LLM_BACKEND=ollama in environment to use local Ollama instead of Anthropic.
-case System.get_env("LLM_BACKEND", "anthropic") do
-  "ollama" ->
-    config :exclaw, :llm_backend, :ollama
+# When LLM_BACKEND=ollama, OllamaProvider starts and ModelRouter routes
+# local model names to it. Anthropic Provider is always started for
+# claude-* models. Both can run simultaneously -- 128GB unified RAM on
+# the Spark means qwen3:8b, qwen3:32b, deepseek-r1:32b can all be loaded.
 
-    config :exclaw, ExClaw.LLM.OllamaProvider,
-      base_url: System.get_env("OLLAMA_URL", "http://localhost:11434"),
-      default_model: System.get_env("OLLAMA_MODEL", "qwen3:8b"),
-      default_max_tokens: 8192
+ollama_url =
+  if System.get_env("LLM_BACKEND") == "ollama" do
+    System.get_env("OLLAMA_URL", "http://localhost:11434")
+  end
 
-    config :exclaw, ExClaw.LLM.RateLimiter,
-      # Ollama is local -- no hard rate limits needed
-      max_requests_per_minute: 1000,
-      max_tokens_per_minute: 10_000_000
+if ollama_url do
+  config :exclaw, ExClaw.LLM.OllamaProvider,
+    name: ExClaw.LLM.OllamaProvider,
+    base_url: ollama_url,
+    default_model: System.get_env("OLLAMA_MODEL", "qwen3:8b"),
+    default_max_tokens: 8192
+end
 
-  _ ->
-    # Anthropic (default)
-    config :exclaw, :llm_backend, :anthropic
+# Anthropic API key -- only needed for claude-* models.
+if api_key = System.get_env("ANTHROPIC_API_KEY") do
+  config :exclaw, ExClaw.LLM.Provider, api_key: api_key
+end
 
-    if api_key = System.get_env("ANTHROPIC_API_KEY") do
-      config :exclaw, ExClaw.LLM.Provider, api_key: api_key
-    end
+# Default model for CLI and new Agent sessions.
+# Example: EXCLAW_DEFAULT_MODEL=qwen3:8b to use local inference by default.
+if model = System.get_env("EXCLAW_DEFAULT_MODEL") do
+  config :exclaw, ExClaw.Channels.CLI, model: model
+  config :exclaw, ExClaw.Scheduler, model: model
 end
 
 # Dashboard secret key base (required in prod).
 if secret = System.get_env("SECRET_KEY_BASE") do
   config :exclaw, ExClaw.Dashboard.Endpoint, secret_key_base: secret
-end
-
-# CLI group and model overrides.
-if model = System.get_env("EXCLAW_MODEL") do
-  config :exclaw, ExClaw.Channels.CLI, model: model
 end
