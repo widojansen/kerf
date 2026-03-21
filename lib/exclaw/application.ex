@@ -15,6 +15,8 @@ defmodule ExClaw.Application do
         ExClaw.Repo,
         {Phoenix.PubSub, name: ExClaw.PubSub},
         {Registry, keys: :unique, name: ExClaw.SessionRegistry},
+        # Task.Supervisor for async channel message handling
+        {Task.Supervisor, name: ExClaw.TaskSupervisor},
 
         # Phase 8: Telemetry (started early so all modules can emit)
         {ExClaw.Telemetry.Supervisor,
@@ -48,10 +50,24 @@ defmodule ExClaw.Application do
 
         # Phase 7: Dashboard
         ExClaw.Dashboard.Supervisor
-      ] ++ whatsapp_children()
+      ] ++ telegram_children() ++ whatsapp_children()
 
     opts = [strategy: :one_for_one, name: ExClaw.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+
+  defp telegram_children do
+    config = Application.get_env(:exclaw, ExClaw.Channels.Telegram, [])
+
+    if config[:enabled] do
+      [{ExClaw.Channels.Telegram.Supervisor,
+        telegram_opts:
+          config
+          |> Keyword.put(:name, ExClaw.Channels.Telegram)}]
+    else
+      []
+    end
   end
 
   defp whatsapp_children do

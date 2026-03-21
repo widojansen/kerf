@@ -50,6 +50,25 @@ if model = System.get_env("EXCLAW_DEFAULT_MODEL") do
   config :exclaw, ExClaw.Scheduler, model: model
 end
 
+
+# Telegram Bot channel.
+# TELEGRAM_BOT_TOKEN: token from @BotFather
+# TELEGRAM_ALLOW_FROM: comma-separated Telegram user IDs (empty = allow all)
+if telegram_token = System.get_env("TELEGRAM_BOT_TOKEN") do
+  allow_from =
+    case System.get_env("TELEGRAM_ALLOW_FROM", "") do
+      "" -> []
+      ids -> ids |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.map(&String.to_integer/1)
+    end
+
+  config :exclaw, ExClaw.Channels.Telegram,
+    enabled: true,
+    token: telegram_token,
+    allow_from: allow_from,
+    poll_interval: 1_000,
+    poll_timeout: 30
+end
+
 # Dashboard secret key base (required in prod).
 if secret = System.get_env("SECRET_KEY_BASE") do
   config :exclaw, ExClaw.Dashboard.Endpoint, secret_key_base: secret
