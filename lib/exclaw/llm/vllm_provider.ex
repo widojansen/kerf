@@ -199,6 +199,14 @@ defmodule ExClaw.LLM.VLLMProvider do
            usage: usage_map
          }}
 
+      [] ->
+        {:ok,
+         %{
+           type: :text,
+           content: Map.get(message, "content", ""),
+           usage: usage_map
+         }}
+
       tool_calls when is_list(tool_calls) ->
         calls =
           Enum.map(tool_calls, fn tc ->
