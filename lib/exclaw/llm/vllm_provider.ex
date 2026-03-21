@@ -110,11 +110,12 @@ defmodule ExClaw.LLM.VLLMProvider do
       stream: false
     }
 
-    # Add tools if provided (OpenAI function calling format).
+    # Add tools if provided. Convert from Anthropic format to OpenAI format
+    # if needed (Session sends Anthropic-style tool definitions).
     body =
       case Keyword.get(opts, :tools) do
         nil -> body
-        tools -> Map.put(body, :tools, tools)
+        tools -> Map.put(body, :tools, Enum.map(tools, &to_openai_tool/1))
       end
 
     # Add temperature if provided.
@@ -134,6 +135,27 @@ defmodule ExClaw.LLM.VLLMProvider do
       %{"role" => role, "content" => content} -> %{role: role, content: content}
       other -> other
     end)
+  end
+
+  # Convert Anthropic-style tool definition to OpenAI format.
+  # Anthropic: %{"name" => ..., "description" => ..., "input_schema" => ...}
+  # OpenAI:    %{"type" => "function", "function" => %{"name" => ..., "description" => ..., "parameters" => ...}}
+  defp to_openai_tool(%{"type" => "function", "function" => _} = tool), do: tool
+  defp to_openai_tool(%{type: "function", function: _} = tool), do: tool
+
+  defp to_openai_tool(tool) do
+    name = Map.get(tool, "name") || Map.get(tool, :name, "")
+    desc = Map.get(tool, "description") || Map.get(tool, :description, "")
+    schema = Map.get(tool, "input_schema") || Map.get(tool, :input_schema, %{})
+
+    %{
+      "type" => "function",
+      "function" => %{
+        "name" => name,
+        "description" => desc,
+        "parameters" => schema
+      }
+    }
   end
 
   defp make_request(req, body) do
