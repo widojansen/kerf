@@ -49,7 +49,7 @@ defmodule ExClaw.LLM.VLLMProvider do
       {"authorization", "Bearer #{api_key}"}
     ]
 
-    req_opts = [base_url: base_url, headers: headers]
+    req_opts = [base_url: base_url, headers: headers, receive_timeout: 120_000]
     req_opts = if adapter, do: Keyword.put(req_opts, :adapter, adapter), else: req_opts
 
     state = %{
