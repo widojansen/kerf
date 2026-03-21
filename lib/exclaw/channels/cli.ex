@@ -72,7 +72,7 @@ defmodule ExClaw.Channels.CLI do
     started_at = System.monotonic_time(:millisecond)
     sup = Keyword.get(opts, :agent_supervisor, AgentSupervisor)
     registry = Keyword.get(opts, :registry, ExClaw.SessionRegistry)
-    provider = Keyword.get(opts, :provider, ExClaw.LLM.Provider)
+    provider = Keyword.get(opts, :provider, ExClaw.LLM.ModelRouter)
     model = Keyword.get(opts, :model, "claude-sonnet-4-20250514")
     system_prompt = Keyword.get(opts, :system_prompt)
 

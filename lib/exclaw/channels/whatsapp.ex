@@ -137,7 +137,7 @@ defmodule ExClaw.Channels.WhatsApp do
       Keyword.get(opts, :store, Store)
 
     provider =
-      Keyword.get(opts, :provider, ExClaw.LLM.Provider)
+      Keyword.get(opts, :provider, ExClaw.LLM.ModelRouter)
 
     tool_registry =
       Keyword.get(opts, :tool_registry, ExClaw.Tools.Registry)
