@@ -1,5 +1,5 @@
 defmodule ExClaw.Memory.StoreTest do
-  use ExUnit.Case, async: false
+  use ExClaw.DataCase
 
   alias ExClaw.Memory.Store
   alias ExClaw.Memory.Fact
@@ -7,7 +7,6 @@ defmodule ExClaw.Memory.StoreTest do
 
   setup do
     # Set up Ecto Sandbox for this test process
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(ExClaw.Repo)
 
     # Use a unique temp dir for filesystem tests
     tmp_dir = Path.join(System.tmp_dir!(), "exclaw_test_#{System.unique_integer([:positive])}")
@@ -24,7 +23,7 @@ defmodule ExClaw.Memory.StoreTest do
       )
 
     # Allow the GenServer process to use the sandbox connection
-    Ecto.Adapters.SQL.Sandbox.allow(ExClaw.Repo, self(), pid)
+    allow_repo(pid)
 
     on_exit(fn ->
       File.rm_rf!(tmp_dir)

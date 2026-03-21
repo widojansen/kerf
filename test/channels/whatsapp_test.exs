@@ -1,5 +1,5 @@
 defmodule ExClaw.Channels.WhatsAppTest do
-  use ExUnit.Case, async: false
+  use ExClaw.DataCase
 
   alias ExClaw.Channels.WhatsApp
   alias ExClaw.LLM.{Provider, RateLimiter}
@@ -64,7 +64,6 @@ defmodule ExClaw.Channels.WhatsAppTest do
     {:ok, _} = Registry.start_link(keys: :unique, name: registry_name)
     {:ok, _} = ExClaw.Agent.Supervisor.start_link(name: sup_name)
 
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(ExClaw.Repo)
 
     tmp_dir = Path.join(System.tmp_dir!(), "exclaw_wa_test_#{suffix}")
     File.mkdir_p!(tmp_dir)
@@ -76,7 +75,7 @@ defmodule ExClaw.Channels.WhatsAppTest do
         repo: ExClaw.Repo
       )
 
-    Ecto.Adapters.SQL.Sandbox.allow(ExClaw.Repo, self(), store_pid)
+    allow_repo(store_pid)
 
     # Start a Tool Registry for tests (empty — no tools needed for basic tests)
     tool_registry_name = :"test_tool_reg_wa_#{suffix}"

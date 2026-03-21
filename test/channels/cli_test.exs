@@ -1,5 +1,5 @@
 defmodule ExClaw.Channels.CLITest do
-  use ExUnit.Case, async: false
+  use ExClaw.DataCase
 
   alias ExClaw.Channels.CLI
   alias ExClaw.LLM.{Provider, RateLimiter}
@@ -65,7 +65,6 @@ defmodule ExClaw.Channels.CLITest do
     {:ok, _} = ExClaw.Agent.Supervisor.start_link(name: sup_name)
 
     # Ecto sandbox + Store for persistence tests
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(ExClaw.Repo)
 
     tmp_dir = Path.join(System.tmp_dir!(), "exclaw_cli_test_#{suffix}")
     File.mkdir_p!(tmp_dir)
@@ -77,7 +76,7 @@ defmodule ExClaw.Channels.CLITest do
         repo: ExClaw.Repo
       )
 
-    Ecto.Adapters.SQL.Sandbox.allow(ExClaw.Repo, self(), store_pid)
+    allow_repo(store_pid)
 
     on_exit(fn ->
       File.rm_rf!(tmp_dir)

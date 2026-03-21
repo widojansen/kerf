@@ -1,11 +1,10 @@
 defmodule ExClaw.Scheduler.SupervisorTest do
-  use ExUnit.Case, async: false
+  use ExClaw.DataCase
 
   alias ExClaw.Scheduler.Supervisor, as: SchedulerSup
   alias ExClaw.Scheduler.Scheduler
 
   setup do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(ExClaw.Repo)
     Ecto.Adapters.SQL.Sandbox.mode(ExClaw.Repo, {:shared, self()})
 
     suffix = System.unique_integer([:positive])
@@ -89,7 +88,7 @@ defmodule ExClaw.Scheduler.SupervisorTest do
     # Allow the new process to use our sandbox
     new_pid = Process.whereis(scheduler_name)
     assert new_pid != nil
-    Ecto.Adapters.SQL.Sandbox.allow(ExClaw.Repo, self(), new_pid)
+    allow_repo(new_pid)
 
     # Task should be reloaded from DB
     assert {:ok, tasks} = Scheduler.list_tasks(scheduler_name)

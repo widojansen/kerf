@@ -1,11 +1,10 @@
 defmodule ExClaw.Scheduler.SchedulerTest do
-  use ExUnit.Case, async: false
+  use ExClaw.DataCase
 
   alias ExClaw.Scheduler.Scheduler
   alias ExClaw.Scheduler.ScheduledTask
 
   setup do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(ExClaw.Repo)
 
     # Unique names to avoid collisions between tests
     suffix = System.unique_integer([:positive])
@@ -61,8 +60,8 @@ defmodule ExClaw.Scheduler.SchedulerTest do
         rate_limiter: rate_limiter_name
       )
 
-    Ecto.Adapters.SQL.Sandbox.allow(ExClaw.Repo, self(), rl_pid)
-    Ecto.Adapters.SQL.Sandbox.allow(ExClaw.Repo, self(), prov_pid)
+    allow_repo(rl_pid)
+    allow_repo(prov_pid)
 
     {:ok, sched_pid} =
       Scheduler.start_link(
@@ -74,7 +73,7 @@ defmodule ExClaw.Scheduler.SchedulerTest do
         agent_opts: [provider: provider_name, model: "claude-sonnet-4-20250514", rate_limiter: rate_limiter_name]
       )
 
-    Ecto.Adapters.SQL.Sandbox.allow(ExClaw.Repo, self(), sched_pid)
+    allow_repo(sched_pid)
 
     %{
       scheduler: scheduler_name,

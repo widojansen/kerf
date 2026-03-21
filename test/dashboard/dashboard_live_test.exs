@@ -1,5 +1,6 @@
 defmodule ExClaw.Dashboard.DashboardLiveTest do
   use ExClaw.ConnCase, async: false
+  @moduletag :integration
 
   import Phoenix.LiveViewTest
 
