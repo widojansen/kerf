@@ -222,7 +222,7 @@ defmodule ExClaw.LLM.VLLMProvider do
             %{
               id: Map.get(tc, "id"),
               name: Map.get(func, "name"),
-              arguments: args
+              input: args
             }
           end)
 

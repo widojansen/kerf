@@ -202,7 +202,7 @@ defmodule ExClaw.LLM.VLLMProviderTest do
       assert length(result.calls) == 1
       [call] = result.calls
       assert call.name == "get_weather"
-      assert call.arguments == %{"city" => "Amsterdam"}
+      assert call.input == %{"city" => "Amsterdam"}
     end
 
     test "handles API error response" do
