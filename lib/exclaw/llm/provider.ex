@@ -15,7 +15,7 @@ defmodule ExClaw.LLM.Provider do
   end
 
   def complete(name \\ __MODULE__, model, messages, opts \\ []) do
-    GenServer.call(name, {:complete, model, messages, opts}, 30_000)
+    GenServer.call(name, {:complete, model, messages, opts}, 180_000)
   end
 
   # --- GenServer callbacks ---

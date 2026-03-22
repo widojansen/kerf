@@ -24,7 +24,7 @@ defmodule ExClaw.Agent.Session do
   end
 
   def send_message(pid, message) do
-    GenServer.call(pid, {:message, message}, 60_000)
+    GenServer.call(pid, {:message, message}, 180_000)
   end
 
   def get_info(pid) do
