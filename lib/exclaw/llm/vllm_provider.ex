@@ -128,14 +128,73 @@ defmodule ExClaw.LLM.VLLMProvider do
     Jason.encode!(body)
   end
 
-  # Accept both atom-keyed maps and string-keyed maps.
+  # Convert messages from Anthropic format (used by Session) to OpenAI format.
+  # Handles: plain text messages, tool_use assistant messages, tool_result user messages.
   defp normalise_messages(messages) do
-    Enum.map(messages, fn
-      %{role: role, content: content} -> %{role: to_string(role), content: content}
-      %{"role" => role, "content" => content} -> %{role: role, content: content}
-      other -> other
-    end)
+    Enum.flat_map(messages, fn msg -> convert_message(msg) end)
   end
+
+  # Plain text message (string content)
+  defp convert_message(%{role: role, content: content}) when is_binary(content) do
+    [%{role: to_string(role), content: content}]
+  end
+
+  defp convert_message(%{"role" => role, "content" => content}) when is_binary(content) do
+    [%{role: role, content: content}]
+  end
+
+  # Anthropic assistant tool_use message -> OpenAI assistant with tool_calls
+  defp convert_message(%{role: "assistant", content: content}) when is_list(content) do
+    tool_calls =
+      content
+      |> Enum.filter(fn item -> is_map(item) and Map.get(item, :type) == "tool_use" end)
+      |> Enum.map(fn call ->
+        %{
+          id: call.id,
+          type: "function",
+          function: %{
+            name: call.name,
+            arguments: Jason.encode!(call.input || %{})
+          }
+        }
+      end)
+
+    if tool_calls == [] do
+      # Content list without tool_use — extract text
+      text = content |> Enum.map_join("
+", fn
+        %{text: t} -> t
+        %{"text" => t} -> t
+        _ -> ""
+      end)
+      [%{role: "assistant", content: text}]
+    else
+      [%{role: "assistant", content: nil, tool_calls: tool_calls}]
+    end
+  end
+
+  # Anthropic user tool_result message -> OpenAI tool messages (one per result)
+  defp convert_message(%{role: "user", content: content}) when is_list(content) do
+    results =
+      content
+      |> Enum.filter(fn item -> is_map(item) and Map.get(item, :type) == "tool_result" end)
+
+    if results == [] do
+      # Regular user message with list content — shouldn't happen but handle gracefully
+      [%{role: "user", content: inspect(content)}]
+    else
+      Enum.map(results, fn result ->
+        %{
+          role: "tool",
+          tool_call_id: result.tool_use_id,
+          content: to_string(result.content)
+        }
+      end)
+    end
+  end
+
+  # Fallback
+  defp convert_message(other), do: [other]
 
   # Convert Anthropic-style tool definition to OpenAI format.
   # Anthropic: %{"name" => ..., "description" => ..., "input_schema" => ...}
