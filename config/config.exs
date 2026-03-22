@@ -3,7 +3,8 @@ import Config
 config :exclaw, ecto_repos: [ExClaw.Repo]
 
 config :exclaw, ExClaw.Repo,
-  database: "priv/exclaw_#{config_env()}.db"
+  types: ExClaw.PostgrexTypes
+
 
 config :exclaw, ExClaw.LLM.Provider,
   api_key: {:system, "ANTHROPIC_API_KEY"},

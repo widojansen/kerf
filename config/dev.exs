@@ -1,7 +1,11 @@
 import Config
 
 config :exclaw, ExClaw.Repo,
-  database: "priv/exclaw_dev.db"
+  database: "exclaw_dev",
+  hostname: "localhost",
+  port: 5432,
+  show_sensitive_data_on_connection_error: true,
+  pool_size: 10
 
 config :exclaw, ExClaw.Dashboard.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4000],

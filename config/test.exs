@@ -1,7 +1,9 @@
 import Config
 
 config :exclaw, ExClaw.Repo,
-  database: "priv/exclaw_test.db",
+  database: "exclaw_test",
+  hostname: "localhost",
+  port: 5432,
   pool: Ecto.Adapters.SQL.Sandbox
 
 config :exclaw, ExClaw.LLM.Provider,

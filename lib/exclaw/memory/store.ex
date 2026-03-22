@@ -91,8 +91,8 @@ defmodule ExClaw.Memory.Store do
         from(f in Fact,
           where:
             f.group_id == ^group_id and
-              (fragment("? LIKE ? ESCAPE '\\'", f.key, ^pattern) or
-                 fragment("? LIKE ? ESCAPE '\\'", f.value, ^pattern)),
+              (fragment("? ILIKE ? ESCAPE '\\'", f.key, ^pattern) or
+                 fragment("? ILIKE ? ESCAPE '\\'", f.value, ^pattern)),
           order_by: f.key
         )
         |> state.repo.all()

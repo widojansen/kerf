@@ -26,7 +26,9 @@ defmodule ExClaw.MixProject do
   defp deps do
     [
       # Core
-      {:ecto_sqlite3, "~> 0.17"},
+      {:ecto_sql, "~> 3.12"},
+      {:postgrex, "~> 0.19"},
+      {:pgvector, "~> 0.3"},
       {:jason, "~> 1.4"},
       {:req, "~> 0.5"},
 
