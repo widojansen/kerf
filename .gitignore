@@ -31,7 +31,7 @@ exclaw-*.tar
 secrets/
 
 # SQLite databases (dev/test — keep prod DB path in config, not here)
-*.db
+*.db*
 *.sqlite
 *.sqlite3
 
