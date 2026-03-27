@@ -47,6 +47,7 @@ end
 #   EXCLAW_DEFAULT_MODEL=claude-sonnet-4-6         (Anthropic)
 if model = System.get_env("EXCLAW_DEFAULT_MODEL") do
   config :exclaw, ExClaw.Channels.CLI, model: model
+  config :exclaw, ExClaw.Channels.Telegram, model: model
   config :exclaw, ExClaw.Scheduler, model: model
 end
 

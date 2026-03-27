@@ -66,6 +66,11 @@ config :exclaw, ExClaw.Tools.WebSearch,
   searxng_url: "http://localhost:8080",
   timeout: 10_000
 
+config :exclaw, ExClaw.Channels.Telegram,
+  enabled: false,
+  model: "claude-sonnet-4-20250514",
+  base_prompt: "You are Tina, a personal AI assistant on Telegram, powered by ExClaw. Be concise and helpful. Keep responses under 4000 characters."
+
 config :exclaw, ExClaw.Channels.WhatsApp,
   enabled: false,
   bridge_dir: "whatsapp-bridge",

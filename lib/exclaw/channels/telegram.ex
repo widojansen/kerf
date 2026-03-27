@@ -80,6 +80,14 @@ defmodule ExClaw.Channels.Telegram do
   def authorized?(_user_id, []), do: true
   def authorized?(user_id, allow_from), do: user_id in allow_from
 
+  @doc "Build system prompt from base_prompt and optional group memory content."
+  def build_system_prompt(base_prompt, nil), do: base_prompt
+  def build_system_prompt(base_prompt, ""), do: base_prompt
+
+  def build_system_prompt(base_prompt, memory_content) do
+    base_prompt <> "\n\n## Group Memory\n\n" <> memory_content
+  end
+
   @doc "Strip <think>...</think> tags from model responses."
   def strip_thinking(text) do
     text
@@ -255,9 +263,16 @@ defmodule ExClaw.Channels.Telegram do
   end
 
   defp build_session_opts(group_id) do
-    model = Application.get_env(:exclaw, __MODULE__, [])[:model] ||
+    config = Application.get_env(:exclaw, __MODULE__, [])
+
+    model = config[:model] ||
             Application.get_env(:exclaw, ExClaw.Channels.CLI, [])[:model] ||
             "claude-sonnet-4-20250514"
+
+    base_prompt = config[:base_prompt] ||
+      "You are Tina, a personal AI assistant on Telegram, powered by ExClaw. Be concise and helpful. Keep responses under 4000 characters."
+
+    system_prompt = load_system_prompt(group_id, base_prompt)
 
     container_manager = ExClaw.Container.Manager
     workspaces_dir =
@@ -272,7 +287,22 @@ defmodule ExClaw.Channels.Telegram do
 
     tools = Dispatcher.tool_definitions()
 
-    [provider: ExClaw.LLM.ModelRouter, model: model, tool_executor: tool_executor, tools: tools]
+    [provider: ExClaw.LLM.ModelRouter, model: model, system_prompt: system_prompt, tool_executor: tool_executor, tools: tools]
+  end
+
+  defp load_system_prompt(group_id, base_prompt) do
+    memory_content =
+      try do
+        case Store.load_group(ExClaw.Memory.Store, group_id) do
+          {:ok, ""} -> nil
+          {:ok, content} -> content
+          {:error, _} -> nil
+        end
+      catch
+        :exit, _ -> nil
+      end
+
+    build_system_prompt(base_prompt, memory_content)
   end
 
   defp send_telegram_message(token, chat_id, text, http_client) do

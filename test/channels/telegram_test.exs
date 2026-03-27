@@ -102,6 +102,25 @@ defmodule ExClaw.Channels.TelegramTest do
     end
   end
 
+  describe "build_system_prompt/2" do
+    test "returns base_prompt when no group memory" do
+      prompt = Telegram.build_system_prompt("You are Tina.", nil)
+      assert prompt == "You are Tina."
+    end
+
+    test "returns base_prompt when group memory is empty string" do
+      prompt = Telegram.build_system_prompt("You are Tina.", "")
+      assert prompt == "You are Tina."
+    end
+
+    test "appends group memory to base_prompt" do
+      prompt = Telegram.build_system_prompt("You are Tina.", "User prefers Dutch greetings")
+      assert prompt =~ "You are Tina."
+      assert prompt =~ "Group Memory"
+      assert prompt =~ "User prefers Dutch greetings"
+    end
+  end
+
   describe "parse_updates_response/1" do
     test "parses successful getUpdates response" do
       body = %{
