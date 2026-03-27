@@ -22,7 +22,7 @@ config :exclaw, ExClaw.Memory.Store,
 
 config :exclaw, ExClaw.Memory.Embedder,
   base_url: "http://localhost:11434",
-  model: "nomic-embed-text"
+  model: "bge-m3"
 
 config :exclaw, ExClaw.Channels.CLI,
   group_id: "cli",

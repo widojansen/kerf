@@ -325,13 +325,19 @@ defmodule ExClaw.Memory.StoreTest do
 
       # Start a mock embedder that returns a deterministic 768-dim vector
       embedder_name = :"embedder_#{System.unique_integer([:positive])}"
-      fake_vector = Enum.map(1..768, fn i -> i / 768.0 end)
+      fake_vector = Enum.map(1..1024, fn i -> i / 1024.0 end)
 
       {:ok, _} =
         Embedder.start_link(
           name: embedder_name,
           adapter: fn request ->
-            {request, Req.Response.json(%{"embeddings" => [fake_vector]})}
+            resp = %{
+              "data" => [%{"embedding" => fake_vector, "index" => 0, "object" => "embedding"}],
+              "model" => "nomic-embed-text",
+              "object" => "list"
+            }
+
+            {request, Req.Response.json(resp)}
           end
         )
 
@@ -364,7 +370,7 @@ defmodule ExClaw.Memory.StoreTest do
 
       updated = ExClaw.Repo.get!(Fact, fact.id)
       assert %Pgvector{} = updated.embedding
-      assert length(Pgvector.to_list(updated.embedding)) == 768
+      assert length(Pgvector.to_list(updated.embedding)) == 1024
     end
 
     test "populates embedding on saved user message", %{store: store} do
@@ -374,7 +380,7 @@ defmodule ExClaw.Memory.StoreTest do
 
       updated = ExClaw.Repo.get!(Message, msg.id)
       assert %Pgvector{} = updated.embedding
-      assert length(Pgvector.to_list(updated.embedding)) == 768
+      assert length(Pgvector.to_list(updated.embedding)) == 1024
     end
 
     test "populates embedding on saved assistant message", %{store: store} do
@@ -429,7 +435,14 @@ defmodule ExClaw.Memory.StoreTest do
             body = Jason.decode!(request.body)
             input = body["input"]
             vector = deterministic_vector(input)
-            {request, Req.Response.json(%{"embeddings" => [vector]})}
+
+            resp = %{
+              "data" => [%{"embedding" => vector, "index" => 0, "object" => "embedding"}],
+              "model" => "nomic-embed-text",
+              "object" => "list"
+            }
+
+            {request, Req.Response.json(resp)}
           end
         )
 
@@ -528,7 +541,7 @@ defmodule ExClaw.Memory.StoreTest do
     rng = :rand.seed_s(:exsss, {seed, seed + 1, seed + 2})
 
     {vector, _} =
-      Enum.map_reduce(1..768, rng, fn _, state ->
+      Enum.map_reduce(1..1024, rng, fn _, state ->
         {val, new_state} = :rand.uniform_s(state)
         {val, new_state}
       end)

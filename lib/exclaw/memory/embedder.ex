@@ -1,15 +1,37 @@
 defmodule ExClaw.Memory.Embedder do
   @moduledoc """
-  Generates text embeddings via Ollama's /api/embed endpoint.
+  Generates text embeddings via an OpenAI-compatible /v1/embeddings endpoint.
 
-  Uses nomic-embed-text by default (768-dim vectors). Same HTTP client
+  Designed for Hugging Face TEI (Text Embeddings Inference) but works with
+  any OpenAI-compatible embedding service (vLLM --task embed, etc.).
+
+  Uses BAAI/bge-m3 by default (1024-dim vectors, multilingual incl. Dutch).
+  Connects to any OpenAI-compatible /v1/embeddings endpoint. Same HTTP client
   injection pattern as the LLM providers for testability.
 
   ## Configuration
 
       config :exclaw, ExClaw.Memory.Embedder,
         base_url: "http://localhost:11434",
-        model: "nomic-embed-text"
+        model: "bge-m3"
+
+  ## Backends
+
+  **Ollama (default, ARM64-compatible):**
+
+      ollama pull bge-m3
+
+  **TEI (x86_64 only — no ARM64 images as of 2026-03):**
+
+      docker run -p 8090:80 ghcr.io/huggingface/text-embeddings-inference:latest \\
+        --model-id BAAI/bge-m3
+      # Then set EMBEDDING_URL=http://localhost:8090
+
+  **vLLM (GPU-accelerated, for high-throughput batch embedding):**
+
+      vllm serve BAAI/bge-m3 --task embed --port 8001 \\
+        --hf-overrides '{"architectures": ["BgeM3EmbeddingModel"]}'
+      # Then set EMBEDDING_URL=http://localhost:8001
   """
 
   use GenServer
@@ -38,7 +60,7 @@ defmodule ExClaw.Memory.Embedder do
   def init(opts) do
     config = Application.get_env(:exclaw, __MODULE__, [])
 
-    base_url = Keyword.get(opts, :base_url) || Keyword.get(config, :base_url, "http://localhost:11434")
+    base_url = Keyword.get(opts, :base_url) || Keyword.get(config, :base_url, "http://localhost:8090")
     model = Keyword.get(opts, :model) || Keyword.get(config, :model, "nomic-embed-text")
     adapter = Keyword.get(opts, :adapter)
 
@@ -92,22 +114,32 @@ defmodule ExClaw.Memory.Embedder do
 
   defp make_request(req, body) do
     try do
-      case Req.post(req, url: "/api/embed", body: body) do
-        {:ok, %Req.Response{status: 200, body: %{"embeddings" => embeddings}}}
-        when is_list(embeddings) ->
+      case Req.post(req, url: "/v1/embeddings", body: body) do
+        {:ok, %Req.Response{status: 200, body: %{"data" => data}}}
+        when is_list(data) ->
+          embeddings =
+            data
+            |> Enum.sort_by(& &1["index"])
+            |> Enum.map(& &1["embedding"])
+
           {:ok, embeddings}
 
         {:ok, %Req.Response{status: 200, body: body}} when is_binary(body) ->
           case Jason.decode(body) do
-            {:ok, %{"embeddings" => embeddings}} when is_list(embeddings) ->
+            {:ok, %{"data" => data}} when is_list(data) ->
+              embeddings =
+                data
+                |> Enum.sort_by(& &1["index"])
+                |> Enum.map(& &1["embedding"])
+
               {:ok, embeddings}
 
             _ ->
-              {:error, "malformed response: missing embeddings"}
+              {:error, "malformed response: missing data"}
           end
 
         {:ok, %Req.Response{status: 200, body: _}} ->
-          {:error, "malformed response: missing embeddings"}
+          {:error, "malformed response: missing data"}
 
         {:ok, %Req.Response{status: status, body: body}} ->
           reason = if is_binary(body), do: body, else: inspect(body)

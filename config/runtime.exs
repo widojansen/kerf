@@ -36,12 +36,26 @@ if llm_backend == "ollama" do
 end
 
 # Embedding service -- defaults to Ollama on localhost:11434.
-# EMBEDDING_URL: override if embedder runs on a different host/port
-# EMBEDDING_MODEL: override model name (default: nomic-embed-text)
+# Uses OpenAI-compatible /v1/embeddings endpoint (Ollama, TEI, vLLM all support this).
+# EMBEDDING_URL: base URL of the embedding service
+# EMBEDDING_MODEL: override model name (default: bge-m3)
+#
+# Default (Ollama, already installed):
+#   ollama pull bge-m3
+#
+# Alternative (TEI, x86_64 only — no ARM64 images as of 2026-03):
+#   docker run -p 8090:80 ghcr.io/huggingface/text-embeddings-inference:latest \
+#     --model-id BAAI/bge-m3
+#   Then set EMBEDDING_URL=http://localhost:8090
+#
+# Alternative (vLLM --task embed, GPU-accelerated):
+#   vllm serve BAAI/bge-m3 --task embed --port 8001 \
+#     --hf-overrides '{"architectures": ["BgeM3EmbeddingModel"]}'
+#   Then set EMBEDDING_URL=http://localhost:8001
 if embedding_url = System.get_env("EMBEDDING_URL") do
   config :exclaw, ExClaw.Memory.Embedder,
     base_url: embedding_url,
-    model: System.get_env("EMBEDDING_MODEL", "nomic-embed-text")
+    model: System.get_env("EMBEDDING_MODEL", "bge-m3")
 end
 
 # Anthropic API key -- only needed for claude-* models.
