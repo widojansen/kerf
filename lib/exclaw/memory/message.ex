@@ -10,12 +10,13 @@ defmodule ExClaw.Memory.Message do
     field :content, :string
     field :tool_name, :string
     field :tool_input, :string
+    field :embedding, Pgvector.Ecto.Vector
 
     timestamps()
   end
 
   @required_fields ~w(group_id role)a
-  @optional_fields ~w(content tool_name tool_input)a
+  @optional_fields ~w(content tool_name tool_input embedding)a
 
   def changeset(message, attrs) do
     message

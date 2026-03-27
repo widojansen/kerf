@@ -43,6 +43,9 @@ config :exclaw, ExClaw.Tools.WebSearch,
   searxng_url: "http://localhost:8080",
   timeout: 5_000
 
+config :exclaw, ExClaw.Memory.Embedder,
+  enabled: false
+
 config :exclaw, ExClaw.Channels.WhatsApp,
   enabled: false
 

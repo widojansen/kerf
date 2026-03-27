@@ -1,9 +1,9 @@
 defmodule ExClaw.Memory.Store do
   use GenServer
 
-  alias ExClaw.Memory.Fact
-  alias ExClaw.Memory.Message
+  alias ExClaw.Memory.{Fact, Message, Embedder}
   import Ecto.Query
+  require Logger
 
   # ── Client API ──
 
@@ -36,6 +36,9 @@ defmodule ExClaw.Memory.Store do
   def get_messages(name \\ __MODULE__, group_id, opts \\ []),
     do: GenServer.call(name, {:get_messages, group_id, opts})
 
+  def semantic_search(name \\ __MODULE__, group_id, query_text, opts \\ []),
+    do: GenServer.call(name, {:semantic_search, group_id, query_text, opts}, 30_000)
+
   # ── GenServer Callbacks ──
 
   @impl true
@@ -47,8 +50,10 @@ defmodule ExClaw.Memory.Store do
 
     data_dir = Path.expand(data_dir)
     repo = Keyword.get(opts, :repo, ExClaw.Repo)
+    embedder = Keyword.get(opts, :embedder)
+    task_supervisor = Keyword.get(opts, :task_supervisor)
 
-    {:ok, %{data_dir: data_dir, repo: repo}}
+    {:ok, %{data_dir: data_dir, repo: repo, embedder: embedder, task_supervisor: task_supervisor}}
   end
 
   # ── Facts ──
@@ -66,6 +71,11 @@ defmodule ExClaw.Memory.Store do
         returning: true
       )
     end)
+
+    case result do
+      {:ok, fact} -> maybe_embed_async(state, Fact, fact.id, "#{key}: #{value}")
+      _ -> :ok
+    end
 
     {:reply, result, state}
   end
@@ -169,6 +179,15 @@ defmodule ExClaw.Memory.Store do
       |> state.repo.insert()
     end)
 
+    # Only embed user and assistant messages with non-empty content
+    case result do
+      {:ok, msg} when role in ["user", "assistant"] and is_binary(content) and content != "" ->
+        maybe_embed_async(state, Message, msg.id, content)
+
+      _ ->
+        :ok
+    end
+
     {:reply, result, state}
   end
 
@@ -192,7 +211,121 @@ defmodule ExClaw.Memory.Store do
     {:reply, result, state}
   end
 
+  def handle_call({:semantic_search, group_id, query_text, opts}, _from, state) do
+    result = timed_op("semantic_search", group_id, fn ->
+      do_semantic_search(group_id, query_text, opts, state)
+    end)
+
+    {:reply, result, state}
+  end
+
+  # Swallow async task completion messages
+  @impl true
+  def handle_info({ref, _result}, state) when is_reference(ref) do
+    Process.demonitor(ref, [:flush])
+    {:noreply, state}
+  end
+
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
+    {:noreply, state}
+  end
+
   # ── Private Helpers ──
+
+  defp do_semantic_search(group_id, query_text, opts, state) do
+    case state.embedder do
+      nil ->
+        {:error, "embedder not configured"}
+
+      embedder ->
+        case Embedder.embed(embedder, query_text) do
+          {:ok, query_vector} ->
+            limit = Keyword.get(opts, :limit, 10)
+            threshold = Keyword.get(opts, :threshold, 0.3)
+            max_distance = 1.0 - threshold
+
+            search_type = Keyword.get(opts, :search_type, :facts)
+            do_vector_query(group_id, query_vector, limit, max_distance, search_type, state)
+
+          {:error, reason} ->
+            {:error, "embedding query failed: #{inspect(reason)}"}
+        end
+    end
+  end
+
+  defp do_vector_query(group_id, query_vector, limit, max_distance, :facts, state) do
+    pgvector = Pgvector.new(query_vector)
+
+    results =
+      from(f in Fact,
+        where: f.group_id == ^group_id and not is_nil(f.embedding),
+        where: fragment("? <=> ? < ?", f.embedding, ^pgvector, ^max_distance),
+        order_by: fragment("? <=> ?", f.embedding, ^pgvector),
+        limit: ^limit,
+        select: {f, fragment("1.0 - (? <=> ?)", f.embedding, ^pgvector)}
+      )
+      |> state.repo.all()
+      |> Enum.map(fn {fact, similarity} -> %{record: fact, similarity: similarity} end)
+
+    {:ok, results}
+  end
+
+  defp do_vector_query(group_id, query_vector, limit, max_distance, :messages, state) do
+    pgvector = Pgvector.new(query_vector)
+
+    results =
+      from(m in Message,
+        where: m.group_id == ^group_id and not is_nil(m.embedding),
+        where: fragment("? <=> ? < ?", m.embedding, ^pgvector, ^max_distance),
+        order_by: fragment("? <=> ?", m.embedding, ^pgvector),
+        limit: ^limit,
+        select: {m, fragment("1.0 - (? <=> ?)", m.embedding, ^pgvector)}
+      )
+      |> state.repo.all()
+      |> Enum.map(fn {msg, similarity} -> %{record: msg, similarity: similarity} end)
+
+    {:ok, results}
+  end
+
+  defp do_vector_query(group_id, query_vector, limit, max_distance, :all, state) do
+    {:ok, facts} = do_vector_query(group_id, query_vector, limit, max_distance, :facts, state)
+    {:ok, messages} = do_vector_query(group_id, query_vector, limit, max_distance, :messages, state)
+
+    combined =
+      (facts ++ messages)
+      |> Enum.sort_by(& &1.similarity, :desc)
+      |> Enum.take(limit)
+
+    {:ok, combined}
+  end
+
+  defp maybe_embed_async(%{embedder: nil}, _schema, _id, _text), do: :ok
+  defp maybe_embed_async(%{task_supervisor: nil}, _schema, _id, _text), do: :ok
+
+  defp maybe_embed_async(state, schema, id, text) do
+    %{embedder: embedder, task_supervisor: task_sup, repo: repo} = state
+
+    try do
+      Task.Supervisor.start_child(task_sup, fn ->
+        try do
+          case Embedder.embed(embedder, text) do
+            {:ok, vector} ->
+              schema
+              |> struct!(id: id)
+              |> Ecto.Changeset.change(embedding: vector)
+              |> repo.update()
+
+            {:error, reason} ->
+              Logger.warning("Embedding failed: #{inspect(reason)}")
+          end
+        rescue
+          e -> Logger.warning("Embedding task error: #{Exception.message(e)}")
+        end
+      end)
+    catch
+      :exit, _ -> :ok
+    end
+  end
 
   defp sanitize_group_id(group_id) do
     group_id

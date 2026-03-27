@@ -35,6 +35,15 @@ if llm_backend == "ollama" do
     default_max_tokens: 8192
 end
 
+# Embedding service -- defaults to Ollama on localhost:11434.
+# EMBEDDING_URL: override if embedder runs on a different host/port
+# EMBEDDING_MODEL: override model name (default: nomic-embed-text)
+if embedding_url = System.get_env("EMBEDDING_URL") do
+  config :exclaw, ExClaw.Memory.Embedder,
+    base_url: embedding_url,
+    model: System.get_env("EMBEDDING_MODEL", "nomic-embed-text")
+end
+
 # Anthropic API key -- only needed for claude-* models.
 if api_key = System.get_env("ANTHROPIC_API_KEY") do
   config :exclaw, ExClaw.LLM.Provider, api_key: api_key

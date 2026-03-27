@@ -4,6 +4,7 @@ defmodule ExClaw.Memory.StoreTest do
   alias ExClaw.Memory.Store
   alias ExClaw.Memory.Fact
   alias ExClaw.Memory.Message
+  alias ExClaw.Memory.Embedder
 
   setup do
     # Set up Ecto Sandbox for this test process
@@ -310,5 +311,228 @@ defmodule ExClaw.Memory.StoreTest do
     test "returns empty list for unknown group", %{store: store} do
       assert {:ok, []} = Store.get_messages(store, "nonexistent")
     end
+  end
+
+  # ── Async Embedding ──
+
+  describe "async embedding" do
+    setup do
+      # Use shared sandbox so async tasks can access the DB
+      Ecto.Adapters.SQL.Sandbox.mode(ExClaw.Repo, {:shared, self()})
+
+      tmp_dir = Path.join(System.tmp_dir!(), "exclaw_embed_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+
+      # Start a mock embedder that returns a deterministic 768-dim vector
+      embedder_name = :"embedder_#{System.unique_integer([:positive])}"
+      fake_vector = Enum.map(1..768, fn i -> i / 768.0 end)
+
+      {:ok, _} =
+        Embedder.start_link(
+          name: embedder_name,
+          adapter: fn request ->
+            {request, Req.Response.json(%{"embeddings" => [fake_vector]})}
+          end
+        )
+
+      # Start a Task.Supervisor for async embedding
+      task_sup = :"task_sup_#{System.unique_integer([:positive])}"
+      {:ok, _} = Task.Supervisor.start_link(name: task_sup)
+
+      store_name = :"store_embed_#{System.unique_integer([:positive])}"
+
+      {:ok, pid} =
+        Store.start_link(
+          name: store_name,
+          data_dir: tmp_dir,
+          repo: ExClaw.Repo,
+          embedder: embedder_name,
+          task_supervisor: task_sup
+        )
+
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      %{store: store_name, embedder: embedder_name, fake_vector: fake_vector}
+    end
+
+    test "populates embedding on saved fact", %{store: store} do
+      {:ok, fact} = Store.save_fact(store, "group1", "name", "Alice")
+      assert fact.embedding == nil
+
+      # Wait for async embedding task
+      Process.sleep(200)
+
+      updated = ExClaw.Repo.get!(Fact, fact.id)
+      assert %Pgvector{} = updated.embedding
+      assert length(Pgvector.to_list(updated.embedding)) == 768
+    end
+
+    test "populates embedding on saved user message", %{store: store} do
+      {:ok, msg} = Store.save_message(store, "group1", "user", "Hello world")
+
+      Process.sleep(200)
+
+      updated = ExClaw.Repo.get!(Message, msg.id)
+      assert %Pgvector{} = updated.embedding
+      assert length(Pgvector.to_list(updated.embedding)) == 768
+    end
+
+    test "populates embedding on saved assistant message", %{store: store} do
+      {:ok, msg} = Store.save_message(store, "group1", "assistant", "Hi there!")
+
+      Process.sleep(200)
+
+      updated = ExClaw.Repo.get!(Message, msg.id)
+      assert %Pgvector{} = updated.embedding
+    end
+
+    test "skips embedding for tool messages", %{store: store} do
+      {:ok, msg} =
+        Store.save_message(store, "group1", "tool", "result data",
+          tool_name: "shell_exec",
+          tool_input: %{"command" => "ls"}
+        )
+
+      Process.sleep(200)
+
+      updated = ExClaw.Repo.get!(Message, msg.id)
+      assert updated.embedding == nil
+    end
+
+    test "skips embedding for nil/empty content messages", %{store: store} do
+      {:ok, msg} = Store.save_message(store, "group1", "user", nil)
+
+      Process.sleep(200)
+
+      updated = ExClaw.Repo.get!(Message, msg.id)
+      assert updated.embedding == nil
+    end
+  end
+
+  # ── Semantic Search ──
+
+  describe "semantic_search/4" do
+    setup do
+      Ecto.Adapters.SQL.Sandbox.mode(ExClaw.Repo, {:shared, self()})
+
+      tmp_dir = Path.join(System.tmp_dir!(), "exclaw_search_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+
+      # Embedder that returns different vectors based on input text hash
+      # This gives us deterministic but distinct vectors for different texts
+      embedder_name = :"search_embedder_#{System.unique_integer([:positive])}"
+
+      {:ok, _} =
+        Embedder.start_link(
+          name: embedder_name,
+          adapter: fn request ->
+            body = Jason.decode!(request.body)
+            input = body["input"]
+            vector = deterministic_vector(input)
+            {request, Req.Response.json(%{"embeddings" => [vector]})}
+          end
+        )
+
+      task_sup = :"search_task_sup_#{System.unique_integer([:positive])}"
+      {:ok, _} = Task.Supervisor.start_link(name: task_sup)
+
+      store_name = :"store_search_#{System.unique_integer([:positive])}"
+
+      {:ok, _} =
+        Store.start_link(
+          name: store_name,
+          data_dir: tmp_dir,
+          repo: ExClaw.Repo,
+          embedder: embedder_name,
+          task_supervisor: task_sup
+        )
+
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      %{store: store_name, embedder: embedder_name}
+    end
+
+    test "returns facts ordered by similarity", %{store: store} do
+      {:ok, _} = Store.save_fact(store, "group1", "color", "blue")
+      {:ok, _} = Store.save_fact(store, "group1", "food", "pizza")
+      Process.sleep(300)
+
+      {:ok, results} = Store.semantic_search(store, "group1", "color")
+      assert length(results) > 0
+      assert %Fact{} = hd(results).record
+      # First result should have highest similarity
+      assert hd(results).similarity >= 0.0
+    end
+
+    test "filters by group_id", %{store: store} do
+      {:ok, _} = Store.save_fact(store, "group1", "name", "Alice")
+      {:ok, _} = Store.save_fact(store, "group2", "name", "Bob")
+      Process.sleep(300)
+
+      {:ok, results} = Store.semantic_search(store, "group1", "name")
+      group_ids = Enum.map(results, fn r -> r.record.group_id end)
+      assert Enum.all?(group_ids, &(&1 == "group1"))
+    end
+
+    test "returns empty list when no embeddings exist", %{store: store} do
+      # No facts saved — nothing to search
+      {:ok, results} = Store.semantic_search(store, "group1", "anything")
+      assert results == []
+    end
+
+    test "respects limit option", %{store: store} do
+      for i <- 1..5 do
+        {:ok, _} = Store.save_fact(store, "group1", "item_#{i}", "value #{i}")
+      end
+
+      Process.sleep(300)
+
+      {:ok, results} = Store.semantic_search(store, "group1", "item", limit: 2)
+      assert length(results) <= 2
+    end
+
+    test "returns error when embedder fails", ctx do
+      # Start a store with a broken embedder
+      broken_embedder = :"broken_#{System.unique_integer([:positive])}"
+
+      {:ok, _} =
+        Embedder.start_link(
+          name: broken_embedder,
+          adapter: fn request ->
+            {request, %Req.Response{status: 500, body: "down"}}
+          end
+        )
+
+      tmp_dir = Path.join(System.tmp_dir!(), "exclaw_broken_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      store_name = :"store_broken_#{System.unique_integer([:positive])}"
+
+      {:ok, _} =
+        Store.start_link(
+          name: store_name,
+          data_dir: tmp_dir,
+          repo: ExClaw.Repo,
+          embedder: broken_embedder,
+          task_supervisor: ctx[:task_sup] || :"ts_#{System.unique_integer([:positive])}"
+        )
+
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      assert {:error, _reason} = Store.semantic_search(store_name, "group1", "test")
+    end
+  end
+
+  # Helper to generate deterministic vectors from text
+  defp deterministic_vector(text) when is_binary(text) do
+    <<seed::unsigned-32, _::binary>> = :crypto.hash(:sha256, text)
+    rng = :rand.seed_s(:exsss, {seed, seed + 1, seed + 2})
+
+    {vector, _} =
+      Enum.map_reduce(1..768, rng, fn _, state ->
+        {val, new_state} = :rand.uniform_s(state)
+        {val, new_state}
+      end)
+
+    vector
   end
 end

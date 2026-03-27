@@ -20,6 +20,10 @@ config :exclaw, ExClaw.LLM.RateLimiter,
 config :exclaw, ExClaw.Memory.Store,
   data_dir: "priv/data/#{config_env()}"
 
+config :exclaw, ExClaw.Memory.Embedder,
+  base_url: "http://localhost:11434",
+  model: "nomic-embed-text"
+
 config :exclaw, ExClaw.Channels.CLI,
   group_id: "cli",
   base_prompt: "You are ExClaw, a personal AI assistant running in a terminal. Be concise and helpful.",
