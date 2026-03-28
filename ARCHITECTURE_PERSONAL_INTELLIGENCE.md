@@ -1030,6 +1030,126 @@ MacBook Air M2                     Hetzner Storage Box BX11
 
 ---
 
+## Layer 6: Autonomous Experiment Loop (autoresearch)
+
+> Inspired by [karpathy/autoresearch](https://github.com/karpathy/autoresearch). See `AUTORESEARCH_PATTERN.md` for full analysis.
+
+A cross-cutting capability: any ExClaw agent can run autonomous experiment loops that propose changes, execute them in sandboxes, evaluate results, and keep or discard — continuously, overnight, unattended.
+
+### Core Loop
+
+```
+┌─────────────────────────────────────────────────┐
+│                ExClaw Supervisor                 │
+│                                                  │
+│  ┌───────────┐  ┌───────────┐  ┌─────────────┐  │
+│  │ Program   │  │ Experiment│  │ Evaluation   │  │
+│  │ Document  │──│ Runner    │──│ & Decision   │  │
+│  │ (context) │  │ (sandbox) │  │ (keep/drop)  │  │
+│  └───────────┘  └───────────┘  └─────────────┘  │
+│        │                              │          │
+│        │         ┌──────────┐         │          │
+│        └─────────│ State    │─────────┘          │
+│                  │ (best so │                    │
+│                  │  far)    │                    │
+│                  └──────────┘                    │
+└─────────────────────────────────────────────────┘
+         │                          │
+    ┌────▼────┐              ┌──────▼──────┐
+    │ Telegram│              │ Knowledge   │
+    │ (human  │              │ Base        │
+    │  in the │              │ (experiment │
+    │  loop)  │              │  history)   │
+    └─────────┘              └─────────────┘
+```
+
+### The `program.md`-as-Code Paradigm
+
+Agent behaviour is steered by a natural language document, not rigid task definitions. The researcher authors a `program.md` that provides context, defines the objective ("what better means"), sets boundaries (what the agent may/may not change), and describes the experimental protocol. The AI reads this and autonomously decides what to try next.
+
+**Tiered autonomy:** tight constraints in the document = low autonomy; loose constraints = wide exploration. The human controls the surface area by editing the document, not the code.
+
+### OTP Fit
+
+- Each experiment run is a **supervised child process** — crashes don't kill the loop
+- The supervisor restarts with the last known-good state
+- **Container.Manager** provides sandboxed execution for code/config changes
+- **Credential Vault** (Phase A.5) provides scoped lease tokens for experiments needing API access
+- **Telegram** surfaces decisions: improvements found, anomalous results, budget exhausted, human input needed
+
+### Applications
+
+Any domain with a measurable outcome, modifiable parameter space, and fast feedback loop:
+
+| Domain | What Changes | Metric | Feedback Time |
+|--------|-------------|--------|---------------|
+| Prompt engineering | System prompts, few-shot examples | Task accuracy on eval set | Seconds |
+| Pipeline optimization | Extraction rules, chunking strategies | F1 score on labeled data | Minutes |
+| Infrastructure tuning | vLLM params, batch sizes, quantization | Throughput / latency | Minutes |
+| Agent workflow design | Tool selection order, retry strategies | Task completion rate | Minutes |
+| Content generation | Templates, tone, structure | Quality score (LLM-as-judge) | Seconds |
+| Business rule tuning | Thresholds, conditions, schedules | Alert precision/recall | Minutes |
+
+### Code Generation & Optimization
+
+The experiment loop applied to code is essentially **TDD on autopilot** — the test (metric) is fixed, the agent iterates on the implementation autonomously until it passes or improves. This is the Red-Prompt-Green cycle where the "Prompt" step runs in a closed feedback loop.
+
+The key difference from plain code generation: **the feedback loop is closed.** The agent doesn't generate code and hope — it runs it, measures it, and discards failures automatically. Bad code never leaves the sandbox.
+
+| Goal | What Changes | Metric | Feedback |
+|------|-------------|--------|----------|
+| Optimize a hot path | Function implementation | Benchmark time (μs) | Seconds |
+| Reduce memory usage | Data structures, algorithms | `:erlang.memory()` delta | Seconds |
+| Improve test coverage | Generate new test cases | Coverage % on target module | Seconds |
+| Fix a failing test | Implementation code | Test pass/fail | Seconds |
+| Refactor for readability | Code structure | Credo score, cyclomatic complexity | Seconds |
+| API response optimization | Query logic, caching | Response latency p95 | Seconds |
+| Cross-compilation fix | Build flags, linker config | Build success on target triple | Minutes |
+
+**Integration with Developer Team agents (Phases C/D):**
+- `TestWatchAgent` provides the test results that serve as the evaluation metric
+- `CodeContextAgent` provides the codebase understanding the agent needs to propose meaningful changes
+- `BuildAgent` provides build success/failure feedback for compilation-targeted experiments
+- `ReviewAgent` can evaluate code quality metrics (conventions, security patterns)
+- The experiment ledger feeds back into the knowledge base — "what optimization strategies worked for this module?" becomes a searchable history
+
+**Workflow example — overnight performance optimization:**
+1. Human writes `program.md`: "Optimize `ExClaw.Memory.Store.semantic_search/4`. Metric: p95 latency on 10K-record dataset. Boundary: don't change the public API. May modify query structure, indexing strategy, batch sizes."
+2. ExperimentLoop proposes a change (e.g., add a pre-filter, change the HNSW ef_search parameter)
+3. Runs the modified code in Container.Manager sandbox against a benchmark dataset
+4. Measures p95 latency — improvement? Keep. Regression? Discard.
+5. Repeats overnight. Morning: Telegram summary "Reduced p95 from 45ms to 12ms. 3 changes kept, 7 discarded. Review diff?"
+
+### Components
+
+1. **ExperimentLoop GenServer** — core loop: holds current best state, runs proposals, evaluates, decides. Supervised by OTP.
+2. **ProgramDocument behaviour** — parsing and validating program documents. Documents versioned in the knowledge base.
+3. **Sandbox execution** — experiment runners execute in isolated contexts via Container.Manager. Code changes: temporary branches or in-memory patches. Config changes: ephemeral process state.
+4. **Experiment ledger** — every proposal, result, and decision logged to PostgreSQL. Enables analysis of what changes work, dead-end detection, and human review. Searchable via pgvector (semantic) and AGE (relational).
+5. **Notification hooks** — Telegram alerts for: new best found, anomalous result, budget exhausted, human decision needed.
+
+### Integration with Existing Architecture
+
+- **Knowledge Base**: experiment history, results, and program document evolution stored and searchable. "What did we try before for prompt X?" is a vector search.
+- **MCP Server**: expose experiment status, history, and control to Claude Code and external tools.
+- **Multi-tenancy (Group → Project)**: each client/domain gets isolated experiment loops with their own program documents, state, and budget.
+- **Scheduler**: experiment loops can run on cron schedules (nightly optimization runs) or continuously.
+
+### What NOT to Build (Yet)
+
+- Multi-agent swarms competing on the same problem
+- Self-modifying program documents (agent rewriting its own steering doc)
+- Cross-domain transfer (learnings from one loop informing another)
+
+### Open Questions
+
+- **Rollback granularity**: OTP handles process crashes, but what about data mutations from a bad experiment?
+- **Budget/resource limits**: cap GPU time, API calls, or wall-clock time per loop?
+- **Convergence detection**: stop on diminishing returns? N consecutive failures?
+- **Composability**: nested loops? (Outer loop optimizes program document, inner loop runs experiments)
+
+---
+
 ## Build Sequence
 
 ### Phase A — Knowledge Base Foundation + Git Mirror
@@ -1088,6 +1208,15 @@ MacBook Air M2                     Hetzner Storage Box BX11
 - Agents consuming external MCP servers
 - Dynamic tool discovery
 - Agent-proposed new MCP connections
+
+### Phase G.5 — Autonomous Experiment Loop
+- `ExperimentLoop` GenServer — core propose/execute/evaluate/decide loop, supervised
+- `ProgramDocument` behaviour — parse, validate, and version program documents in KB
+- Sandbox execution via Container.Manager for isolated experiment runs
+- Experiment ledger in PostgreSQL — proposals, results, decisions, searchable via pgvector
+- Telegram notification hooks — new best, anomalies, budget exhausted, human decisions
+- First application: prompt engineering optimization for Tina's system prompt
+- **Milestone:** overnight experiment loop improves a measurable metric autonomously, with full audit trail in KB
 
 ### Phase H — Business Intelligence Track (Core)
 - `BusinessConnector` behaviour + `PctPanelConnector` (first implementation — streaming service reseller management via pct-panel-skeleton)

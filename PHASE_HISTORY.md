@@ -247,3 +247,66 @@ Full migration from SQLite to PostgreSQL with pgvector and AGE extensions.
 - `lib/exclaw/postgrex_types.ex` — Postgrex types with pgvector extensions
 - `lib/exclaw/memory/store.ex` — `LIKE` → `ILIKE` for case-insensitive search
 - New migrations: `CREATE EXTENSION vector` + `CREATE EXTENSION age`, embedding columns (vector 1024) with HNSW indexes
+
+## Embedding Pipeline (19 tests, 2026-03-27)
+
+Async embedding generation on message/fact save with semantic vector search.
+
+| Module | File | Tests |
+|--------|------|-------|
+| `ExClaw.Memory.Embedder` | `lib/exclaw/memory/embedder.ex` | 9 |
+| `ExClaw.Memory.Store` (embedding + search) | `lib/exclaw/memory/store.ex` | 10 |
+
+**Key design decisions:**
+- `Embedder` is a GenServer calling OpenAI-compatible `/v1/embeddings` endpoint (works with Ollama, TEI, vLLM)
+- Default backend: Ollama with `bge-m3` (BAAI/bge-m3, 1024-dim, multilingual incl. Dutch)
+- TEI not available on ARM64 (no images as of 2026-03); Ollama runs embeddings on CPU — ~50ms per embedding, fine for async
+- Async embedding via `Task.Supervisor.start_child` after `save_fact`/`save_message` — fire-and-forget, never blocks saves
+- Only user and assistant messages are embedded; tool messages and empty content skipped
+- `Store.semantic_search/4` — embeds query text, queries pgvector with cosine distance (`<=>` operator)
+- Supports `:facts`, `:messages`, or `:all` search types with similarity threshold and limit
+- `Memory.Supervisor` conditionally starts `Task.Supervisor` + `Embedder` (disabled in test env)
+- HTTP client injection for testability (same adapter pattern as LLM providers)
+- Config: `EMBEDDING_URL`, `EMBEDDING_MODEL` env vars; three backend options documented in code
+
+## Tina System Prompt (3 tests, 2026-03-27)
+
+Telegram channel now has identity and group memory integration.
+
+- Added `build_system_prompt/2` public function to Telegram module
+- `build_session_opts/1` loads group memory from `Memory.Store` and builds system prompt
+- Default prompt: "You are Tina, a personal AI assistant on Telegram, powered by ExClaw."
+- Config: `base_prompt` and `model` in `config.exs`, `EXCLAW_DEFAULT_MODEL` applies to Telegram via `runtime.exs`
+- Same pattern as WhatsApp and CLI channels
+
+## Dockerization (2026-03-27)
+
+Multi-stage Docker build with Elixir release. No source code in final image.
+
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | Multi-stage: hexpm/elixir builder → debian:bookworm-slim runtime |
+| `docker-entrypoint.sh` | Waits for PG → runs migrations → starts release |
+| `docker-compose.yml` | ExClaw service with `network_mode: host`, Docker socket mount, named volumes |
+| `lib/exclaw/release.ex` | Migration module callable via `bin/exclaw eval` (no Mix needed) |
+| `rel/overlays/bin/server` | Release server entrypoint (PHX_SERVER=true) |
+| `rel/overlays/bin/migrate` | Standalone migration script |
+| `.dockerignore` | Excludes source, tests, data from build context |
+
+**Key design decisions:**
+- Elixir release (`mix release`) — self-contained ERTS bundle, no Elixir/Mix/Hex at runtime
+- `--network=host` — all services (PG, vLLM, Ollama, SearXNG) on same host, simplest integration
+- Docker socket mounted for `Container.Manager` sandbox spawning
+- All Docker-specific config via env vars in `runtime.exs` — bare-metal systemd deployment unaffected
+- `tini` as init process for proper signal handling and zombie reaping
+- Named volumes for persistent data: `exclaw_data`, `exclaw_workspaces`, `exclaw_telemetry`, `exclaw_whatsapp_auth`
+- `docker.io` CLI installed in runtime image for Container.Manager
+- HEALTHCHECK on dashboard port 4000
+
+**Build and deploy:**
+```bash
+docker compose build
+docker compose up -d
+docker compose logs -f exclaw
+docker compose exec exclaw /app/bin/exclaw eval "IO.puts(:ok)"  # verify
+```
