@@ -7,8 +7,8 @@
 # No source code, Mix, or Hex in the runtime image.
 
 ARG ELIXIR_VERSION=1.19.4
-ARG OTP_VERSION=28.0
-ARG DEBIAN_VERSION=bookworm-20250428-slim
+ARG OTP_VERSION=28.4.1
+ARG DEBIAN_VERSION=bookworm-20260316-slim
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
 ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
@@ -16,7 +16,7 @@ ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
 # =============================================================================
 # Stage 1: Build
 # =============================================================================
-FROM --platform=$TARGETPLATFORM ${BUILDER_IMAGE} AS builder
+FROM ${BUILDER_IMAGE} AS builder
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends build-essential git \
@@ -54,7 +54,7 @@ RUN mix release
 # =============================================================================
 # Stage 2: Runtime
 # =============================================================================
-FROM --platform=$TARGETPLATFORM ${RUNNER_IMAGE} AS runtime
+FROM ${RUNNER_IMAGE} AS runtime
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
