@@ -1,0 +1,45 @@
+# ExClaw Docker Compose — ExClaw service only.
+# PostgreSQL, vLLM, Ollama, and SearXNG run as existing host services.
+#
+# Usage:
+#   docker compose up -d
+#   docker compose logs -f exclaw
+#   docker compose exec exclaw /app/docker-entrypoint.sh remote   # IEx shell
+#
+# Build:
+#   docker compose build
+#   docker build -t exclaw-sandbox:latest container/              # sandbox image
+
+services:
+  exclaw:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: exclaw:latest
+    container_name: exclaw
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      # Docker socket — required for Container.Manager sandbox spawning
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Persistent data
+      - exclaw_data:/app/data
+      - exclaw_workspaces:/app/workspaces
+      - exclaw_telemetry:/app/telemetry_fallback
+      - exclaw_whatsapp_auth:/app/whatsapp_auth
+    env_file:
+      - .env
+    environment:
+      # Dashboard binds 0.0.0.0 in Docker (override prod.exs default of 127.0.0.1)
+      DASHBOARD_IP: "0.0.0.0"
+      DASHBOARD_PORT: "4000"
+      # Data paths (match volume mounts)
+      EXCLAW_DATA_DIR: "/app/data"
+      EXCLAW_WORKSPACES_DIR: "/app/workspaces"
+      EXCLAW_TELEMETRY_DIR: "/app/telemetry_fallback"
+
+volumes:
+  exclaw_data:
+  exclaw_workspaces:
+  exclaw_telemetry:
+  exclaw_whatsapp_auth:

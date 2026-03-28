@@ -94,6 +94,70 @@ if telegram_token = System.get_env("TELEGRAM_BOT_TOKEN") do
 end
 
 # Dashboard secret key base (required in prod).
+# Generate with: mix phx.gen.secret
 if secret = System.get_env("SECRET_KEY_BASE") do
   config :exclaw, ExClaw.Dashboard.Endpoint, secret_key_base: secret
+end
+
+# ---------------------------------------------------------------------------
+# Docker-aware overrides — only activate when env vars are set.
+# Bare-metal deployments are unaffected (defaults come from prod.exs).
+# ---------------------------------------------------------------------------
+
+# Database — DATABASE_URL takes precedence, otherwise individual DB_* vars.
+if config_env() == :prod do
+  if database_url = System.get_env("DATABASE_URL") do
+    config :exclaw, ExClaw.Repo,
+      url: database_url,
+      pool_size: String.to_integer(System.get_env("POOL_SIZE", "10"))
+  else
+    db_overrides =
+      [
+        hostname: System.get_env("DB_HOST"),
+        port: (if p = System.get_env("DB_PORT"), do: String.to_integer(p)),
+        database: System.get_env("DB_NAME"),
+        username: System.get_env("DB_USER"),
+        password: System.get_env("DB_PASS")
+      ]
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+
+    if db_overrides != [] do
+      config :exclaw, ExClaw.Repo, db_overrides
+    end
+  end
+end
+
+# Dashboard bind address — set DASHBOARD_IP=0.0.0.0 in Docker.
+if dashboard_ip = System.get_env("DASHBOARD_IP") do
+  parsed_ip =
+    dashboard_ip
+    |> String.split(".")
+    |> Enum.map(&String.to_integer/1)
+    |> List.to_tuple()
+
+  dashboard_port = String.to_integer(System.get_env("DASHBOARD_PORT", "4000"))
+  config :exclaw, ExClaw.Dashboard.Endpoint, http: [ip: parsed_ip, port: dashboard_port]
+end
+
+# SearXNG URL override.
+if searxng_url = System.get_env("SEARXNG_URL") do
+  config :exclaw, ExClaw.Tools.WebSearch, searxng_url: searxng_url
+end
+
+# Data directory overrides (for Docker volume mounts).
+if data_dir = System.get_env("EXCLAW_DATA_DIR") do
+  config :exclaw, ExClaw.Memory.Store, data_dir: data_dir
+end
+
+if workspaces_dir = System.get_env("EXCLAW_WORKSPACES_DIR") do
+  config :exclaw, ExClaw.Container.Manager, workspaces_dir: workspaces_dir
+end
+
+if fallback_dir = System.get_env("EXCLAW_TELEMETRY_DIR") do
+  config :exclaw, ExClaw.Telemetry.Logger, fallback_dir: fallback_dir
+end
+
+# Phoenix server — start endpoint in release mode.
+if System.get_env("PHX_SERVER") do
+  config :exclaw, ExClaw.Dashboard.Endpoint, server: true
 end

@@ -8,6 +8,6 @@ config :exclaw, ExClaw.Repo,
 
 config :exclaw, ExClaw.Dashboard.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4000],
-  secret_key_base: {:system, "SECRET_KEY_BASE"}
+  server: true
 
 config :logger, level: :info

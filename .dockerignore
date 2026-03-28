@@ -1,0 +1,49 @@
+# Build artifacts
+_build/
+deps/
+.elixir_ls/
+
+# Git
+.git/
+
+# Dev/Test
+test/
+cover/
+doc/
+
+# Runtime data (not in image — mounted as volumes)
+priv/data/
+priv/workspaces/
+priv/telemetry_fallback/
+priv/whatsapp_auth/
+
+# SQLite (legacy)
+*.db*
+*.sqlite*
+
+# Env files
+.env
+.env.*
+!.env.example
+*.secret
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+
+# WhatsApp bridge node_modules
+whatsapp-bridge/node_modules/
+
+# SearXNG config (separate service)
+searxng/
+
+# Docs (not needed in build)
+*.md
+!README.md
+
+# Docker (avoid recursive context)
+docker-compose*.yml
