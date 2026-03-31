@@ -107,6 +107,10 @@ defmodule ExClaw.Channels.Telegram do
     %{"chat_id" => chat_id, "text" => truncated}
   end
 
+  @doc "Check if an update contains a callback_query."
+  def is_callback_query?(%{"callback_query" => _}), do: true
+  def is_callback_query?(_), do: false
+
   @doc "Parse a getUpdates API response body."
   def parse_updates_response(%{"ok" => true, "result" => updates}) when is_list(updates) do
     {:ok, updates}
@@ -188,7 +192,7 @@ defmodule ExClaw.Channels.Telegram do
     params = %{
       offset: state.offset,
       timeout: state.poll_timeout,
-      allowed_updates: Jason.encode!(["message"])
+      allowed_updates: Jason.encode!(["message", "callback_query"])
     }
 
     req = build_req(state)
@@ -211,20 +215,28 @@ defmodule ExClaw.Channels.Telegram do
 
   defp process_updates(updates, state) do
     Enum.reduce(updates, state, fn update, acc ->
-      case extract_message(update) do
-        {:ok, msg} ->
-          if authorized?(msg.from_id, acc.allow_from) do
-            handle_authorized_message(msg, acc)
-          else
-            Logger.debug("[Telegram] Unauthorized user: #{msg.from_id}")
-          end
-
-          new_offset = max(acc.offset, msg.update_id + 1)
-          %{acc | offset: new_offset}
-
-        {:skip, _reason} ->
+      cond do
+        is_callback_query?(update) ->
+          forward_callback_query(update["callback_query"])
           update_id = Map.get(update, "update_id", acc.offset)
           %{acc | offset: max(acc.offset, update_id + 1)}
+
+        true ->
+          case extract_message(update) do
+            {:ok, msg} ->
+              if authorized?(msg.from_id, acc.allow_from) do
+                handle_authorized_message(msg, acc)
+              else
+                Logger.debug("[Telegram] Unauthorized user: #{msg.from_id}")
+              end
+
+              new_offset = max(acc.offset, msg.update_id + 1)
+              %{acc | offset: new_offset}
+
+            {:skip, _reason} ->
+              update_id = Map.get(update, "update_id", acc.offset)
+              %{acc | offset: max(acc.offset, update_id + 1)}
+          end
       end
     end)
   end
@@ -339,6 +351,13 @@ defmodule ExClaw.Channels.Telegram do
 
   defp schedule_poll(delay) do
     Process.send_after(self(), :poll, delay)
+  end
+
+  defp forward_callback_query(callback) do
+    # Forward to ApprovalGate.CallbackHandler if it's running
+    if pid = Process.whereis(ExClaw.Workflow.ApprovalGate.CallbackHandler) do
+      ExClaw.Workflow.ApprovalGate.CallbackHandler.handle_callback(pid, callback)
+    end
   end
 
   defp build_req(%{http_client: nil}), do: Req.new(receive_timeout: 60_000)

@@ -52,6 +52,9 @@ config :exclaw, ExClaw.Channels.WhatsApp,
 config :exclaw, ExClaw.CredentialVault,
   enabled: false
 
+config :exclaw, ExClaw.Workflow.ApprovalGate,
+  enabled: false
+
 config :exclaw, ExClaw.Telemetry.Logger,
   enabled: false,
   ch_opts: nil

@@ -104,6 +104,25 @@ if secret = System.get_env("SECRET_KEY_BASE") do
     encryption_key_base: secret
 end
 
+# ApprovalGate — Telegram-based human approval workflow.
+# TELEGRAM_APPROVAL_CHAT_ID: override chat for approval messages (defaults to first TELEGRAM_ALLOW_FROM).
+approval_chat_id =
+  case System.get_env("TELEGRAM_APPROVAL_CHAT_ID") do
+    nil ->
+      case System.get_env("TELEGRAM_ALLOW_FROM", "") do
+        "" -> nil
+        ids -> ids |> String.split(",") |> List.first() |> String.trim() |> String.to_integer()
+      end
+    id -> String.to_integer(id)
+  end
+
+if approval_chat_id do
+  config :exclaw, ExClaw.Workflow.ApprovalGate,
+    enabled: true,
+    default_timeout_ms: 300_000,
+    default_chat_id: approval_chat_id
+end
+
 # ---------------------------------------------------------------------------
 # Docker-aware overrides — only activate when env vars are set.
 # Bare-metal deployments are unaffected (defaults come from prod.exs).

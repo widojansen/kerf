@@ -121,6 +121,49 @@ defmodule ExClaw.Channels.TelegramTest do
     end
   end
 
+  describe "extract_message/1 with callback_query" do
+    test "skips callback_query updates (handled separately)" do
+      update = %{
+        "update_id" => 2001,
+        "callback_query" => %{
+          "id" => "cb_123",
+          "data" => "ag:req_001:0",
+          "from" => %{"id" => 999}
+        }
+      }
+
+      assert {:skip, "not a message update"} = Telegram.extract_message(update)
+    end
+  end
+
+  describe "is_callback_query?/1" do
+    test "returns true for callback_query updates" do
+      update = %{
+        "update_id" => 2001,
+        "callback_query" => %{"id" => "cb_123", "data" => "ag:req:0"}
+      }
+
+      assert Telegram.is_callback_query?(update)
+    end
+
+    test "returns false for regular message updates" do
+      update = %{
+        "update_id" => 2001,
+        "message" => %{
+          "chat" => %{"id" => 12345},
+          "from" => %{"id" => 999},
+          "text" => "hi"
+        }
+      }
+
+      refute Telegram.is_callback_query?(update)
+    end
+
+    test "returns false for empty update" do
+      refute Telegram.is_callback_query?(%{"update_id" => 2001})
+    end
+  end
+
   describe "parse_updates_response/1" do
     test "parses successful getUpdates response" do
       body = %{

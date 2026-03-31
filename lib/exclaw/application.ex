@@ -44,7 +44,7 @@ defmodule ExClaw.Application do
 
         # Phase 4: Memory Store
         ExClaw.Memory.Supervisor
-      ] ++ credential_vault_children() ++ [
+      ] ++ credential_vault_children() ++ approval_gate_children() ++ [
 
         # Phase 6: Scheduler
         ExClaw.Scheduler.Supervisor,
@@ -64,6 +64,16 @@ defmodule ExClaw.Application do
 
     if config[:enabled] != false and config[:encryption_key_base] do
       [{ExClaw.CredentialVault.Supervisor, []}]
+    else
+      []
+    end
+  end
+
+  defp approval_gate_children do
+    config = Application.get_env(:exclaw, ExClaw.Workflow.ApprovalGate, [])
+
+    if config[:enabled] != false do
+      [{ExClaw.Workflow.ApprovalGate.Supervisor, []}]
     else
       []
     end
