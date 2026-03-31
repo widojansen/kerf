@@ -97,6 +97,11 @@ end
 # Generate with: mix phx.gen.secret
 if secret = System.get_env("SECRET_KEY_BASE") do
   config :exclaw, ExClaw.Dashboard.Endpoint, secret_key_base: secret
+
+  # Credential Vault — uses SECRET_KEY_BASE for encryption at rest.
+  config :exclaw, ExClaw.CredentialVault,
+    enabled: true,
+    encryption_key_base: secret
 end
 
 # ---------------------------------------------------------------------------

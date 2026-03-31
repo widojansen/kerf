@@ -43,7 +43,8 @@ defmodule ExClaw.Application do
         ExClaw.Agent.Supervisor,
 
         # Phase 4: Memory Store
-        ExClaw.Memory.Supervisor,
+        ExClaw.Memory.Supervisor
+      ] ++ credential_vault_children() ++ [
 
         # Phase 6: Scheduler
         ExClaw.Scheduler.Supervisor,
@@ -52,10 +53,21 @@ defmodule ExClaw.Application do
         ExClaw.Dashboard.Supervisor
       ] ++ telegram_children() ++ whatsapp_children()
 
+
     opts = [strategy: :one_for_one, name: ExClaw.Supervisor]
     Supervisor.start_link(children, opts)
   end
 
+
+  defp credential_vault_children do
+    config = Application.get_env(:exclaw, ExClaw.CredentialVault, [])
+
+    if config[:enabled] != false and config[:encryption_key_base] do
+      [{ExClaw.CredentialVault.Supervisor, []}]
+    else
+      []
+    end
+  end
 
   defp telegram_children do
     config = Application.get_env(:exclaw, ExClaw.Channels.Telegram, [])

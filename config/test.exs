@@ -49,6 +49,9 @@ config :exclaw, ExClaw.Memory.Embedder,
 config :exclaw, ExClaw.Channels.WhatsApp,
   enabled: false
 
+config :exclaw, ExClaw.CredentialVault,
+  enabled: false
+
 config :exclaw, ExClaw.Telemetry.Logger,
   enabled: false,
   ch_opts: nil
