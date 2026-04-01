@@ -91,4 +91,9 @@ config :exclaw, ExClaw.Telemetry.Logger,
   max_buffer_size: 100,
   fallback_dir: "priv/telemetry_fallback"
 
+config :exclaw, ExClaw.StructuredOutput,
+  default_max_retries: 2,
+  default_temperature: 0.1,
+  register_builtins: true
+
 import_config "#{config_env()}.exs"

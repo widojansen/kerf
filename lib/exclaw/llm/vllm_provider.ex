@@ -125,6 +125,12 @@ defmodule ExClaw.LLM.VLLMProvider do
         temp -> Map.put(body, :temperature, temp)
       end
 
+    # Structured output: pass through guided decoding params to vLLM.
+    body = add_if_present(body, opts, :guided_json)
+    body = add_if_present(body, opts, :guided_choice)
+    body = add_if_present(body, opts, :guided_regex)
+    body = add_if_present(body, opts, :response_format)
+
     Jason.encode!(body)
   end
 
@@ -215,6 +221,13 @@ defmodule ExClaw.LLM.VLLMProvider do
         "parameters" => schema
       }
     }
+  end
+
+  defp add_if_present(body, opts, key) do
+    case Keyword.get(opts, key) do
+      nil -> body
+      val -> Map.put(body, key, val)
+    end
   end
 
   defp make_request(req, body) do

@@ -248,4 +248,156 @@ defmodule ExClaw.LLM.VLLMProviderTest do
       assert {:denied, _} = VLLMProvider.complete(name, "nvidia/Qwen3-32B-NVFP4", [])
     end
   end
+
+  describe "structured output passthrough" do
+    test "guided_json appears in request body" do
+      test_pid = self()
+
+      adapter = fn request ->
+        send(test_pid, {:request, request})
+        {request, Req.Response.json(openai_response("ok"))}
+      end
+
+      {name, _} = start_provider(adapter)
+
+      json_schema = %{"type" => "object", "properties" => %{"answer" => %{"type" => "string"}}}
+
+      VLLMProvider.complete(
+        name,
+        "nvidia/Qwen3-32B-NVFP4",
+        [%{role: "user", content: "hi"}],
+        guided_json: json_schema
+      )
+
+      assert_receive {:request, req}
+      body = Jason.decode!(req.body)
+      assert body["guided_json"] == json_schema
+    end
+
+    test "guided_choice appears in request body" do
+      test_pid = self()
+
+      adapter = fn request ->
+        send(test_pid, {:request, request})
+        {request, Req.Response.json(openai_response("ok"))}
+      end
+
+      {name, _} = start_provider(adapter)
+
+      VLLMProvider.complete(
+        name,
+        "nvidia/Qwen3-32B-NVFP4",
+        [%{role: "user", content: "hi"}],
+        guided_choice: ["yes", "no"]
+      )
+
+      assert_receive {:request, req}
+      body = Jason.decode!(req.body)
+      assert body["guided_choice"] == ["yes", "no"]
+    end
+
+    test "guided_regex appears in request body" do
+      test_pid = self()
+
+      adapter = fn request ->
+        send(test_pid, {:request, request})
+        {request, Req.Response.json(openai_response("ok"))}
+      end
+
+      {name, _} = start_provider(adapter)
+
+      VLLMProvider.complete(
+        name,
+        "nvidia/Qwen3-32B-NVFP4",
+        [%{role: "user", content: "hi"}],
+        guided_regex: "^(yes|no)$"
+      )
+
+      assert_receive {:request, req}
+      body = Jason.decode!(req.body)
+      assert body["guided_regex"] == "^(yes|no)$"
+    end
+
+    test "response_format appears as top-level field" do
+      test_pid = self()
+
+      adapter = fn request ->
+        send(test_pid, {:request, request})
+        {request, Req.Response.json(openai_response("ok"))}
+      end
+
+      {name, _} = start_provider(adapter)
+
+      rf = %{"type" => "json_schema", "json_schema" => %{"name" => "test"}}
+
+      VLLMProvider.complete(
+        name,
+        "nvidia/Qwen3-32B-NVFP4",
+        [%{role: "user", content: "hi"}],
+        response_format: rf
+      )
+
+      assert_receive {:request, req}
+      body = Jason.decode!(req.body)
+      assert body["response_format"] == rf
+    end
+
+    test "normal requests without structured output opts are unchanged" do
+      test_pid = self()
+
+      adapter = fn request ->
+        send(test_pid, {:request, request})
+        {request, Req.Response.json(openai_response("ok"))}
+      end
+
+      {name, _} = start_provider(adapter)
+
+      VLLMProvider.complete(
+        name,
+        "nvidia/Qwen3-32B-NVFP4",
+        [%{role: "user", content: "hi"}]
+      )
+
+      assert_receive {:request, req}
+      body = Jason.decode!(req.body)
+      refute Map.has_key?(body, "guided_json")
+      refute Map.has_key?(body, "guided_choice")
+      refute Map.has_key?(body, "guided_regex")
+      refute Map.has_key?(body, "response_format")
+    end
+
+    test "structured output opts coexist with tool definitions" do
+      test_pid = self()
+
+      adapter = fn request ->
+        send(test_pid, {:request, request})
+        {request, Req.Response.json(openai_response("ok"))}
+      end
+
+      {name, _} = start_provider(adapter)
+
+      tools = [
+        %{
+          "name" => "test_tool",
+          "description" => "A tool",
+          "input_schema" => %{"type" => "object"}
+        }
+      ]
+
+      json_schema = %{"type" => "object"}
+
+      VLLMProvider.complete(
+        name,
+        "nvidia/Qwen3-32B-NVFP4",
+        [%{role: "user", content: "hi"}],
+        tools: tools,
+        guided_json: json_schema
+      )
+
+      assert_receive {:request, req}
+      body = Jason.decode!(req.body)
+      assert body["guided_json"] == json_schema
+      assert is_list(body["tools"])
+    end
+  end
 end

@@ -36,6 +36,11 @@ defmodule ExClaw.Application do
         # Phase 11: Tool Registry (ETS-backed, auto-registers builtins)
         {ExClaw.Tools.Registry, name: ExClaw.Tools.Registry, register_builtins: true},
 
+        # Phase A.5: Structured Output SchemaRegistry
+        {ExClaw.StructuredOutput.SchemaRegistry,
+         name: ExClaw.StructuredOutput.SchemaRegistry,
+         register_builtins: Application.get_env(:exclaw, ExClaw.StructuredOutput, [])[:register_builtins] || false},
+
         # Phase 2: LLM Provider
         ExClaw.LLM.Supervisor,
 
