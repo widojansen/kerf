@@ -181,6 +181,36 @@ if fallback_dir = System.get_env("EXCLAW_TELEMETRY_DIR") do
   config :exclaw, ExClaw.Telemetry.Logger, fallback_dir: fallback_dir
 end
 
+# ---------------------------------------------------------------------------
+# Phase B: Knowledge Base Embedder + Email Triage
+# ---------------------------------------------------------------------------
+
+# KB Embedder — uses the same OpenAI-compatible /v1/embeddings endpoint.
+# Can reuse EMBEDDING_URL or set a separate KB_EMBEDDING_URL.
+kb_embedding_url = System.get_env("KB_EMBEDDING_URL") || System.get_env("EMBEDDING_URL")
+
+if kb_embedding_url do
+  config :exclaw, ExClaw.KnowledgeBase.Embedder,
+    url: kb_embedding_url,
+    model: System.get_env("KB_EMBEDDING_MODEL", "nomic-ai/nomic-embed-text-v1")
+end
+
+# Email Ingestor — polls Gmail for new emails.
+# Requires Credential Vault with a "gmail_oauth" credential.
+if System.get_env("EMAIL_TRIAGE_ENABLED") == "true" do
+  config :exclaw, ExClaw.Ingestors.Email.EmailIngestor,
+    enabled: true,
+    poll_interval_ms: String.to_integer(System.get_env("EMAIL_POLL_INTERVAL_MS", "300000")),
+    max_per_batch: 50,
+    credential_name: System.get_env("GMAIL_CREDENTIAL_NAME", "gmail_oauth")
+
+  config :exclaw, ExClaw.Agents.EmailTriage,
+    enabled: true,
+    interest_threshold: 0.5,
+    high_priority_threshold: 4,
+    classification_model: System.get_env("CLASSIFICATION_MODEL", "nvidia/Qwen3-32B-NVFP4")
+end
+
 # Phoenix server — start endpoint in release mode.
 if System.get_env("PHX_SERVER") do
   config :exclaw, ExClaw.Dashboard.Endpoint, server: true

@@ -56,7 +56,7 @@ defmodule ExClaw.Application do
 
         # Phase 7: Dashboard
         ExClaw.Dashboard.Supervisor
-      ] ++ telegram_children() ++ whatsapp_children()
+      ] ++ knowledge_base_children() ++ email_triage_children() ++ telegram_children() ++ whatsapp_children()
 
 
     opts = [strategy: :one_for_one, name: ExClaw.Supervisor]
@@ -79,6 +79,20 @@ defmodule ExClaw.Application do
 
     if config[:enabled] != false do
       [{ExClaw.Workflow.ApprovalGate.Supervisor, []}]
+    else
+      []
+    end
+  end
+
+  defp knowledge_base_children do
+    [{ExClaw.KnowledgeBase.Supervisor, []}]
+  end
+
+  defp email_triage_children do
+    config = Application.get_env(:exclaw, ExClaw.Ingestors.Email.EmailIngestor, [])
+
+    if config[:enabled] do
+      [{ExClaw.Agents.EmailTriage.Supervisor, []}]
     else
       []
     end
