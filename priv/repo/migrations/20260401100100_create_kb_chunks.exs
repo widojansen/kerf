@@ -8,7 +8,7 @@ defmodule ExClaw.Repo.Migrations.CreateKbChunks do
         null: false
       add :chunk_index, :integer, null: false
       add :content, :text, null: false
-      add :embedding, :vector, size: 768
+      add :embedding, :vector, size: 1024
       add :token_count, :integer
 
       timestamps(type: :utc_datetime_usec, updated_at: false)
