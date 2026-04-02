@@ -72,7 +72,7 @@ defmodule ExClaw.KnowledgeBase.ChunkTest do
     end
 
     test "stores embedding vector", %{doc: doc} do
-      embedding = Pgvector.new(List.duplicate(0.1, 768))
+      embedding = Pgvector.new(List.duplicate(0.1, 1024))
 
       attrs = %{
         document_id: doc.id,
@@ -83,7 +83,7 @@ defmodule ExClaw.KnowledgeBase.ChunkTest do
 
       assert {:ok, chunk} = Repo.insert(Chunk.changeset(%Chunk{}, attrs))
       reloaded = Repo.get!(Chunk, chunk.id)
-      assert Pgvector.to_list(reloaded.embedding) |> length() == 768
+      assert Pgvector.to_list(reloaded.embedding) |> length() == 1024
     end
   end
 

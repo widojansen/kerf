@@ -4,7 +4,7 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
   alias ExClaw.Agents.EmailTriage.EmailTriage
   alias ExClaw.KnowledgeBase.{Document, Chunk, EmailSender, Interest}
 
-  @fake_embedding List.duplicate(0.1, 768)
+  @fake_embedding List.duplicate(0.1, 1024)
 
   setup do
     # Insert a test document

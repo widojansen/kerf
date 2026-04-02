@@ -19,7 +19,7 @@ defmodule ExClaw.Ingestors.Email.EmailIngestorTest do
     history_id: "50000"
   }
 
-  @fake_embedding List.duplicate(0.1, 768)
+  @fake_embedding List.duplicate(0.1, 1024)
 
   defp fake_gmail_client(_token, _opts) do
     {:ok, [@sample_email], "50001"}

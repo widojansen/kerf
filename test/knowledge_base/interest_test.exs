@@ -44,7 +44,7 @@ defmodule ExClaw.KnowledgeBase.InterestTest do
     end
 
     test "stores embedding vector" do
-      embedding = Pgvector.new(List.duplicate(0.5, 768))
+      embedding = Pgvector.new(List.duplicate(0.5, 1024))
 
       {:ok, interest} =
         Repo.insert(
@@ -52,7 +52,7 @@ defmodule ExClaw.KnowledgeBase.InterestTest do
         )
 
       reloaded = Repo.get!(Interest, interest.id)
-      assert Pgvector.to_list(reloaded.embedding) |> length() == 768
+      assert Pgvector.to_list(reloaded.embedding) |> length() == 1024
     end
   end
 

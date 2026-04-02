@@ -4,7 +4,7 @@ defmodule ExClaw.Agents.EmailTriage.InterestMatcherTest do
   alias ExClaw.Agents.EmailTriage.InterestMatcher
 
   # Helper: create a normalized vector pointing mostly in one direction
-  defp make_vector(dominant_index, dims \\ 768) do
+  defp make_vector(dominant_index, dims \\ 1024) do
     v = List.duplicate(0.0, dims) |> List.replace_at(dominant_index, 1.0)
     norm = :math.sqrt(Enum.reduce(v, 0.0, fn x, acc -> acc + x * x end))
     Enum.map(v, &(&1 / norm))

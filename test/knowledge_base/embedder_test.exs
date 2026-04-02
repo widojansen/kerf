@@ -3,7 +3,7 @@ defmodule ExClaw.KnowledgeBase.EmbedderTest do
 
   alias ExClaw.KnowledgeBase.Embedder
 
-  @fake_embedding List.duplicate(0.1, 768)
+  @fake_embedding List.duplicate(0.1, 1024)
 
   describe "embed/2" do
     test "returns embedding vector for single text" do
@@ -21,7 +21,7 @@ defmodule ExClaw.KnowledgeBase.EmbedderTest do
       end
 
       assert {:ok, embedding} = Embedder.embed("Hello world", http_client: http_client)
-      assert length(embedding) == 768
+      assert length(embedding) == 1024
     end
 
     test "sends correct request format" do
@@ -98,7 +98,7 @@ defmodule ExClaw.KnowledgeBase.EmbedderTest do
       texts = ["Hello", "World", "Test"]
       assert {:ok, embeddings} = Embedder.embed_batch(texts, http_client: http_client)
       assert length(embeddings) == 3
-      assert Enum.all?(embeddings, &(length(&1) == 768))
+      assert Enum.all?(embeddings, &(length(&1) == 1024))
     end
 
     test "sends all texts in single request" do
@@ -131,8 +131,8 @@ defmodule ExClaw.KnowledgeBase.EmbedderTest do
     test "orders results by index" do
       # API might return results out of order
       http_client = fn _method, _url, _body, _headers, _opts ->
-        emb1 = List.duplicate(0.1, 768)
-        emb2 = List.duplicate(0.2, 768)
+        emb1 = List.duplicate(0.1, 1024)
+        emb2 = List.duplicate(0.2, 1024)
 
         {:ok,
          %{

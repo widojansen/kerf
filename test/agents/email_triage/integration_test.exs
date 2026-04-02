@@ -9,7 +9,7 @@ defmodule ExClaw.Agents.EmailTriage.IntegrationTest do
   alias ExClaw.Agents.EmailTriage.{EmailTriage, FeedbackHandler}
   alias ExClaw.KnowledgeBase.{Document, EmailSender, Interest, Feedback}
 
-  @fake_embedding List.duplicate(0.1, 768)
+  @fake_embedding List.duplicate(0.1, 1024)
 
   @sample_email %{
     id: "msg_integration_1",
