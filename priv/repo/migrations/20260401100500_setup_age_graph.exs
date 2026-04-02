@@ -16,6 +16,9 @@ defmodule ExClaw.Repo.Migrations.SetupAgeGraph do
       END IF;
     END $$
     """)
+
+    # Restore default search_path so subsequent migrations create tables in public
+    execute("SET search_path = \"$user\", public")
   end
 
   def down do
@@ -32,5 +35,7 @@ defmodule ExClaw.Repo.Migrations.SetupAgeGraph do
       END IF;
     END $$
     """)
+
+    execute("SET search_path = \"$user\", public")
   end
 end
