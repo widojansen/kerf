@@ -36,7 +36,7 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
 
     case http_client.(:get, url, nil, headers, []) do
       {:ok, %{status: 200, body: body}} ->
-        parsed = Jason.decode!(body)
+        parsed = decode_json(body)
         message_ids = Map.get(parsed, "messages", []) |> Enum.map(& &1["id"])
         emails = Enum.map(message_ids, &fetch_full_message(http_client, headers, &1))
         {:ok, Enum.filter(emails, &(&1 != nil))}
@@ -150,7 +150,7 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
 
     case http_client.(:get, url, nil, headers, []) do
       {:ok, %{status: 200, body: body}} ->
-        parsed = Jason.decode!(body)
+        parsed = decode_json(body)
         new_history_id = parsed["historyId"]
 
         message_ids =
@@ -179,7 +179,7 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
 
     case http_client.(:get, url, nil, headers, []) do
       {:ok, %{status: 200, body: body}} ->
-        parsed = Jason.decode!(body)
+        parsed = decode_json(body)
         message_ids = Map.get(parsed, "messages", []) |> Enum.map(& &1["id"])
 
         emails =
@@ -209,12 +209,16 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
 
     case http_client.(:get, url, nil, headers, []) do
       {:ok, %{status: 200, body: body}} ->
-        body |> Jason.decode!() |> parse_message()
+        body |> decode_json() |> parse_message()
 
       _ ->
         nil
     end
   end
+
+  defp decode_json(body) when is_binary(body), do: Jason.decode!(body)
+  defp decode_json(body) when is_map(body), do: body
+  defp decode_json(body) when is_list(body), do: body
 
   defp get_header(headers, name) do
     case Enum.find(headers, &(String.downcase(&1["name"]) == String.downcase(name))) do
