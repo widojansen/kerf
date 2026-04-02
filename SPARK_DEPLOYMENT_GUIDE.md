@@ -4,6 +4,7 @@
 
 - Spark accessible via `ssh spark` (Tailscale)
 - vLLM running on port 8000 (Qwen3-32B-NVFP4)
+- Ollama running on port 11434 (bge-m3 for embeddings, 1024 dimensions)
 - PostgreSQL 18.3 running (systemd)
 - gog authenticated for `alice@gmail.com`
 - ExClaw git repo on Spark at `~/Projects/exClaw/exclaw/`
@@ -60,77 +61,44 @@ gog gmail labels list --account alice@gmail.com
 **Note the results** — we need to know:
 - [ ] PostgreSQL is running and exclaw_prod exists
 - [ ] vLLM is serving Qwen3-32B on port 8000
-- [ ] Whether Ollama is available for embeddings
+- [ ] Whether Ollama is running with bge-m3 for embeddings
 - [ ] gog can access Gmail
 
 ---
 
-## Step 3: Set Up Embedding Service
+## Step 3: Verify Embedding Service
 
-**Option A — Ollama (if available):**
+Embeddings use **bge-m3** (1024 dimensions, multilingual) on Ollama, port 11434.
+
 ```bash
-# Check if nomic-embed-text is pulled
-ollama list | grep nomic
+# Verify Ollama is running
+pgrep -f ollama && echo "Ollama running" || echo "Ollama not running — start it"
 
-# If not, pull it
-ollama pull nomic-embed-text
+# Check bge-m3 is available
+ollama list | grep bge-m3
 
-# Test
+# If not pulled yet:
+# ollama pull bge-m3
+
+# Test the embeddings endpoint
 curl -s http://localhost:11434/v1/embeddings \
   -H "Content-Type: application/json" \
-  -d '{"model": "nomic-embed-text", "input": "test embedding"}' | head -5
+  -d '{"model": "bge-m3", "input": "test embedding"}' | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+emb = data['data'][0]['embedding']
+print(f'Dimensions: {len(emb)}')
+print(f'First 5 values: {emb[:5]}')
+"
 ```
 
-If Ollama works, set these env vars:
+**Verify:** Output shows `Dimensions: 1024` and numeric values.
+
+Env vars for `.env`:
 ```bash
 EMBEDDING_URL=http://localhost:11434
-EMBEDDING_MODEL=nomic-embed-text
+EMBEDDING_MODEL=bge-m3
 ```
-
-**Option B — Second vLLM instance (if Ollama not available):**
-```bash
-# Create a systemd service for the embedding model
-sudo tee /etc/systemd/system/vllm-embed.service << 'EOF'
-[Unit]
-Description=vLLM Embedding Server (nomic-embed-text)
-After=network.target
-
-[Service]
-Type=simple
-User=wido
-ExecStart=/usr/bin/docker run --rm \
-  --gpus all \
-  --name vllm-embed \
-  -p 8001:8000 \
-  -v /home/wido/.cache/huggingface:/root/.cache/huggingface \
-  nvcr.io/nvidia/vllm:26.02-py3 \
-  --model nomic-ai/nomic-embed-text-v1 \
-  --trust-remote-code \
-  --gpu-memory-utilization 0.1
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable vllm-embed
-sudo systemctl start vllm-embed
-
-# Wait for it to load, then test
-sleep 30
-curl -s http://localhost:8001/v1/embeddings \
-  -H "Content-Type: application/json" \
-  -d '{"model": "nomic-ai/nomic-embed-text-v1", "input": "test embedding"}' | head -5
-```
-
-If vLLM embed works, set these env vars:
-```bash
-EMBEDDING_URL=http://localhost:8001
-EMBEDDING_MODEL=nomic-ai/nomic-embed-text-v1
-```
-
-**Verify:** The curl test returns a JSON response with an `embedding` array.
 
 ---
 
@@ -401,9 +369,9 @@ Add/verify all new env vars in `~/Projects/exClaw/exclaw/.env`:
 ```bash
 cat >> ~/Projects/exClaw/exclaw/.env << 'ENV'
 
-# Embedding service (set based on Step 3 result)
+# Embedding service (bge-m3 on Ollama, 1024 dimensions)
 EMBEDDING_URL=http://localhost:11434
-EMBEDDING_MODEL=nomic-embed-text
+EMBEDDING_MODEL=bge-m3
 
 # Email Triage
 EMAIL_TRIAGE_ENABLED=true
@@ -414,8 +382,6 @@ GMAIL_CREDENTIAL_NAME=gmail_oauth
 TELEGRAM_APPROVAL_CHAT_ID=8064166045
 ENV
 ```
-
-Adjust `EMBEDDING_URL` and `EMBEDDING_MODEL` based on what you set up in Step 3.
 
 ---
 
@@ -478,9 +444,9 @@ psql -U wido -d exclaw_prod -c "LOAD 'age'; SELECT * FROM ag_catalog.ag_graph;"
 **Embedding service not responding:**
 ```bash
 # Test directly
-curl -v http://localhost:8001/v1/embeddings \
+curl -v http://localhost:11434/v1/embeddings \
   -H "Content-Type: application/json" \
-  -d '{"model": "nomic-ai/nomic-embed-text-v1", "input": "hello"}'
+  -d '{"model": "bge-m3", "input": "hello"}'
 ```
 
 **Gmail auth expired:**
