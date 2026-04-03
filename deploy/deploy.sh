@@ -27,6 +27,9 @@
 #
 set -euo pipefail
 
+# Ensure asdf shims are on PATH (non-interactive SSH doesn't source .bashrc).
+export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"
+
 # --- Configuration -------------------------------------------------------
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
