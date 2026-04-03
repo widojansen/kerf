@@ -53,6 +53,8 @@ defmodule ExClaw.MixProject do
 
       # Telemetry / ClickHouse
       {:ch, "~> 0.7"},
+      {:telemetry_poller, "~> 1.1"},
+      {:logger_json, "~> 6.0"},
 
       # Dev/Test
       {:lazy_html, ">= 0.1.0", only: :test},

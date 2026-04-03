@@ -191,6 +191,7 @@ defmodule ExClaw.LLM.Provider do
 
       ExClaw.Dashboard.EventLog.log(:llm_call, event)
       ExClaw.Telemetry.emit(:llm_call, Map.put(event, :process_memory_bytes, mem))
+      ExClaw.LLM.Instrumentation.emit_call_stop(:anthropic, model, duration_ms, response)
     rescue
       _ -> :ok
     end
@@ -212,6 +213,7 @@ defmodule ExClaw.LLM.Provider do
         error_type: "llm_error",
         error_message: inspect(reason)
       })
+      ExClaw.LLM.Instrumentation.emit_call_error(:anthropic, model, duration_ms, reason)
     rescue
       _ -> :ok
     end

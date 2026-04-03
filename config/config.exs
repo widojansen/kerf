@@ -96,4 +96,18 @@ config :exclaw, ExClaw.StructuredOutput,
   default_temperature: 0.1,
   register_builtins: true
 
+config :exclaw, ExClaw.Monitor.ProcessHealth,
+  interval_ms: 30_000,
+  queue_high_threshold: 100,
+  memory_high_threshold_mb: 256,
+  watched: [
+    ExClaw.Channels.Telegram,
+    ExClaw.LLM.ModelRouter,
+    ExClaw.Scheduler,
+    ExClaw.Agent.Supervisor
+  ]
+
+config :exclaw, ExClaw.Monitor.Alerting,
+  debounce_window_ms: 300_000
+
 import_config "#{config_env()}.exs"

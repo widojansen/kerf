@@ -211,6 +211,22 @@ if System.get_env("EMAIL_TRIAGE_ENABLED") == "true" do
     classification_model: System.get_env("CLASSIFICATION_MODEL", "nvidia/Qwen3-32B-NVFP4")
 end
 
+# ---------------------------------------------------------------------------
+# Monitoring: Alert delivery via Telegram
+# ---------------------------------------------------------------------------
+
+alert_chat_id =
+  System.get_env("TELEGRAM_ALERT_CHAT_ID") ||
+    case System.get_env("TELEGRAM_ALLOW_FROM", "") do
+      "" -> nil
+      ids -> ids |> String.split(",") |> List.first() |> String.trim()
+    end
+
+if alert_chat_id do
+  config :exclaw, ExClaw.Monitor.Alerting,
+    telegram_chat_id: alert_chat_id
+end
+
 # Phoenix server — start endpoint in release mode.
 if System.get_env("PHX_SERVER") do
   config :exclaw, ExClaw.Dashboard.Endpoint, server: true

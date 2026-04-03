@@ -174,6 +174,8 @@ defmodule ExClaw.LLM.OllamaProvider do
         response_type: response.type,
         timestamp: DateTime.utc_now()
       })
+
+      ExClaw.LLM.Instrumentation.emit_call_stop(:ollama, model, duration_ms, response)
     rescue
       _ -> :ok
     end
@@ -187,6 +189,8 @@ defmodule ExClaw.LLM.OllamaProvider do
         error: inspect(reason),
         timestamp: DateTime.utc_now()
       })
+
+      ExClaw.LLM.Instrumentation.emit_call_error(:ollama, model, duration_ms, reason)
     rescue
       _ -> :ok
     end

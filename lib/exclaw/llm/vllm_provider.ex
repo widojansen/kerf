@@ -325,6 +325,8 @@ defmodule ExClaw.LLM.VLLMProvider do
         response_type: response.type,
         timestamp: DateTime.utc_now()
       })
+
+      ExClaw.LLM.Instrumentation.emit_call_stop(:vllm, model, duration_ms, response)
     rescue
       _ -> :ok
     end
@@ -338,6 +340,8 @@ defmodule ExClaw.LLM.VLLMProvider do
         error: inspect(reason),
         timestamp: DateTime.utc_now()
       })
+
+      ExClaw.LLM.Instrumentation.emit_call_error(:vllm, model, duration_ms, reason)
     rescue
       _ -> :ok
     end

@@ -24,6 +24,9 @@ defmodule ExClaw.Application do
            Application.get_env(:exclaw, ExClaw.Telemetry.Logger, [])
            |> Keyword.put(:name, ExClaw.Telemetry.Logger)},
 
+        # BEAM VM metrics — emits [:vm, :memory], [:vm, :total_run_queue_lengths] etc.
+        {:telemetry_poller, measurements: [:memory, :total_run_queue_lengths], period: 30_000},
+
         # Phase 1: Security (built first via TDD)
         ExClaw.Security.Supervisor,
 
@@ -56,7 +59,7 @@ defmodule ExClaw.Application do
 
         # Phase 7: Dashboard
         ExClaw.Dashboard.Supervisor
-      ] ++ knowledge_base_children() ++ email_triage_children() ++ telegram_children() ++ whatsapp_children()
+      ] ++ knowledge_base_children() ++ email_triage_children() ++ telegram_children() ++ whatsapp_children() ++ monitor_children()
 
 
     opts = [strategy: :one_for_one, name: ExClaw.Supervisor]
@@ -122,5 +125,19 @@ defmodule ExClaw.Application do
     else
       []
     end
+  end
+
+  defp monitor_children do
+    health_config = Application.get_env(:exclaw, ExClaw.Monitor.ProcessHealth, [])
+    alerting_config = Application.get_env(:exclaw, ExClaw.Monitor.Alerting, [])
+
+    [{ExClaw.Monitor.Supervisor,
+      name: ExClaw.Monitor.Supervisor,
+      process_health_opts:
+        health_config
+        |> Keyword.put(:name, ExClaw.Monitor.ProcessHealth),
+      alerting_opts:
+        alerting_config
+        |> Keyword.put(:name, ExClaw.Monitor.Alerting)}]
   end
 end
