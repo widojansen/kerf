@@ -103,7 +103,7 @@ config :exclaw, ExClaw.Monitor.ProcessHealth,
   watched: [
     ExClaw.Channels.Telegram,
     ExClaw.LLM.ModelRouter,
-    ExClaw.Scheduler,
+    ExClaw.Scheduler.Scheduler,
     ExClaw.Agent.Supervisor
   ]
 
