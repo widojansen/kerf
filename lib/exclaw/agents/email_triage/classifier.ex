@@ -20,7 +20,7 @@ defmodule ExClaw.Agents.EmailTriage.Classifier do
           category: result["category"],
           priority: result["priority"],
           action: result["action"],
-          confidence: result["confidence"],
+          confidence: result["confidence"] || 0.5,
           summary: result["summary"]
         }}
 
@@ -35,7 +35,7 @@ defmodule ExClaw.Agents.EmailTriage.Classifier do
   def schema_definition do
     %{
       "type" => "object",
-      "required" => ["category", "priority", "action", "confidence", "summary"],
+      "required" => ["category", "priority", "action", "summary"],
       "properties" => %{
         "category" => %{
           "type" => "string",

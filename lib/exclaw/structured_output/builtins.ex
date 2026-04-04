@@ -51,7 +51,7 @@ defmodule ExClaw.StructuredOutput.Builtins do
              "confidence" => %{"type" => "number", "minimum" => 0.0, "maximum" => 1.0},
              "summary" => %{"type" => "string", "maxLength" => 500}
            },
-           "required" => ["category", "priority", "action", "confidence", "summary"]
+           "required" => ["category", "priority", "action", "summary"]
          },
          coercions: [priority: :integer, confidence: :float],
          description: "Classify an email by category, priority, action, and summary",
