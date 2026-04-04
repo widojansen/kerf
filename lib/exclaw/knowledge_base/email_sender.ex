@@ -14,6 +14,9 @@ defmodule ExClaw.KnowledgeBase.EmailSender do
     field :total_emails, :integer, default: 0
     field :total_interactions, :integer, default: 0
     field :last_email_at, :utc_datetime_usec
+    field :classification_override, :string
+    field :priority_override, :integer
+    field :match_pattern, :string
 
     timestamps(type: :utc_datetime_usec)
   end
@@ -22,7 +25,8 @@ defmodule ExClaw.KnowledgeBase.EmailSender do
     sender
     |> cast(attrs, [
       :email, :name, :domain, :priority_score, :is_priority,
-      :total_emails, :total_interactions, :last_email_at
+      :total_emails, :total_interactions, :last_email_at,
+      :classification_override, :priority_override, :match_pattern
     ])
     |> validate_required([:email])
     |> unique_constraint(:email)

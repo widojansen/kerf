@@ -163,6 +163,53 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
     end
   end
 
+  describe "fast classifier integration" do
+    test "uses fast classifier when sender has classification_override", ctx do
+      test_pid = self()
+
+      # Add classification override for the sender
+      import Ecto.Query
+      sender = Repo.one!(from s in ExClaw.KnowledgeBase.EmailSender, where: s.email == "john@example.com")
+      sender
+      |> Ecto.Changeset.change(%{classification_override: "business", priority_override: 5})
+      |> Repo.update!()
+
+      # LLM classifier should NOT be called
+      classifier_fn = fn _email, _opts ->
+        send(test_pid, :llm_called)
+        {:ok, %{category: "newsletter", priority: 1, action: "archive", confidence: 0.5, summary: "LLM."}}
+      end
+
+      ctx = start_agent(ctx, classifier_fn: classifier_fn)
+      {:ok, [result]} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      refute_receive :llm_called, 100
+      assert result.classification.category == "business"
+      assert result.classification.source == :fast_classifier
+      assert result.final_priority >= 4
+    end
+
+    test "falls through to LLM when no fast match", ctx do
+      test_pid = self()
+
+      classifier_fn = fn _email, _opts ->
+        send(test_pid, :llm_called)
+        {:ok, %{category: "personal", priority: 3, action: "follow_up", confidence: 0.9, summary: "LLM classified."}}
+      end
+
+      # Remove classification_override from sender so fast classifier won't match
+      import Ecto.Query
+      sender = Repo.one!(from s in ExClaw.KnowledgeBase.EmailSender, where: s.email == "john@example.com")
+      sender |> Ecto.Changeset.change(%{classification_override: nil}) |> Repo.update!()
+
+      ctx = start_agent(ctx, classifier_fn: classifier_fn)
+      {:ok, [result]} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      assert_receive :llm_called, 1000
+      assert result.classification.category == "personal"
+    end
+  end
+
   describe "gmail actions after triage" do
     test "marks non-priority emails as read and labels them", ctx do
       test_pid = self()

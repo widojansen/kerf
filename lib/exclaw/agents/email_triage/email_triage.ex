@@ -6,7 +6,7 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriage do
   use GenServer
 
   alias ExClaw.KnowledgeBase.{Document, Chunk, EmailSender, Interest}
-  alias ExClaw.Agents.EmailTriage.{Classifier, PriorityScorer, InterestMatcher, TelegramFormatter}
+  alias ExClaw.Agents.EmailTriage.{Classifier, FastClassifier, PriorityScorer, InterestMatcher, TelegramFormatter}
 
   import Ecto.Query
 
@@ -91,14 +91,21 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriage do
             |> Enum.map(fn m -> %{topic: m.topic, score: 0.6} end)
           end
 
-        # 4. Classify
+        # 4. Classify (fast path first, then LLM fallback)
+        sender_name = doc.source_metadata["sender_name"] || ""
+        sender_addr = doc.source_metadata["sender"] || ""
+        from_field = if sender_name != "", do: "#{sender_name} <#{sender_addr}>", else: sender_addr
+
+        fast_email = %{
+          from: from_field,
+          subject: doc.title || "",
+          labels: doc.source_metadata["labels"] || []
+        }
+
         email = %{
           subject: doc.title || "",
           body_text: doc.raw_text || "",
-          from: %{
-            email: doc.source_metadata["sender"] || "",
-            name: doc.source_metadata["sender_name"]
-          }
+          from: %{email: sender_addr, name: doc.source_metadata["sender_name"]}
         }
 
         context = %{
@@ -106,7 +113,13 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriage do
           interest_matches: interest_matches
         }
 
-        case state.classifier_fn.(email, context: context) do
+        classification_result =
+          case FastClassifier.classify(fast_email, repo: state.repo) do
+            {:ok, _} = fast -> fast
+            :no_match -> state.classifier_fn.(email, context: context)
+          end
+
+        case classification_result do
           {:ok, classification} ->
             # 5. Score priority
             final_priority =

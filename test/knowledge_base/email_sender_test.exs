@@ -80,6 +80,49 @@ defmodule ExClaw.KnowledgeBase.EmailSenderTest do
     end
   end
 
+  describe "classification fields" do
+    test "accepts classification_override, priority_override, match_pattern" do
+      cs =
+        EmailSender.changeset(%EmailSender{}, %{
+          email: "rule@example.com",
+          classification_override: "newsletter",
+          priority_override: 1,
+          match_pattern: "example.com"
+        })
+
+      assert cs.valid?
+      assert Ecto.Changeset.get_change(cs, :classification_override) == "newsletter"
+      assert Ecto.Changeset.get_change(cs, :priority_override) == 1
+      assert Ecto.Changeset.get_change(cs, :match_pattern) == "example.com"
+    end
+
+    test "persists classification fields to database" do
+      {:ok, sender} =
+        %EmailSender{}
+        |> EmailSender.changeset(%{
+          email: "persist-cls@example.com",
+          classification_override: "business",
+          priority_override: 5,
+          match_pattern: "fource"
+        })
+        |> Repo.insert()
+
+      reloaded = Repo.get!(EmailSender, sender.id)
+      assert reloaded.classification_override == "business"
+      assert reloaded.priority_override == 5
+      assert reloaded.match_pattern == "fource"
+    end
+
+    test "classification fields default to nil" do
+      {:ok, sender} =
+        Repo.insert(EmailSender.changeset(%EmailSender{}, %{email: "noclass@example.com"}))
+
+      assert sender.classification_override == nil
+      assert sender.priority_override == nil
+      assert sender.match_pattern == nil
+    end
+  end
+
   defp errors_on(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
       Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
