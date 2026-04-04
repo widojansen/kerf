@@ -52,7 +52,7 @@ defmodule ExClaw.StructuredOutput do
     max_retries = Keyword.get(opts, :max_retries, config(:default_max_retries, @default_max_retries))
     temperature = Keyword.get(opts, :temperature, config(:default_temperature, @default_temperature))
     max_tokens = Keyword.get(opts, :max_tokens, Map.get(schema_def, :max_tokens, 2048))
-    provider_fn = Keyword.fetch!(opts, :provider_fn)
+    provider_fn = Keyword.get(opts, :provider_fn, &default_provider/3)
     provider_type = Keyword.get(opts, :provider_type, detect_provider(model))
 
     provider_opts =
@@ -187,5 +187,9 @@ defmodule ExClaw.StructuredOutput do
   defp config(key, default) do
     Application.get_env(:exclaw, __MODULE__, [])
     |> Keyword.get(key, default)
+  end
+
+  defp default_provider(model, messages, opts) do
+    ExClaw.LLM.ModelRouter.complete(model, messages, opts)
   end
 end
