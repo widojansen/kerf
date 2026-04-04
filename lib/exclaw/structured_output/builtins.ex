@@ -34,6 +34,29 @@ defmodule ExClaw.StructuredOutput.Builtins do
          description: "A priority score from 1-10 with contributing factors",
          max_tokens: 512
        }},
+      {:email_classification,
+       %{
+         json_schema: %{
+           "type" => "object",
+           "properties" => %{
+             "category" => %{
+               "type" => "string",
+               "enum" => ["business", "personal", "newsletter", "transactional", "spam"]
+             },
+             "priority" => %{"type" => "integer", "minimum" => 1, "maximum" => 5},
+             "action" => %{
+               "type" => "string",
+               "enum" => ["follow_up", "archive", "flag", "ignore"]
+             },
+             "confidence" => %{"type" => "number", "minimum" => 0.0, "maximum" => 1.0},
+             "summary" => %{"type" => "string", "maxLength" => 500}
+           },
+           "required" => ["category", "priority", "action", "confidence", "summary"]
+         },
+         coercions: [priority: :integer, confidence: :float],
+         description: "Classify an email by category, priority, action, and summary",
+         max_tokens: 512
+       }},
       {:entity_extraction,
        %{
          json_schema: %{

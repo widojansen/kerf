@@ -37,11 +37,11 @@ defmodule ExClaw.StructuredOutput.IntegrationTest do
       assert schema.description =~ "entities"
     end
 
-    test "all three built-in schemas are registered" do
+    test "all built-in schemas are registered" do
       reg = start_registry_with_builtins()
       schemas = SchemaRegistry.list(reg)
       names = Enum.map(schemas, fn {name, _} -> name end) |> Enum.sort()
-      assert names == [:entity_extraction, :priority_score, :yes_no]
+      assert names == [:email_classification, :entity_extraction, :priority_score, :yes_no]
     end
   end
 
