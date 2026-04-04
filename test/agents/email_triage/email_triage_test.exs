@@ -163,6 +163,74 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
     end
   end
 
+  describe "gmail actions after triage" do
+    test "marks non-priority emails as read and labels them", ctx do
+      test_pid = self()
+
+      gmail_fn = fn _token, msg_id, opts ->
+        send(test_pid, {:gmail_modify, msg_id, opts})
+        :ok
+      end
+
+      # Classifier returns low-priority newsletter
+      classifier_fn = fn _email, _opts ->
+        {:ok, %{category: "newsletter", priority: 2, action: "archive",
+                confidence: 0.9, summary: "Newsletter."}}
+      end
+
+      ctx = start_agent(ctx,
+        classifier_fn: classifier_fn,
+        gmail_fn: gmail_fn,
+        high_priority_threshold: 4
+      )
+
+      EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      assert_receive {:gmail_modify, "msg_triage_1", opts}
+      assert "UNREAD" in Keyword.get(opts, :remove, [])
+      assert Enum.any?(Keyword.get(opts, :add, []), &(&1 =~ "Triaged"))
+    end
+
+    test "keeps high-priority personal emails unread", ctx do
+      test_pid = self()
+
+      gmail_fn = fn _token, msg_id, opts ->
+        send(test_pid, {:gmail_modify, msg_id, opts})
+        :ok
+      end
+
+      # Classifier returns high-priority personal
+      classifier_fn = fn _email, _opts ->
+        {:ok, %{category: "personal", priority: 5, action: "follow_up",
+                confidence: 0.95, summary: "Important personal email."}}
+      end
+
+      ctx = start_agent(ctx,
+        classifier_fn: classifier_fn,
+        gmail_fn: gmail_fn,
+        high_priority_threshold: 4
+      )
+
+      EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      assert_receive {:gmail_modify, "msg_triage_1", opts}
+      refute "UNREAD" in Keyword.get(opts, :remove, [])
+      assert Enum.any?(Keyword.get(opts, :add, []), &(&1 =~ "Triaged"))
+    end
+
+    test "does not crash when gmail_fn is not set", ctx do
+      ctx = start_agent(ctx)
+      assert {:ok, [_result]} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+    end
+
+    test "does not crash when gmail_fn fails", ctx do
+      gmail_fn = fn _token, _msg_id, _opts -> {:error, "Gmail API down"} end
+
+      ctx = start_agent(ctx, gmail_fn: gmail_fn)
+      assert {:ok, [_result]} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+    end
+  end
+
   describe "status/1" do
     test "returns agent status", ctx do
       ctx = start_agent(ctx)

@@ -66,10 +66,24 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
   Apply labels to a Gmail message.
   """
   def apply_labels(access_token, message_id, label_ids, opts \\ []) do
+    modify_message(access_token, message_id, Keyword.merge([add: label_ids], opts))
+  end
+
+  @doc """
+  Modify a Gmail message: add and/or remove labels.
+
+  Options:
+    - `:add` — list of label IDs to add
+    - `:remove` — list of label IDs to remove
+    - `:http_client` — injectable HTTP client
+  """
+  def modify_message(access_token, message_id, opts \\ []) do
     http_client = Keyword.get(opts, :http_client, &default_http_client/5)
+    add_ids = Keyword.get(opts, :add, [])
+    remove_ids = Keyword.get(opts, :remove, [])
     headers = build_auth_headers(access_token)
     url = "#{@base_url}/messages/#{message_id}/modify"
-    body = Jason.encode!(%{"addLabelIds" => label_ids})
+    body = Jason.encode!(%{"addLabelIds" => add_ids, "removeLabelIds" => remove_ids})
 
     case http_client.(:post, url, body, [{"content-type", "application/json"} | headers], []) do
       {:ok, %{status: 200}} -> :ok

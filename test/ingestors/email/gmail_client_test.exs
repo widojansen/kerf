@@ -251,6 +251,62 @@ defmodule ExClaw.Ingestors.Email.GmailClientTest do
     end
   end
 
+  describe "modify_message/4" do
+    test "adds and removes labels in one call" do
+      test_pid = self()
+
+      http_client = fn method, url, body, _headers, _opts ->
+        send(test_pid, {:modify, method, url, Jason.decode!(body)})
+        {:ok, %{status: 200, body: Jason.encode!(%{"id" => "msg_001"})}}
+      end
+
+      assert :ok =
+               GmailClient.modify_message("token", "msg_001",
+                 add: ["Label_1"],
+                 remove: ["UNREAD"],
+                 http_client: http_client
+               )
+
+      assert_receive {:modify, :post, url, body}
+      assert url =~ "/messages/msg_001/modify"
+      assert body["addLabelIds"] == ["Label_1"]
+      assert body["removeLabelIds"] == ["UNREAD"]
+    end
+
+    test "handles add-only" do
+      test_pid = self()
+
+      http_client = fn _method, _url, body, _headers, _opts ->
+        send(test_pid, {:body, Jason.decode!(body)})
+        {:ok, %{status: 200, body: Jason.encode!(%{"id" => "msg_001"})}}
+      end
+
+      assert :ok =
+               GmailClient.modify_message("token", "msg_001",
+                 add: ["STARRED"],
+                 http_client: http_client
+               )
+
+      assert_receive {:body, body}
+      assert body["addLabelIds"] == ["STARRED"]
+      assert body["removeLabelIds"] == []
+    end
+
+    test "returns error on failure" do
+      http_client = fn _method, _url, _body, _headers, _opts ->
+        {:ok, %{status: 403, body: "Forbidden"}}
+      end
+
+      assert {:error, msg} =
+               GmailClient.modify_message("token", "msg_001",
+                 add: ["Label_1"],
+                 http_client: http_client
+               )
+
+      assert msg =~ "403"
+    end
+  end
+
   describe "build_auth_headers/1" do
     test "builds Bearer authorization header" do
       headers = GmailClient.build_auth_headers("my_token")

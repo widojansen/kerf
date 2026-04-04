@@ -24,6 +24,10 @@ defmodule ExClaw.CredentialVault do
     GenServer.call(vault, {:get, credential_id})
   end
 
+  def get_by_name(vault \\ __MODULE__, credential_name) do
+    GenServer.call(vault, {:get_by_name, credential_name})
+  end
+
   def update(vault \\ __MODULE__, credential_id, data, opts \\ []) do
     GenServer.call(vault, {:update, credential_id, data, opts})
   end
@@ -62,6 +66,11 @@ defmodule ExClaw.CredentialVault do
 
   def handle_call({:get, credential_id}, _from, state) do
     result = LocalEncrypted.get(credential_id, state.encryption_key)
+    {:reply, result, state}
+  end
+
+  def handle_call({:get_by_name, credential_name}, _from, state) do
+    result = LocalEncrypted.get_by_name(credential_name, state.encryption_key)
     {:reply, result, state}
   end
 

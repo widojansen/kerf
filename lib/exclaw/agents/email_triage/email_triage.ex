@@ -33,6 +33,8 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriage do
       repo: Keyword.fetch!(opts, :repo),
       classifier_fn: Keyword.get(opts, :classifier_fn, &default_classifier/2),
       telegram_fn: Keyword.get(opts, :telegram_fn),
+      gmail_fn: Keyword.get(opts, :gmail_fn),
+      gmail_label: Keyword.get(opts, :gmail_label, "ExClaw/Triaged"),
       graph_enabled: Keyword.get(opts, :graph_enabled, false),
       interest_threshold: Keyword.get(opts, :interest_threshold, 0.5),
       high_priority_threshold: Keyword.get(opts, :high_priority_threshold, 4),
@@ -116,6 +118,9 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriage do
                 thread_has_priority_senders: false
               })
 
+            # 6. Mark read + label in Gmail (except high-priority personal)
+            apply_gmail_actions(doc, classification, final_priority, state)
+
             [%{
               document_id: doc.id,
               classification: Map.put(classification, :interest_matches, interest_matches),
@@ -188,6 +193,23 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriage do
       case TelegramFormatter.format_digest(low) do
         nil -> :ok
         text -> state.telegram_fn.(nil, text, [])
+      end
+    end
+  end
+
+  defp apply_gmail_actions(doc, classification, final_priority, state) do
+    if state.gmail_fn do
+      try do
+        message_id = doc.source_id
+        keep_unread = final_priority >= state.high_priority_threshold and
+                      classification.category in ["personal", "business"]
+
+        opts = [add: [state.gmail_label]]
+        opts = if keep_unread, do: opts, else: Keyword.put(opts, :remove, ["UNREAD"])
+
+        state.gmail_fn.(nil, message_id, opts)
+      rescue
+        _ -> :ok
       end
     end
   end

@@ -59,6 +59,22 @@ defmodule ExClaw.CredentialVault.Backend.LocalEncrypted do
     end
   end
 
+  def get_by_name(name, encryption_key) do
+    case Repo.one(from(c in Credential, where: c.name == ^name)) do
+      nil ->
+        {:error, :not_found}
+
+      record ->
+        case decrypt(record.encrypted_data, encryption_key) do
+          {:ok, plaintext} ->
+            {:ok, to_decrypted(record, Jason.decode!(plaintext))}
+
+          :error ->
+            {:error, :decryption_failed}
+        end
+    end
+  end
+
   @impl true
   def update(credential_id, data, encryption_key, opts \\ []) do
     case Repo.get(Credential, credential_id) do
