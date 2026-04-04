@@ -190,6 +190,6 @@ defmodule ExClaw.StructuredOutput do
   end
 
   defp default_provider(model, messages, opts) do
-    ExClaw.LLM.ModelRouter.complete(model, messages, opts)
+    ExClaw.LLM.ModelRouter.complete(ExClaw.LLM.ModelRouter, model, messages, opts)
   end
 end
