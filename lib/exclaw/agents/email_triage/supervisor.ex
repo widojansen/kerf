@@ -80,11 +80,35 @@ defmodule ExClaw.Agents.EmailTriage.Supervisor do
       case CredentialVault.get_by_name(CredentialVault, credential_name) do
         {:ok, cred} ->
           access_token = cred.decrypted_data["access_token"]
+          # Resolve label names to IDs in the :add list
+          opts = resolve_label_ids(access_token, opts)
           GmailClient.modify_message(access_token, message_id, opts)
 
         {:error, reason} ->
           {:error, reason}
       end
+    end
+  end
+
+  defp resolve_label_ids(access_token, opts) do
+    case Keyword.get(opts, :add, []) do
+      [] ->
+        opts
+
+      labels ->
+        resolved =
+          Enum.map(labels, fn label ->
+            if String.starts_with?(label, "Label_") or label == "UNREAD" or label == "STARRED" or label == "INBOX" do
+              label
+            else
+              case GmailClient.resolve_label(access_token, label) do
+                {:ok, id} -> id
+                {:error, _} -> label
+              end
+            end
+          end)
+
+        Keyword.put(opts, :add, resolved)
     end
   end
 end

@@ -63,6 +63,46 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
   end
 
   @doc """
+  Resolve a label name to its Gmail label ID, creating it if it doesn't exist.
+  Returns `{:ok, label_id}` or `{:error, reason}`.
+  """
+  def resolve_label(access_token, label_name, opts \\ []) do
+    http_client = Keyword.get(opts, :http_client, &default_http_client/5)
+    headers = build_auth_headers(access_token)
+
+    case http_client.(:get, "#{@base_url}/labels", nil, headers, []) do
+      {:ok, %{status: 200, body: body}} ->
+        parsed = decode_json(body)
+        labels = parsed["labels"] || []
+
+        case Enum.find(labels, fn l -> l["name"] == label_name end) do
+          %{"id" => id} ->
+            {:ok, id}
+
+          nil ->
+            create_body = Jason.encode!(%{"name" => label_name, "labelListVisibility" => "labelShow", "messageListVisibility" => "show"})
+
+            case http_client.(:post, "#{@base_url}/labels", create_body, [{"content-type", "application/json"} | headers], []) do
+              {:ok, %{status: 200, body: resp}} ->
+                {:ok, decode_json(resp)["id"]}
+
+              {:ok, %{status: status, body: resp}} ->
+                {:error, "Gmail create label error #{status}: #{inspect(resp)}"}
+
+              {:error, reason} ->
+                {:error, "Gmail create label failed: #{inspect(reason)}"}
+            end
+        end
+
+      {:ok, %{status: status, body: body}} ->
+        {:error, "Gmail list labels error #{status}: #{inspect(body)}"}
+
+      {:error, reason} ->
+        {:error, "Gmail list labels failed: #{inspect(reason)}"}
+    end
+  end
+
+  @doc """
   Apply labels to a Gmail message.
   """
   def apply_labels(access_token, message_id, label_ids, opts \\ []) do
