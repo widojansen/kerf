@@ -37,7 +37,10 @@ defmodule ExClaw.Agents.EmailTriage.Supervisor do
              repo: ExClaw.Repo,
              poll_interval_ms: Keyword.get(config, :poll_interval_ms, 300_000),
              access_token_fn: build_access_token_fn(credential_name),
-             gmail_client: &GmailClient.fetch_new/2
+             gmail_client: &GmailClient.fetch_new/2,
+             triage_fn: fn doc_ids ->
+               EmailTriage.triage(EmailTriage, doc_ids)
+             end
            ]}
         ]
     else

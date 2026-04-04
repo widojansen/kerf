@@ -42,7 +42,7 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
         {:ok, Enum.filter(emails, &(&1 != nil))}
 
       {:ok, %{status: status, body: body}} ->
-        {:error, "Gmail search error #{status}: #{body}"}
+        {:error, "Gmail search error #{status}: #{inspect(body)}"}
 
       {:error, reason} ->
         {:error, "Gmail search failed: #{inspect(reason)}"}
@@ -87,7 +87,7 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
 
     case http_client.(:post, url, body, [{"content-type", "application/json"} | headers], []) do
       {:ok, %{status: 200}} -> :ok
-      {:ok, %{status: status, body: resp}} -> {:error, "Gmail modify error #{status}: #{resp}"}
+      {:ok, %{status: status, body: resp}} -> {:error, "Gmail modify error #{status}: #{inspect(resp)}"}
       {:error, reason} -> {:error, "Gmail modify failed: #{inspect(reason)}"}
     end
   end
@@ -181,7 +181,7 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
         {:ok, emails, new_history_id}
 
       {:ok, %{status: status, body: body}} ->
-        {:error, "Gmail history error #{status}: #{body}"}
+        {:error, "Gmail history error #{status}: #{inspect(body)}"}
 
       {:error, reason} ->
         {:error, "Gmail history failed: #{inspect(reason)}"}
@@ -211,7 +211,7 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
         {:ok, emails, latest_history_id}
 
       {:ok, %{status: status, body: body}} ->
-        {:error, "Gmail list error #{status}: #{body}"}
+        {:error, "Gmail list error #{status}: #{inspect(body)}"}
 
       {:error, reason} ->
         {:error, "Gmail list failed: #{inspect(reason)}"}

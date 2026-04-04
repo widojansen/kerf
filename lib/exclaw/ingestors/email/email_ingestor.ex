@@ -38,6 +38,7 @@ defmodule ExClaw.Ingestors.Email.EmailIngestor do
       gmail_search: Keyword.get(opts, :gmail_search),
       embedder: Keyword.get(opts, :embedder, &default_embedder/2),
       access_token_fn: Keyword.get(opts, :access_token_fn, fn -> {:error, "no token configured"} end),
+      triage_fn: Keyword.get(opts, :triage_fn),
       poll_interval_ms: Keyword.get(opts, :poll_interval_ms, 300_000),
       graph_enabled: Keyword.get(opts, :graph_enabled, false),
       history_id: nil,
@@ -133,33 +134,44 @@ defmodule ExClaw.Ingestors.Email.EmailIngestor do
   defp ingest_emails(emails, state) do
     repo = state.repo
 
-    Enum.reduce(emails, 0, fn email, acc ->
-      content_hash =
-        :crypto.hash(:sha256, email.body_text || "")
-        |> Base.encode16(case: :lower)
+    doc_ids =
+      Enum.reduce(emails, [], fn email, acc ->
+        content_hash =
+          :crypto.hash(:sha256, email.body_text || "")
+          |> Base.encode16(case: :lower)
 
-      # Check dedup by source_id
-      existing =
-        repo.one(
-          from(d in Document,
-            where: d.source_type == "email" and d.source_id == ^email.id
+        # Check dedup by source_id
+        existing =
+          repo.one(
+            from(d in Document,
+              where: d.source_type == "email" and d.source_id == ^email.id
+            )
           )
-        )
 
-      if existing do
-        acc
-      else
-        case insert_email_document(email, content_hash, repo) do
-          {:ok, doc} ->
-            insert_chunks(doc, email, state)
-            upsert_sender(email, repo)
-            acc + 1
+        if existing do
+          acc
+        else
+          case insert_email_document(email, content_hash, repo) do
+            {:ok, doc} ->
+              insert_chunks(doc, email, state)
+              upsert_sender(email, repo)
+              [doc.id | acc]
 
-          {:error, _} ->
-            acc
+            {:error, _} ->
+              acc
+          end
         end
+      end)
+
+    if doc_ids != [] and state.triage_fn do
+      try do
+        state.triage_fn.(Enum.reverse(doc_ids))
+      rescue
+        _ -> :ok
       end
-    end)
+    end
+
+    length(doc_ids)
   end
 
   defp insert_email_document(email, content_hash, repo) do

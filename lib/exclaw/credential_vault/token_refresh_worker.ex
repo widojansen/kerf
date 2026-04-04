@@ -74,7 +74,7 @@ defmodule ExClaw.CredentialVault.TokenRefreshWorker do
     end
   end
 
-  defp needs_refresh?(%{expires_at: nil}, _now, _threshold), do: false
+  defp needs_refresh?(%{expires_at: nil}, _now, _threshold), do: true
 
   defp needs_refresh?(%{expires_at: expires_at}, now, threshold) do
     DateTime.diff(expires_at, now) <= threshold
@@ -135,7 +135,7 @@ defmodule ExClaw.CredentialVault.TokenRefreshWorker do
 
       case http_client.(token_url, body, headers) do
         {:ok, %{status: 200, body: resp_body}} ->
-          parsed = Jason.decode!(resp_body)
+          parsed = if is_binary(resp_body), do: Jason.decode!(resp_body), else: resp_body
           {:ok, parsed["access_token"], parsed["expires_in"]}
 
         {:ok, %{status: status, body: resp_body}} ->
