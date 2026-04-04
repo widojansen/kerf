@@ -65,6 +65,30 @@ defmodule ExClaw.Agents.EmailTriage.ClassifierTest do
       assert user_msg["content"] =~ "AI/ML"
     end
 
+    test "prepends /no_think to prompt for thinking models" do
+      test_pid = self()
+
+      provider_fn = fn _schema, _model, messages, _opts ->
+        send(test_pid, {:messages, messages})
+
+        {:ok,
+         %{
+           "category" => "newsletter",
+           "priority" => 2,
+           "action" => "archive",
+           "confidence" => 0.8,
+           "summary" => "Test."
+         }}
+      end
+
+      email = %{subject: "Test", body_text: "Body", from: %{email: "a@b.com", name: "A"}}
+      Classifier.classify(email, provider_fn: provider_fn)
+
+      assert_receive {:messages, messages}
+      user_msg = List.last(messages)
+      assert String.starts_with?(user_msg["content"], "/no_think")
+    end
+
     test "handles provider error" do
       provider_fn = fn _schema, _model, _messages, _opts ->
         {:error, "API timeout"}

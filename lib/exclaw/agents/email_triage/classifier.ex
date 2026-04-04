@@ -87,6 +87,7 @@ defmodule ExClaw.Agents.EmailTriage.Classifier do
       end
 
     """
+    /no_think
     Classify this email and provide a brief summary.
 
     From: #{email.from.name || ""} <#{email.from.email}>
