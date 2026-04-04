@@ -42,7 +42,7 @@ defmodule ExClaw.KnowledgeBase.Embedder do
 
     case http_client.(:post, endpoint, body, headers, recv_timeout: 30_000) do
       {:ok, %{status: 200, body: resp_body}} ->
-        parsed = Jason.decode!(resp_body)
+        parsed = if is_binary(resp_body), do: Jason.decode!(resp_body), else: resp_body
         embeddings =
           parsed["data"]
           |> Enum.sort_by(& &1["index"])
