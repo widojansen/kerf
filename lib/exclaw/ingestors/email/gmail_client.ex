@@ -336,12 +336,14 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
   end
 
   defp default_http_client(method, url, body, headers, _opts) do
+    {url, connect_opts} = resolve_ipv4(url)
+
     req_opts = [
       url: url,
       headers: headers,
-      finch: ExClaw.GmailFinch,
       receive_timeout: 30_000,
-      pool_timeout: 5_000
+      pool_timeout: 5_000,
+      connect_options: connect_opts
     ]
 
     req_opts = if body, do: Keyword.put(req_opts, :body, body), else: req_opts
@@ -350,6 +352,25 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
     case Req.request(req, method: method) do
       {:ok, resp} -> {:ok, %{status: resp.status, body: resp.body}}
       {:error, err} -> {:error, err}
+    end
+  end
+
+  defp resolve_ipv4(url) do
+    uri = URI.parse(url)
+
+    case :inet.getaddr(String.to_charlist(uri.host), :inet) do
+      {:ok, ip} ->
+        ip_str = ip |> Tuple.to_list() |> Enum.join(".")
+        ipv4_url = %{uri | host: ip_str} |> URI.to_string()
+        # Set SNI hostname so TLS cert validation works against the original hostname
+        connect_opts = [
+          hostname: uri.host,
+          transport_opts: [server_name_indication: String.to_charlist(uri.host)]
+        ]
+        {ipv4_url, connect_opts}
+
+      {:error, _} ->
+        {url, []}
     end
   end
 end
