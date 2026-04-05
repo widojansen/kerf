@@ -36,7 +36,7 @@ defmodule ExClaw.Application do
              count: 1,
              pool_max_idle_time: 30_000,
              conn_opts: [
-               transport_opts: [timeout: 30_000, inet: :inet]
+               transport_opts: [:inet, timeout: 30_000]
              ]
            ]
          }},
