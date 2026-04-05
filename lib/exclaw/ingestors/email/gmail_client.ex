@@ -336,7 +336,16 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
   end
 
   defp default_http_client(method, url, body, headers, _opts) do
-    req_opts = [url: url, headers: headers, receive_timeout: 30_000]
+    req_opts = [
+      url: url,
+      headers: headers,
+      connect_timeout: 15_000,
+      receive_timeout: 30_000,
+      pool_timeout: 5_000,
+      # Disable connection reuse — avoids stale SSL connections hanging in Finch pool
+      connect_options: [protocols: [:http1], conn_opts: [transport_opts: [timeout: 30_000]]]
+    ]
+
     req_opts = if body, do: Keyword.put(req_opts, :body, body), else: req_opts
     req = Req.new(req_opts)
 
