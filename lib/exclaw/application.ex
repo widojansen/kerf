@@ -27,7 +27,7 @@ defmodule ExClaw.Application do
         # BEAM VM metrics — emits [:vm, :memory], [:vm, :total_run_queue_lengths] etc.
         {:telemetry_poller, measurements: [:memory, :total_run_queue_lengths], period: 30_000},
 
-        # Dedicated Finch pool for Gmail API — avoids stale SSL connections
+        # Dedicated Finch pool for Gmail API — force IPv4, expire idle connections
         {Finch,
          name: ExClaw.GmailFinch,
          pools: %{
@@ -36,7 +36,7 @@ defmodule ExClaw.Application do
              count: 1,
              pool_max_idle_time: 30_000,
              conn_opts: [
-               transport_opts: [timeout: 30_000]
+               transport_opts: [timeout: 30_000, inet: :inet]
              ]
            ]
          }},
