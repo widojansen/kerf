@@ -220,4 +220,49 @@ defmodule ExClaw.Ingestors.Email.EmailIngestorTest do
       assert {:ok, 1} = EmailIngestor.backfill(ctx.ingestor, query: "from:alice@example.com")
     end
   end
+
+  describe "async poll" do
+    test "GenServer stays responsive during poll", ctx do
+      test_pid = self()
+
+      gmail_client = fn _token, _opts ->
+        send(test_pid, :poll_started)
+        Process.sleep(200)
+        {:ok, [@sample_email], "50001"}
+      end
+
+      ctx = start_ingestor(ctx, gmail_client: gmail_client)
+
+      # Trigger poll
+      send(ctx.pid, :poll)
+
+      # Wait for the poll task to start
+      assert_receive :poll_started, 5000
+
+      # GenServer should still respond while poll task is running
+      status = EmailIngestor.status(ctx.ingestor)
+      assert is_map(status)
+    end
+
+    test "skips poll if previous poll still running", ctx do
+      test_pid = self()
+
+      gmail_client = fn _token, _opts ->
+        send(test_pid, :poll_started)
+        Process.sleep(500)
+        {:ok, [], nil}
+      end
+
+      ctx = start_ingestor(ctx, gmail_client: gmail_client)
+
+      # Trigger two polls in quick succession
+      send(ctx.pid, :poll)
+      assert_receive :poll_started, 5000
+
+      send(ctx.pid, :poll)
+
+      # Only one :poll_started should arrive (second poll was skipped)
+      refute_receive :poll_started, 300
+    end
+  end
 end

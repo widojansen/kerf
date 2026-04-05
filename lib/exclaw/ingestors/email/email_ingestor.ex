@@ -30,6 +30,9 @@ defmodule ExClaw.Ingestors.Email.EmailIngestor do
 
   # --- Callbacks ---
 
+  # Hard timeout for poll tasks — prevents GenServer from blocking on hung HTTP requests
+  @poll_timeout_ms 120_000
+
   @impl true
   def init(opts) do
     state = %{
@@ -40,7 +43,9 @@ defmodule ExClaw.Ingestors.Email.EmailIngestor do
       access_token_fn: Keyword.get(opts, :access_token_fn, fn -> {:error, "no token configured"} end),
       triage_fn: Keyword.get(opts, :triage_fn),
       poll_interval_ms: Keyword.get(opts, :poll_interval_ms, 300_000),
+      poll_timeout_ms: Keyword.get(opts, :poll_timeout_ms, @poll_timeout_ms),
       graph_enabled: Keyword.get(opts, :graph_enabled, false),
+      poll_task: nil,
       history_id: nil,
       last_sync: nil,
       emails_processed: 0
@@ -85,21 +90,60 @@ defmodule ExClaw.Ingestors.Email.EmailIngestor do
   end
 
   @impl true
+  def handle_info(:poll, %{poll_task: ref} = state) when is_reference(ref) do
+    # Previous poll still running — skip this tick, reschedule
+    schedule_poll(state)
+    {:noreply, state}
+  end
+
   def handle_info(:poll, state) do
+    task =
+      Task.async(fn ->
+        do_sync(state)
+      end)
+
+    {:noreply, %{state | poll_task: task.ref}}
+  end
+
+  def handle_info({ref, result}, %{poll_task: ref}) when is_reference(ref) do
+    Process.demonitor(ref, [:flush])
+
     state =
-      case do_sync(state) do
-        {:ok, _count, new_state} -> new_state
-        {:error, _reason, new_state} -> new_state
+      case result do
+        {:ok, _count, new_state} -> %{new_state | poll_task: nil}
+        {:error, _reason, new_state} -> %{new_state | poll_task: nil}
       end
 
-    if state.poll_interval_ms != :infinity do
-      Process.send_after(self(), :poll, state.poll_interval_ms)
-    end
+    schedule_poll(state)
+    {:noreply, state}
+  end
 
+  def handle_info({:DOWN, ref, :process, _pid, reason}, %{poll_task: ref} = state) do
+    require Logger
+    Logger.warning("[EmailIngestor] Poll task crashed: #{inspect(reason)}")
+    state = %{state | poll_task: nil}
+    schedule_poll(state)
+    {:noreply, state}
+  end
+
+  def handle_info({ref, _result}, state) when is_reference(ref) do
+    # Stale task result from a previous poll — ignore
+    Process.demonitor(ref, [:flush])
+    {:noreply, state}
+  end
+
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
+    # Stale DOWN from a previous task — ignore
     {:noreply, state}
   end
 
   # --- Internal ---
+
+  defp schedule_poll(state) do
+    if state.poll_interval_ms != :infinity do
+      Process.send_after(self(), :poll, state.poll_interval_ms)
+    end
+  end
 
   defp do_sync(state) do
     with {:ok, access_token} <- state.access_token_fn.(),

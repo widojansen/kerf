@@ -7,7 +7,9 @@ defmodule ExClaw.Dashboard.Endpoint do
     signing_salt: "exclaw_salt"
   ]
 
-  socket "/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]]
+  socket "/live", Phoenix.LiveView.Socket,
+    websocket: [connect_info: [session: @session_options]],
+    longpoll: [connect_info: [session: @session_options]]
 
   plug Plug.Static,
     at: "/dashboard/css",

@@ -10,10 +10,10 @@ defmodule ExClaw.Dashboard.Router do
     plug :put_root_layout, html: {ExClaw.Dashboard.Layouts, :root}
   end
 
-  scope "/", ExClaw.Dashboard.Live do
+  scope "/" do
     pipe_through :browser
 
-    live "/", DashboardLive
+    get "/", ExClaw.Dashboard.RedirectController, :index
   end
 
   scope "/" do
