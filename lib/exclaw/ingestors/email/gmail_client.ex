@@ -336,13 +336,26 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
   end
 
   defp default_http_client(method, url, body, headers, _opts) do
-    req_opts = [url: url, headers: headers, receive_timeout: 30_000]
-    req_opts = if body, do: Keyword.put(req_opts, :body, body), else: req_opts
-    req = Req.new(req_opts)
+    req = gmail_req()
+    opts = [url: url, headers: headers, method: method]
+    opts = if body, do: Keyword.put(opts, :body, body), else: opts
 
-    case Req.request(req, method: method) do
+    case Req.request(req, opts) do
       {:ok, resp} -> {:ok, %{status: resp.status, body: resp.body}}
       {:error, err} -> {:error, err}
+    end
+  end
+
+  # Reuse a single Req client per process to avoid spawning a new Finch pool per request
+  defp gmail_req do
+    case Process.get(:gmail_req) do
+      nil ->
+        req = Req.new(receive_timeout: 30_000, retry: false)
+        Process.put(:gmail_req, req)
+        req
+
+      req ->
+        req
     end
   end
 end
