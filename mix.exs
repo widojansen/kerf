@@ -21,7 +21,7 @@ defmodule ExClaw.MixProject do
 
   def application do
     [
-      extra_applications: [:logger],
+      extra_applications: [:logger, :runtime_tools, :os_mon],
       mod: {ExClaw.Application, []}
     ]
   end
@@ -41,8 +41,10 @@ defmodule ExClaw.MixProject do
       # Web dashboard
       {:phoenix, "~> 1.7"},
       {:phoenix_live_view, "~> 1.0"},
+      {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_html, "~> 4.0"},
       {:bandit, "~> 1.0"},
+      {:telemetry_metrics, "~> 1.0"},
 
       # Tools
       {:quantum, "~> 3.5"},
