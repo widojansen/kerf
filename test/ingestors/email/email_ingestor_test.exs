@@ -244,6 +244,29 @@ defmodule ExClaw.Ingestors.Email.EmailIngestorTest do
       assert is_map(status)
     end
 
+    test "kills hung poll task after timeout", ctx do
+      gmail_client = fn _token, _opts ->
+        # Simulate a hung HTTP request
+        Process.sleep(:infinity)
+      end
+
+      ctx = start_ingestor(ctx, gmail_client: gmail_client, poll_timeout_ms: 200)
+
+      send(ctx.pid, :poll)
+      Process.sleep(50)
+
+      # Task should be running
+      status = EmailIngestor.status(ctx.ingestor)
+      assert is_map(status)
+
+      # Wait for timeout to kill the task
+      Process.sleep(300)
+
+      # GenServer should have recovered — poll_task cleared
+      state = :sys.get_state(ctx.pid)
+      assert state.poll_task == nil
+    end
+
     test "skips poll if previous poll still running", ctx do
       test_pid = self()
 

@@ -46,6 +46,8 @@ defmodule ExClaw.Ingestors.Email.EmailIngestor do
       poll_timeout_ms: Keyword.get(opts, :poll_timeout_ms, @poll_timeout_ms),
       graph_enabled: Keyword.get(opts, :graph_enabled, false),
       poll_task: nil,
+      poll_pid: nil,
+      poll_timer: nil,
       history_id: nil,
       last_sync: nil,
       emails_processed: 0
@@ -97,43 +99,57 @@ defmodule ExClaw.Ingestors.Email.EmailIngestor do
   end
 
   def handle_info(:poll, state) do
-    task =
-      Task.async(fn ->
-        do_sync(state)
+    parent = self()
+
+    pid =
+      spawn(fn ->
+        result = do_sync(state)
+        send(parent, {:poll_result, result})
       end)
 
-    {:noreply, %{state | poll_task: task.ref}}
+    ref = Process.monitor(pid)
+    timer = Process.send_after(self(), {:poll_timeout, pid, ref}, state.poll_timeout_ms)
+    {:noreply, %{state | poll_task: ref, poll_pid: pid, poll_timer: timer}}
   end
 
-  def handle_info({ref, result}, %{poll_task: ref}) when is_reference(ref) do
+  def handle_info({:poll_result, result}, %{poll_task: ref} = state) when is_reference(ref) do
     Process.demonitor(ref, [:flush])
+    cancel_poll_timer(state)
 
     state =
       case result do
-        {:ok, _count, new_state} -> %{new_state | poll_task: nil}
-        {:error, _reason, new_state} -> %{new_state | poll_task: nil}
+        {:ok, _count, new_state} -> %{new_state | poll_task: nil, poll_pid: nil, poll_timer: nil}
+        {:error, _reason, new_state} -> %{new_state | poll_task: nil, poll_pid: nil, poll_timer: nil}
       end
 
     schedule_poll(state)
     {:noreply, state}
   end
 
+  def handle_info({:poll_timeout, pid, ref}, %{poll_task: ref} = state) do
+    require Logger
+    Logger.warning("[EmailIngestor] Poll task timed out after #{state.poll_timeout_ms}ms, killing")
+    Process.exit(pid, :kill)
+    # The :DOWN message will clean up poll_task
+    {:noreply, %{state | poll_timer: nil}}
+  end
+
+  def handle_info({:poll_timeout, _pid, _ref}, state) do
+    # Stale timeout for an already-completed task — ignore
+    {:noreply, state}
+  end
+
   def handle_info({:DOWN, ref, :process, _pid, reason}, %{poll_task: ref} = state) do
     require Logger
-    Logger.warning("[EmailIngestor] Poll task crashed: #{inspect(reason)}")
-    state = %{state | poll_task: nil}
+    if reason != :normal, do: Logger.warning("[EmailIngestor] Poll task exited: #{inspect(reason)}")
+    cancel_poll_timer(state)
+    state = %{state | poll_task: nil, poll_pid: nil, poll_timer: nil}
     schedule_poll(state)
     {:noreply, state}
   end
 
-  def handle_info({ref, _result}, state) when is_reference(ref) do
-    # Stale task result from a previous poll — ignore
-    Process.demonitor(ref, [:flush])
-    {:noreply, state}
-  end
-
   def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
-    # Stale DOWN from a previous task — ignore
+    # Stale DOWN from a previous poll — ignore
     {:noreply, state}
   end
 
@@ -144,6 +160,9 @@ defmodule ExClaw.Ingestors.Email.EmailIngestor do
       Process.send_after(self(), :poll, state.poll_interval_ms)
     end
   end
+
+  defp cancel_poll_timer(%{poll_timer: nil}), do: :ok
+  defp cancel_poll_timer(%{poll_timer: timer}), do: Process.cancel_timer(timer)
 
   defp do_sync(state) do
     with {:ok, access_token} <- state.access_token_fn.(),
