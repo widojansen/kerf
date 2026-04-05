@@ -243,18 +243,9 @@ defmodule ExClaw.Ingestors.Email.GmailClientTest do
   end
 
   describe "fetch_new/3 — pagination" do
-    test "follows nextPageToken in messages.list" do
-      test_pid = self()
-
+    test "fetches first page of messages.list without paginating" do
       http_client = fn _method, url, _body, _headers, _opts ->
-        send(test_pid, {:req, url})
-
         cond do
-          String.contains?(url, "pageToken=page2") and not String.contains?(url, "/messages/") ->
-            {:ok, %{status: 200, body: Jason.encode!(%{
-              "messages" => [%{"id" => "msg_b"}]
-            })}}
-
           String.contains?(url, "/messages") and not String.contains?(url, "/messages/") ->
             {:ok, %{status: 200, body: Jason.encode!(%{
               "messages" => [%{"id" => "msg_a"}],
@@ -264,9 +255,6 @@ defmodule ExClaw.Ingestors.Email.GmailClientTest do
           String.contains?(url, "/messages/msg_a") ->
             {:ok, %{status: 200, body: Jason.encode!(msg_payload("msg_a", "11111"))}}
 
-          String.contains?(url, "/messages/msg_b") ->
-            {:ok, %{status: 200, body: Jason.encode!(msg_payload("msg_b", "22222"))}}
-
           true ->
             {:ok, %{status: 404, body: ""}}
         end
@@ -275,8 +263,9 @@ defmodule ExClaw.Ingestors.Email.GmailClientTest do
       assert {:ok, emails, _history_id} =
                GmailClient.fetch_new("token", http_client: http_client)
 
-      ids = Enum.map(emails, & &1.id) |> Enum.sort()
-      assert ids == ["msg_a", "msg_b"]
+      # Only first page fetched — no pagination on messages.list
+      ids = Enum.map(emails, & &1.id)
+      assert ids == ["msg_a"]
     end
 
     test "follows nextPageToken in history API" do

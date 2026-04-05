@@ -248,34 +248,28 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
     fetch_list_pages(http_client, headers, max_results, [], nil)
   end
 
-  defp fetch_list_pages(http_client, headers, max_results, acc_ids, page_token) do
+  defp fetch_list_pages(http_client, headers, max_results, _acc_ids, _page_token) do
+    # Fetch only the first page — max_results controls how many we get.
+    # Paginating through all messages is too slow and unnecessary for polling.
     url = "#{@base_url}/messages?maxResults=#{max_results}&labelIds=INBOX"
-    url = if page_token, do: "#{url}&pageToken=#{page_token}", else: url
 
     case http_client.(:get, url, nil, headers, []) do
       {:ok, %{status: 200, body: body}} ->
         parsed = decode_json(body)
         page_ids = Map.get(parsed, "messages", []) |> Enum.map(& &1["id"])
-        all_ids = acc_ids ++ page_ids
 
-        case parsed["nextPageToken"] do
-          nil ->
-            emails =
-              all_ids
-              |> Enum.map(&fetch_full_message(http_client, headers, &1))
-              |> Enum.filter(&(&1 != nil))
+        emails =
+          page_ids
+          |> Enum.map(&fetch_full_message(http_client, headers, &1))
+          |> Enum.filter(&(&1 != nil))
 
-            latest_history_id =
-              case emails do
-                [first | _] -> first.history_id
-                [] -> nil
-              end
+        latest_history_id =
+          case emails do
+            [first | _] -> first.history_id
+            [] -> nil
+          end
 
-            {:ok, emails, latest_history_id}
-
-          next_token ->
-            fetch_list_pages(http_client, headers, max_results, all_ids, next_token)
-        end
+        {:ok, emails, latest_history_id}
 
       {:ok, %{status: status, body: body}} ->
         {:error, "Gmail list error #{status}: #{inspect(body)}"}
