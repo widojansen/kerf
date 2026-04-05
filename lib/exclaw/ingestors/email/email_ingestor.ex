@@ -116,7 +116,12 @@ defmodule ExClaw.Ingestors.Email.EmailIngestor do
 
       {:ok, count, new_state}
     else
-      {:error, reason} -> {:error, reason, state}
+      {:error, :history_expired} ->
+        # History ID expired — reset and retry via messages.list
+        do_sync(%{state | history_id: nil})
+
+      {:error, reason} ->
+        {:error, reason, state}
     end
   end
 

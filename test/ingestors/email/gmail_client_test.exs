@@ -227,6 +227,98 @@ defmodule ExClaw.Ingestors.Email.GmailClientTest do
     end
   end
 
+  describe "fetch_new/3 — history expiry" do
+    test "returns :history_expired on 404 from history API" do
+      http_client = fn _method, url, _body, _headers, _opts ->
+        if String.contains?(url, "/history") do
+          {:ok, %{status: 404, body: Jason.encode!(%{"error" => %{"code" => 404}})}}
+        else
+          {:ok, %{status: 200, body: Jason.encode!(%{"messages" => []})}}
+        end
+      end
+
+      assert {:error, :history_expired} =
+               GmailClient.fetch_new("token", http_client: http_client, history_id: "old_id")
+    end
+  end
+
+  describe "fetch_new/3 — pagination" do
+    test "follows nextPageToken in messages.list" do
+      test_pid = self()
+
+      http_client = fn _method, url, _body, _headers, _opts ->
+        send(test_pid, {:req, url})
+
+        cond do
+          String.contains?(url, "pageToken=page2") and not String.contains?(url, "/messages/") ->
+            {:ok, %{status: 200, body: Jason.encode!(%{
+              "messages" => [%{"id" => "msg_b"}]
+            })}}
+
+          String.contains?(url, "/messages") and not String.contains?(url, "/messages/") ->
+            {:ok, %{status: 200, body: Jason.encode!(%{
+              "messages" => [%{"id" => "msg_a"}],
+              "nextPageToken" => "page2"
+            })}}
+
+          String.contains?(url, "/messages/msg_a") ->
+            {:ok, %{status: 200, body: Jason.encode!(msg_payload("msg_a", "11111"))}}
+
+          String.contains?(url, "/messages/msg_b") ->
+            {:ok, %{status: 200, body: Jason.encode!(msg_payload("msg_b", "22222"))}}
+
+          true ->
+            {:ok, %{status: 404, body: ""}}
+        end
+      end
+
+      assert {:ok, emails, _history_id} =
+               GmailClient.fetch_new("token", http_client: http_client)
+
+      ids = Enum.map(emails, & &1.id) |> Enum.sort()
+      assert ids == ["msg_a", "msg_b"]
+    end
+
+    test "follows nextPageToken in history API" do
+      http_client = fn _method, url, _body, _headers, _opts ->
+        cond do
+          String.contains?(url, "pageToken=hpage2") ->
+            {:ok, %{status: 200, body: Jason.encode!(%{
+              "history" => [
+                %{"messagesAdded" => [%{"message" => %{"id" => "msg_h2"}}]}
+              ],
+              "historyId" => "99999"
+            })}}
+
+          String.contains?(url, "/history") ->
+            {:ok, %{status: 200, body: Jason.encode!(%{
+              "history" => [
+                %{"messagesAdded" => [%{"message" => %{"id" => "msg_h1"}}]}
+              ],
+              "historyId" => "99998",
+              "nextPageToken" => "hpage2"
+            })}}
+
+          String.contains?(url, "/messages/msg_h1") ->
+            {:ok, %{status: 200, body: Jason.encode!(msg_payload("msg_h1", "99998"))}}
+
+          String.contains?(url, "/messages/msg_h2") ->
+            {:ok, %{status: 200, body: Jason.encode!(msg_payload("msg_h2", "99999"))}}
+
+          true ->
+            {:ok, %{status: 404, body: ""}}
+        end
+      end
+
+      assert {:ok, emails, history_id} =
+               GmailClient.fetch_new("token", http_client: http_client, history_id: "90000")
+
+      ids = Enum.map(emails, & &1.id) |> Enum.sort()
+      assert ids == ["msg_h1", "msg_h2"]
+      assert history_id == "99999"
+    end
+  end
+
   describe "search/3" do
     test "searches with query parameter" do
       test_pid = self()
@@ -312,5 +404,23 @@ defmodule ExClaw.Ingestors.Email.GmailClientTest do
       headers = GmailClient.build_auth_headers("my_token")
       assert {"authorization", "Bearer my_token"} in headers
     end
+  end
+
+  # --- Helpers ---
+
+  defp msg_payload(id, history_id) do
+    %{
+      "id" => id, "threadId" => "t_#{id}", "labelIds" => ["INBOX"],
+      "snippet" => "test", "historyId" => history_id,
+      "payload" => %{
+        "headers" => [
+          %{"name" => "From", "value" => "x@y.com"},
+          %{"name" => "To", "value" => "w@y.com"},
+          %{"name" => "Subject", "value" => "Msg #{id}"}
+        ],
+        "mimeType" => "text/plain",
+        "body" => %{"data" => Base.url_encode64("body of #{id}")}
+      }
+    }
   end
 end

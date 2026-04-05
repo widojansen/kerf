@@ -166,6 +166,49 @@ defmodule ExClaw.Ingestors.Email.EmailIngestorTest do
     end
   end
 
+  describe "sync_now/1 — history_id recovery" do
+    test "resets history_id and retries via list on :history_expired", ctx do
+      call_count = :counters.new(1, [:atomics])
+
+      gmail_client = fn _token, opts ->
+        :counters.add(call_count, 1, 1)
+        n = :counters.get(call_count, 1)
+
+        cond do
+          # First call: initial sync, returns a history_id
+          n == 1 ->
+            {:ok, [@sample_email], "50001"}
+
+          # Second call: has history_id, simulate expired
+          Keyword.has_key?(opts, :history_id) ->
+            {:error, :history_expired}
+
+          # Third call: retry without history_id (list fallback)
+          true ->
+            email2 = %{@sample_email | id: "msg_ingest_recovered", subject: "Recovered"}
+            {:ok, [email2], "60001"}
+        end
+      end
+
+      ctx = start_ingestor(ctx, gmail_client: gmail_client)
+
+      # First sync — sets history_id
+      {:ok, 1} = EmailIngestor.sync_now(ctx.ingestor)
+      status = EmailIngestor.status(ctx.ingestor)
+      assert status.history_id == "50001"
+
+      # Second sync — history expired, should recover and ingest via list
+      {:ok, 1} = EmailIngestor.sync_now(ctx.ingestor)
+
+      # history_id should be the new one from the list fallback
+      status = EmailIngestor.status(ctx.ingestor)
+      assert status.history_id == "60001"
+
+      # The recovered email should be in the database
+      assert Repo.get_by(Document, source_id: "msg_ingest_recovered") != nil
+    end
+  end
+
   describe "backfill/2" do
     test "ingests emails from search query", ctx do
       gmail_search = fn _token, _query, _opts ->

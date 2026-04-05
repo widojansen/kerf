@@ -200,25 +200,41 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
   # --- Private ---
 
   defp fetch_via_history(http_client, headers, history_id, _opts) do
+    fetch_history_pages(http_client, headers, history_id, [], nil)
+  end
+
+  defp fetch_history_pages(http_client, headers, history_id, acc_ids, page_token) do
     url = "#{@base_url}/history?startHistoryId=#{history_id}&historyTypes=messageAdded"
+    url = if page_token, do: "#{url}&pageToken=#{page_token}", else: url
 
     case http_client.(:get, url, nil, headers, []) do
       {:ok, %{status: 200, body: body}} ->
         parsed = decode_json(body)
         new_history_id = parsed["historyId"]
 
-        message_ids =
+        page_ids =
           (parsed["history"] || [])
           |> Enum.flat_map(fn h -> Map.get(h, "messagesAdded", []) end)
           |> Enum.map(& &1["message"]["id"])
-          |> Enum.uniq()
 
-        emails =
-          message_ids
-          |> Enum.map(&fetch_full_message(http_client, headers, &1))
-          |> Enum.filter(&(&1 != nil))
+        all_ids = acc_ids ++ page_ids
 
-        {:ok, emails, new_history_id}
+        case parsed["nextPageToken"] do
+          nil ->
+            emails =
+              all_ids
+              |> Enum.uniq()
+              |> Enum.map(&fetch_full_message(http_client, headers, &1))
+              |> Enum.filter(&(&1 != nil))
+
+            {:ok, emails, new_history_id}
+
+          next_token ->
+            fetch_history_pages(http_client, headers, history_id, all_ids, next_token)
+        end
+
+      {:ok, %{status: 404}} ->
+        {:error, :history_expired}
 
       {:ok, %{status: status, body: body}} ->
         {:error, "Gmail history error #{status}: #{inspect(body)}"}
@@ -229,26 +245,37 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
   end
 
   defp fetch_via_list(http_client, headers, max_results, _opts) do
+    fetch_list_pages(http_client, headers, max_results, [], nil)
+  end
+
+  defp fetch_list_pages(http_client, headers, max_results, acc_ids, page_token) do
     url = "#{@base_url}/messages?maxResults=#{max_results}&labelIds=INBOX"
+    url = if page_token, do: "#{url}&pageToken=#{page_token}", else: url
 
     case http_client.(:get, url, nil, headers, []) do
       {:ok, %{status: 200, body: body}} ->
         parsed = decode_json(body)
-        message_ids = Map.get(parsed, "messages", []) |> Enum.map(& &1["id"])
+        page_ids = Map.get(parsed, "messages", []) |> Enum.map(& &1["id"])
+        all_ids = acc_ids ++ page_ids
 
-        emails =
-          message_ids
-          |> Enum.map(&fetch_full_message(http_client, headers, &1))
-          |> Enum.filter(&(&1 != nil))
+        case parsed["nextPageToken"] do
+          nil ->
+            emails =
+              all_ids
+              |> Enum.map(&fetch_full_message(http_client, headers, &1))
+              |> Enum.filter(&(&1 != nil))
 
-        # Use the history_id from the most recent message
-        latest_history_id =
-          case emails do
-            [first | _] -> first.history_id
-            [] -> nil
-          end
+            latest_history_id =
+              case emails do
+                [first | _] -> first.history_id
+                [] -> nil
+              end
 
-        {:ok, emails, latest_history_id}
+            {:ok, emails, latest_history_id}
+
+          next_token ->
+            fetch_list_pages(http_client, headers, max_results, all_ids, next_token)
+        end
 
       {:ok, %{status: status, body: body}} ->
         {:error, "Gmail list error #{status}: #{inspect(body)}"}
