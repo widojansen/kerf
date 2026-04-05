@@ -339,6 +339,7 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
     req_opts = [
       url: url,
       headers: headers,
+      finch: ExClaw.GmailFinch,
       receive_timeout: 30_000,
       pool_timeout: 5_000,
       connect_options: [
