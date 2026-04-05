@@ -34,7 +34,10 @@ defmodule ExClaw.Application do
            "https://gmail.googleapis.com" => [
              size: 5,
              count: 1,
-             pool_max_idle_time: 30_000
+             pool_max_idle_time: 30_000,
+             conn_opts: [
+               transport_opts: [timeout: 30_000]
+             ]
            ]
          }},
 

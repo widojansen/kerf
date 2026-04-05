@@ -341,11 +341,7 @@ defmodule ExClaw.Ingestors.Email.GmailClient do
       headers: headers,
       finch: ExClaw.GmailFinch,
       receive_timeout: 30_000,
-      pool_timeout: 5_000,
-      connect_options: [
-        timeout: 15_000,
-        transport_opts: [timeout: 30_000]
-      ]
+      pool_timeout: 5_000
     ]
 
     req_opts = if body, do: Keyword.put(req_opts, :body, body), else: req_opts
