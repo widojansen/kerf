@@ -14,7 +14,7 @@ defmodule ExClaw.Agents.EmailTriage.Classifier do
 
     messages = [%{"role" => "user", "content" => build_prompt(email, context)}]
 
-    case provider_fn.(:email_classification, model, messages, []) do
+    case provider_fn.(:email_classification, model, messages, max_retries: 1) do
       {:ok, result} ->
         {:ok, %{
           category: result["category"],
@@ -43,7 +43,7 @@ defmodule ExClaw.Agents.EmailTriage.Classifier do
         },
         "priority" => %{
           "type" => "integer",
-          "minimum" => 1,
+          "minimum" => 0,
           "maximum" => 5
         },
         "action" => %{
