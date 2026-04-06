@@ -2,17 +2,18 @@ defmodule Mix.Tasks.Exclaw.BackfillTriage do
   @shortdoc "Triage emails in the KB that have no feedback records"
   @moduledoc """
   Runs the email triage pipeline on emails that were ingested but never triaged.
+  Starts its own EmailTriage GenServer — does not require the release to be running.
 
   ## Usage
 
       # Preview what would be triaged
-      mix exclaw.backfill_triage --dry-run -n 20
+      MIX_ENV=prod mix exclaw.backfill_triage --dry-run -n 20
 
       # Triage 10 emails (start small)
-      mix exclaw.backfill_triage -n 10
+      MIX_ENV=prod mix exclaw.backfill_triage -n 10
 
       # Triage all untriaged
-      mix exclaw.backfill_triage -n 1000
+      MIX_ENV=prod mix exclaw.backfill_triage -n 1000
   """
   use Mix.Task
 
@@ -58,34 +59,44 @@ defmodule Mix.Tasks.Exclaw.BackfillTriage do
         IO.puts("  #{from} -- #{subject}")
       end
     else
-      triage_name = ExClaw.Agents.EmailTriage.EmailTriage
+      # Start a local EmailTriage GenServer for this backfill run
+      triage_name = :"backfill_triage_#{System.unique_integer([:positive])}"
 
-      case Process.whereis(triage_name) do
-        nil ->
-          IO.puts("ERROR: EmailTriage GenServer is not running. Start ExClaw first.")
+      triage_config = Application.get_env(:exclaw, ExClaw.Agents.EmailTriage, [])
 
-        _pid ->
-          for {doc, i} <- Enum.with_index(untriaged, 1) do
-            from = doc.source_metadata["sender"] || "unknown"
-            subject = doc.title || "no subject"
-            IO.puts("\n[#{i}/#{length(untriaged)}] Triaging: #{from} -- #{subject}")
+      {:ok, _pid} =
+        EmailTriage.start_link(
+          name: triage_name,
+          repo: ExClaw.Repo,
+          interest_threshold: Keyword.get(triage_config, :interest_threshold, 0.5),
+          high_priority_threshold: Keyword.get(triage_config, :high_priority_threshold, 4)
+        )
 
-            start = System.monotonic_time(:millisecond)
-            result = EmailTriage.triage(triage_name, [doc.id])
-            elapsed = System.monotonic_time(:millisecond) - start
+      IO.puts("Started local EmailTriage (no Gmail/Telegram — classify + feedback only)\n")
 
-            case result do
-              {:ok, [info]} ->
-                IO.puts("  OK #{info.classification.category} p#{info.final_priority} (#{elapsed}ms)")
+      for {doc, i} <- Enum.with_index(untriaged, 1) do
+        from = doc.source_metadata["sender"] || "unknown"
+        subject = doc.title || "no subject"
+        IO.puts("[#{i}/#{length(untriaged)}] #{from} -- #{subject}")
 
-              {:ok, []} ->
-                IO.puts("  SKIP no classification (#{elapsed}ms)")
+        start = System.monotonic_time(:millisecond)
+        result = EmailTriage.triage(triage_name, [doc.id])
+        elapsed = System.monotonic_time(:millisecond) - start
 
-              {:error, reason} ->
-                IO.puts("  ERROR #{inspect(reason)} (#{elapsed}ms)")
-            end
-          end
+        case result do
+          {:ok, [info]} ->
+            source = if info.classification[:source] == :fast_classifier, do: "FAST", else: "LLM"
+            IO.puts("  #{source} #{info.classification.category} p#{info.final_priority} (#{elapsed}ms)")
+
+          {:ok, []} ->
+            IO.puts("  SKIP no classification (#{elapsed}ms)")
+
+          {:error, reason} ->
+            IO.puts("  ERROR #{inspect(reason)} (#{elapsed}ms)")
+        end
       end
+
+      GenServer.stop(triage_name)
     end
   end
 end
