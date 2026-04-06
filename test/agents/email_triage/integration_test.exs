@@ -106,8 +106,8 @@ defmodule ExClaw.Agents.EmailTriage.IntegrationTest do
     # -- Step 3: Feedback --
     assert :ok = FeedbackHandler.handle_follow_up(doc.id, repo: Repo)
 
-    # Verify feedback was recorded
-    assert Repo.aggregate(Feedback, :count) == 1
+    # Verify feedback was recorded (1 from triage + 1 from follow_up)
+    assert Repo.aggregate(Feedback, :count) == 2
 
     # Verify sender interactions were incremented
     sender = Repo.get_by!(EmailSender, email: "ceo@acme.com")
@@ -119,8 +119,8 @@ defmodule ExClaw.Agents.EmailTriage.IntegrationTest do
     sender = Repo.get_by!(EmailSender, email: "ceo@acme.com")
     assert sender.is_priority == true
 
-    # Verify multiple feedbacks recorded
-    assert Repo.aggregate(Feedback, :count) == 2
+    # Verify multiple feedbacks recorded (1 triage + 1 follow_up + 1 add_priority)
+    assert Repo.aggregate(Feedback, :count) == 3
   end
 
   test "low priority emails get digest format" do

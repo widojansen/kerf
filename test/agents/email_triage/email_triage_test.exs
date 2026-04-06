@@ -163,6 +163,115 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
     end
   end
 
+  describe "feedback record creation" do
+    test "creates a feedback record for each triaged email", ctx do
+      ctx = start_agent(ctx)
+      assert {:ok, [_result]} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      import Ecto.Query
+
+      feedback =
+        Repo.one(
+          from(f in ExClaw.KnowledgeBase.Feedback,
+            where: f.document_id == ^ctx.doc.id and f.feedback_type == "triage"
+          )
+        )
+
+      assert feedback != nil
+      assert feedback.decision == "classified"
+      assert feedback.source == "system"
+      assert feedback.context["category"] == "business"
+      assert feedback.context["final_priority"] >= 4
+    end
+
+    test "creates feedback with 'unclassified' decision when classifier fails", ctx do
+      classifier_fn = fn _email, _opts -> {:error, "LLM down"} end
+      ctx = start_agent(ctx, classifier_fn: classifier_fn)
+
+      assert {:ok, []} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      import Ecto.Query
+
+      feedback =
+        Repo.one(
+          from(f in ExClaw.KnowledgeBase.Feedback,
+            where: f.document_id == ^ctx.doc.id and f.feedback_type == "triage"
+          )
+        )
+
+      assert feedback != nil
+      assert feedback.decision == "unclassified"
+      assert feedback.context["error"] =~ "LLM down"
+    end
+  end
+
+  describe "category-to-label mapping" do
+    test "uses category-specific Gmail label instead of generic Triaged", ctx do
+      test_pid = self()
+
+      gmail_fn = fn _token, msg_id, opts ->
+        send(test_pid, {:gmail_modify, msg_id, opts})
+        :ok
+      end
+
+      ctx = start_agent(ctx, gmail_fn: gmail_fn)
+      EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      assert_receive {:gmail_modify, "msg_triage_1", opts}
+      labels = Keyword.get(opts, :add, [])
+      assert "ExClaw/Business" in labels
+      refute "ExClaw/Triaged" in labels
+    end
+
+    test "maps newsletter category to ExClaw/Newsletter label", ctx do
+      test_pid = self()
+
+      gmail_fn = fn _token, msg_id, opts ->
+        send(test_pid, {:gmail_modify, msg_id, opts})
+        :ok
+      end
+
+      classifier_fn = fn _email, _opts ->
+        {:ok, %{category: "newsletter", priority: 1, action: "archive",
+                confidence: 0.9, summary: "Newsletter."}}
+      end
+
+      ctx = start_agent(ctx, gmail_fn: gmail_fn, classifier_fn: classifier_fn)
+      EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      assert_receive {:gmail_modify, "msg_triage_1", opts}
+      labels = Keyword.get(opts, :add, [])
+      assert "ExClaw/Newsletter" in labels
+    end
+
+    test "fast classifier label overrides default mapping", ctx do
+      test_pid = self()
+
+      gmail_fn = fn _token, msg_id, opts ->
+        send(test_pid, {:gmail_modify, msg_id, opts})
+        :ok
+      end
+
+      # Set up sender with override and custom label
+      import Ecto.Query
+      sender = Repo.one!(from s in EmailSender, where: s.email == "john@example.com")
+      sender
+      |> Ecto.Changeset.change(%{
+        classification_override: "business",
+        priority_override: 5,
+        match_pattern: "john@example"
+      })
+      |> Repo.update!()
+
+      ctx = start_agent(ctx, gmail_fn: gmail_fn)
+      EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      assert_receive {:gmail_modify, "msg_triage_1", opts}
+      labels = Keyword.get(opts, :add, [])
+      assert "ExClaw/Business" in labels
+    end
+  end
+
   describe "fast classifier integration" do
     test "uses fast classifier when sender has classification_override", ctx do
       test_pid = self()
@@ -235,7 +344,7 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
 
       assert_receive {:gmail_modify, "msg_triage_1", opts}
       assert "UNREAD" in Keyword.get(opts, :remove, [])
-      assert Enum.any?(Keyword.get(opts, :add, []), &(&1 =~ "Triaged"))
+      assert "ExClaw/Newsletter" in Keyword.get(opts, :add, [])
     end
 
     test "keeps high-priority personal emails unread", ctx do
@@ -262,7 +371,7 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
 
       assert_receive {:gmail_modify, "msg_triage_1", opts}
       refute "UNREAD" in Keyword.get(opts, :remove, [])
-      assert Enum.any?(Keyword.get(opts, :add, []), &(&1 =~ "Triaged"))
+      assert "ExClaw/Personal" in Keyword.get(opts, :add, [])
     end
 
     test "does not crash when gmail_fn is not set", ctx do

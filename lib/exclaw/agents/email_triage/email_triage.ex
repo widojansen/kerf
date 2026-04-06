@@ -4,8 +4,9 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriage do
   and surfaces results to Telegram with approval buttons.
   """
   use GenServer
+  require Logger
 
-  alias ExClaw.KnowledgeBase.{Document, Chunk, EmailSender, Interest}
+  alias ExClaw.KnowledgeBase.{Document, Chunk, EmailSender, Feedback, Interest}
   alias ExClaw.Agents.EmailTriage.{Classifier, FastClassifier, PriorityScorer, InterestMatcher, TelegramFormatter}
 
   import Ecto.Query
@@ -131,8 +132,18 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriage do
                 thread_has_priority_senders: false
               })
 
-            # 6. Mark read + label in Gmail (except high-priority personal)
-            apply_gmail_actions(doc, classification, final_priority, state)
+            # 6. Map category to Gmail label
+            label = label_for_category(classification.category)
+
+            # 7. Mark read + label in Gmail (except high-priority personal)
+            apply_gmail_actions(doc, classification, final_priority, label, state)
+
+            # 8. Record triage feedback
+            record_triage_feedback(repo, doc.id, %{
+              category: classification.category,
+              final_priority: final_priority,
+              source: Map.get(classification, :source, :llm)
+            })
 
             [%{
               document_id: doc.id,
@@ -142,7 +153,14 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriage do
               final_priority: final_priority
             }]
 
-          {:error, _reason} ->
+          {:error, reason} ->
+            sender_addr = doc.source_metadata["sender"] || "unknown"
+            Logger.warning("[EmailTriage] Classification failed for #{sender_addr} — #{doc.title}: #{inspect(reason)}")
+
+            record_triage_feedback(repo, doc.id, %{
+              error: inspect(reason)
+            })
+
             []
         end
     end
@@ -210,20 +228,51 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriage do
     end
   end
 
-  defp apply_gmail_actions(doc, classification, final_priority, state) do
+  defp apply_gmail_actions(doc, classification, final_priority, label, state) do
     if state.gmail_fn do
       try do
         message_id = doc.source_id
         keep_unread = final_priority >= state.high_priority_threshold and
                       classification.category in ["personal", "business"]
 
-        opts = [add: [state.gmail_label]]
+        opts = [add: [label]]
         opts = if keep_unread, do: opts, else: Keyword.put(opts, :remove, ["UNREAD"])
 
         state.gmail_fn.(nil, message_id, opts)
       rescue
-        _ -> :ok
+        e ->
+          Logger.warning("[EmailTriage] Gmail action failed for #{doc.source_id}: #{inspect(e)}")
+          :ok
       end
+    end
+  end
+
+  # Map classification categories to Gmail labels
+  defp label_for_category("business"), do: "ExClaw/Business"
+  defp label_for_category("personal"), do: "ExClaw/Personal"
+  defp label_for_category("newsletter"), do: "ExClaw/Newsletter"
+  defp label_for_category("transactional"), do: "ExClaw/Transactional"
+  defp label_for_category("marketing"), do: "ExClaw/Marketing"
+  defp label_for_category("social"), do: "ExClaw/Social"
+  defp label_for_category("spam"), do: "ExClaw/Spam"
+  defp label_for_category(_), do: "ExClaw/Triaged"
+
+  defp record_triage_feedback(repo, document_id, context) do
+    decision = if Map.has_key?(context, :error), do: "unclassified", else: "classified"
+
+    try do
+      %Feedback{}
+      |> Feedback.changeset(%{
+        document_id: document_id,
+        feedback_type: "triage",
+        decision: decision,
+        context: Map.new(context, fn {k, v} -> {to_string(k), v} end),
+        source: "system"
+      })
+      |> repo.insert!()
+    rescue
+      e ->
+        Logger.warning("[EmailTriage] Failed to record feedback for #{document_id}: #{inspect(e)}")
     end
   end
 
