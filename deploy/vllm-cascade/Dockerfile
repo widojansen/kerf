@@ -1,8 +1,13 @@
 # Custom vLLM image for Nemotron-Cascade-2 NVFP4 on DGX Spark (SM 12.1).
 #
-# Extends the NGC vLLM image with two upstream fixes:
+# Extends the NGC vLLM image with:
 #   - FlashInfer PR #2913: GDC compile flags for CUTLASS fused MoE on SM 12.x
-#   - vLLM PR #38423: CUTLASS v4.4.2 + FlashInfer 0.6.7, SM12x NVFP4 tile fixes
+#   - nvidia-cutlass-dsl v4.4.2 (upgraded from NGC's 4.3.5) for SM12x tile fixes
+#
+# vLLM PR #38423 is NOT applied — it targets a newer vLLM version incompatible
+# with NGC 26.02's vLLM 0.15.1. The core fix (CUTLASS v4.4.2 tile constraints)
+# is delivered via the FlashInfer dependency upgrade. The PR's additional runtime
+# guards (Python + CUDA) are defensive checks, not required for functionality.
 #
 # Build on the Spark:
 #   docker build -t vllm-cascade:latest deploy/vllm-cascade/
@@ -24,20 +29,7 @@ RUN git clone --depth=1 https://github.com/flashinfer-ai/flashinfer.git . && \
 ENV FLASHINFER_CUDA_ARCH_LIST="12.1a"
 RUN pip install -e . -v
 
-# --- vLLM: apply NVFP4 SM12x tile constraint fix (PR #38423) ---
-# Strategy: overlay the PR's Python source on top of NGC's compiled installation.
-# This keeps the pre-compiled C extensions (.so) intact while applying the Python
-# fixes (tile constraints, runtime guards). Much faster than a full rebuild.
-WORKDIR /tmp/vllm-patch
-RUN git clone --depth=1 https://github.com/vllm-project/vllm.git . && \
-    git fetch --depth=1 origin pull/38423/head:fix-nvfp4-spark && \
-    git checkout fix-nvfp4-spark
-
-# Clear stale bytecode, then overlay PR's Python files over NGC's vLLM
-RUN find /usr/local/lib/python3.12/dist-packages/vllm/ -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true && \
-    cp -r /tmp/vllm-patch/vllm/* /usr/local/lib/python3.12/dist-packages/vllm/
-
 # Clean up build artifacts to reduce image size
-RUN rm -rf /tmp/flashinfer/.git /tmp/vllm-patch /root/.cache/pip
+RUN rm -rf /tmp/flashinfer/.git /root/.cache/pip
 
 WORKDIR /workspace
