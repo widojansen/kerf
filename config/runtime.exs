@@ -9,7 +9,7 @@ import Config
 #   "ollama" -> OllamaProvider (legacy, single-user convenience)
 #   unset    -> Anthropic-only mode
 #
-# vLLM uses NVFP4-quantized HuggingFace models (e.g. nvidia/Qwen3-32B-NVFP4)
+# vLLM uses NVFP4-quantized HuggingFace models (e.g. Nemotron-Cascade-2-30B-A3B-NVFP4)
 # served via /v1/chat/completions on port 8000.
 # Ollama uses GGUF models served via /api/chat on port 11434.
 
@@ -21,7 +21,7 @@ if llm_backend == "vllm" do
   config :exclaw, ExClaw.LLM.VLLMProvider,
     name: ExClaw.LLM.VLLMProvider,
     base_url: vllm_url,
-    default_model: System.get_env("VLLM_MODEL", "nvidia/Qwen3-32B-NVFP4"),
+    default_model: System.get_env("VLLM_MODEL", "nemotron-cascade-2"),
     default_max_tokens: 8192
 end
 
@@ -65,7 +65,7 @@ end
 
 # Default model for CLI and new Agent sessions.
 # Examples:
-#   EXCLAW_DEFAULT_MODEL=nvidia/Qwen3-32B-NVFP4  (vLLM)
+#   EXCLAW_DEFAULT_MODEL=nemotron-cascade-2       (vLLM)
 #   EXCLAW_DEFAULT_MODEL=qwen3:8b                 (Ollama)
 #   EXCLAW_DEFAULT_MODEL=claude-sonnet-4-6         (Anthropic)
 if model = System.get_env("EXCLAW_DEFAULT_MODEL") do
@@ -208,7 +208,7 @@ if System.get_env("EMAIL_TRIAGE_ENABLED") == "true" do
     enabled: true,
     interest_threshold: 0.5,
     high_priority_threshold: 4,
-    classification_model: System.get_env("CLASSIFICATION_MODEL", "nvidia/Qwen3-32B-NVFP4")
+    classification_model: System.get_env("CLASSIFICATION_MODEL", "nemotron-cascade-2")
 end
 
 # ---------------------------------------------------------------------------

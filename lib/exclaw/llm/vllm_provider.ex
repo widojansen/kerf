@@ -14,7 +14,7 @@ defmodule ExClaw.LLM.VLLMProvider do
 
       config :exclaw, ExClaw.LLM.VLLMProvider,
         base_url: "http://localhost:8000",
-        default_model: "nvidia/Qwen3-32B-NVFP4",
+        default_model: "nemotron-cascade-2",
         default_max_tokens: 8192
 
   Works with vLLM, SGLang, LMDeploy, or any server exposing
@@ -54,7 +54,7 @@ defmodule ExClaw.LLM.VLLMProvider do
 
     state = %{
       req: Req.new(req_opts),
-      default_model: Keyword.get(opts, :default_model, "nvidia/Qwen3-32B-NVFP4"),
+      default_model: Keyword.get(opts, :default_model, "nemotron-cascade-2"),
       default_max_tokens: Keyword.get(opts, :default_max_tokens, 8192),
       rate_limiter: rate_limiter
     }

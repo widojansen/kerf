@@ -10,7 +10,7 @@ defmodule ExClaw.Agents.EmailTriage.Classifier do
   def classify(email, opts \\ []) do
     provider_fn = Keyword.get(opts, :provider_fn, &default_provider/4)
     context = Keyword.get(opts, :context, %{})
-    model = Keyword.get(opts, :model, "nvidia/Qwen3-32B-NVFP4")
+    model = Keyword.get(opts, :model, "nemotron-cascade-2")
 
     messages = [%{"role" => "user", "content" => build_prompt(email, context)}]
 
