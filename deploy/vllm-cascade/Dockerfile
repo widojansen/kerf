@@ -18,7 +18,7 @@ RUN git clone --depth=1 https://github.com/flashinfer-ai/flashinfer.git . && \
     git checkout fix-gdc-moe
 
 ENV FLASHINFER_CUDA_ARCH_LIST="12.1a"
-RUN pip install -e . -v 2>&1 | tail -5
+RUN pip install -e . -v
 
 # --- vLLM: apply NVFP4 SM12x tile constraint fix (PR #38423) ---
 WORKDIR /tmp/vllm-patch
@@ -26,7 +26,7 @@ RUN git clone --depth=1 https://github.com/vllm-project/vllm.git . && \
     git fetch --depth=1 origin pull/38423/head:fix-nvfp4-spark && \
     git checkout fix-nvfp4-spark
 
-RUN pip install -e . -v 2>&1 | tail -5
+RUN pip install -e . -v
 
 # Clean up build artifacts to reduce image size
 RUN rm -rf /tmp/flashinfer/.git /tmp/vllm-patch/.git /root/.cache/pip

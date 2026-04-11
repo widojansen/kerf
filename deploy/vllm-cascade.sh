@@ -36,6 +36,8 @@ err()  { echo -e "${RED}[vllm-cascade]${NC} $*" >&2; }
 # --- Preflight -------------------------------------------------------------
 
 preflight() {
+  local need_model="${1:-true}"
+
   log "Running preflight checks..."
 
   if ! command -v docker &>/dev/null; then
@@ -48,21 +50,25 @@ preflight() {
     exit 1
   fi
 
-  if [ -z "${HF_TOKEN:-}" ]; then
-    err "HF_TOKEN not set. Export it: export HF_TOKEN=hf_..."
-    exit 1
-  fi
+  # HF_TOKEN and disk space only needed when downloading the model
+  if [ "$need_model" = "true" ]; then
+    if [ -z "${HF_TOKEN:-}" ]; then
+      err "HF_TOKEN not set. Export it: export HF_TOKEN=hf_..."
+      exit 1
+    fi
 
-  if [ ! -d "$HF_CACHE" ]; then
-    err "Model cache directory $HF_CACHE does not exist."
-    exit 1
-  fi
+    if [ ! -d "$HF_CACHE" ]; then
+      err "Model cache directory $HF_CACHE does not exist."
+      exit 1
+    fi
 
-  local avail_gb
-  avail_gb=$(df --output=avail -BG "$HF_CACHE" 2>/dev/null | tail -1 | tr -d ' G')
-  if [ "${avail_gb:-0}" -lt 25 ]; then
-    err "Less than 25 GB free on $HF_CACHE (${avail_gb}G available)."
-    exit 1
+    # df --output is Linux-only (GNU coreutils); this script targets DGX Spark
+    local avail_gb
+    avail_gb=$(df --output=avail -BG "$HF_CACHE" 2>/dev/null | tail -1 | tr -d ' G')
+    if [ "${avail_gb:-0}" -lt 25 ]; then
+      err "Less than 25 GB free on $HF_CACHE (${avail_gb}G available)."
+      exit 1
+    fi
   fi
 
   log "Preflight OK."
@@ -217,7 +223,7 @@ do_full() {
 
 case "${1:-}" in
   --build-only)
-    preflight
+    preflight false
     build_image
     ;;
   --service-only)
