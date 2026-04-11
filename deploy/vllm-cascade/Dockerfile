@@ -25,14 +25,19 @@ ENV FLASHINFER_CUDA_ARCH_LIST="12.1a"
 RUN pip install -e . -v
 
 # --- vLLM: apply NVFP4 SM12x tile constraint fix (PR #38423) ---
+# Strategy: overlay the PR's Python source on top of NGC's compiled installation.
+# This keeps the pre-compiled C extensions (.so) intact while applying the Python
+# fixes (tile constraints, runtime guards). Much faster than a full rebuild.
 WORKDIR /tmp/vllm-patch
 RUN git clone --depth=1 https://github.com/vllm-project/vllm.git . && \
     git fetch --depth=1 origin pull/38423/head:fix-nvfp4-spark && \
     git checkout fix-nvfp4-spark
 
-RUN pip install -e . -v
+# Clear stale bytecode, then overlay PR's Python files over NGC's vLLM
+RUN find /usr/local/lib/python3.12/dist-packages/vllm/ -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true && \
+    cp -r /tmp/vllm-patch/vllm/* /usr/local/lib/python3.12/dist-packages/vllm/
 
 # Clean up build artifacts to reduce image size
-RUN rm -rf /tmp/flashinfer/.git /tmp/vllm-patch/.git /root/.cache/pip
+RUN rm -rf /tmp/flashinfer/.git /tmp/vllm-patch /root/.cache/pip
 
 WORKDIR /workspace
