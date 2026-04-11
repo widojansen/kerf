@@ -11,6 +11,10 @@
 
 FROM nvcr.io/nvidia/vllm:26.02-py3
 
+# Disable NGC's pip constraint file — we're deliberately upgrading packages
+# (FlashInfer 0.6.7 needs nvidia-cutlass-dsl>=4.4.2, NGC pins 4.3.5)
+ENV PIP_CONSTRAINT=""
+
 # --- FlashInfer: apply GDC fix for SM 12.x MoE kernels (PR #2913) ---
 WORKDIR /tmp/flashinfer
 RUN git clone --depth=1 https://github.com/flashinfer-ai/flashinfer.git . && \
