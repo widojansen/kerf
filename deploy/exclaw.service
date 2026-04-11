@@ -13,8 +13,8 @@
 
 [Unit]
 Description=ExClaw Personal AI Assistant
-After=network.target postgresql.service
-Wants=postgresql.service
+After=network.target postgresql.service vllm.service
+Wants=postgresql.service vllm.service
 
 [Service]
 Type=exec
