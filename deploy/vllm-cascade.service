@@ -1,0 +1,49 @@
+# vLLM service for Nemotron-Cascade-2 NVFP4 on DGX Spark.
+#
+# Install:
+#   sudo cp deploy/vllm-cascade.service /etc/systemd/system/vllm.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable vllm
+#
+# Usage:
+#   sudo systemctl start vllm
+#   sudo systemctl stop vllm
+#   journalctl -u vllm -f
+#
+# Model weights are loaded from /data/huggingface (host volume mount).
+
+[Unit]
+Description=vLLM Nemotron-Cascade-2 NVFP4
+After=docker.service
+Requires=docker.service
+Before=exclaw.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+ExecStartPre=-/usr/bin/docker stop vllm
+ExecStartPre=-/usr/bin/docker rm vllm
+ExecStart=/usr/bin/docker run \
+  --gpus all \
+  --network host \
+  --name vllm \
+  -v /data/huggingface:/root/.cache/huggingface \
+  vllm-cascade:latest \
+  vllm serve chankhavu/Nemotron-Cascade-2-30B-A3B-NVFP4 \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --served-model-name nemotron-cascade-2 \
+    --tensor-parallel-size 1 \
+    --gpu-memory-utilization 0.85 \
+    --max-model-len 131072 \
+    --mamba-ssm-cache-dtype float32 \
+    --kv-cache-dtype fp8 \
+    --trust-remote-code \
+    --enable-auto-tool-choice \
+    --tool-call-parser qwen3_coder \
+    --reasoning-parser nemotron_v3
+ExecStop=/usr/bin/docker stop vllm
+
+[Install]
+WantedBy=multi-user.target
