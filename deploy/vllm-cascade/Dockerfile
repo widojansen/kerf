@@ -26,9 +26,11 @@ ENV PIP_CONSTRAINT=""
 RUN pip uninstall -y flashinfer flashinfer-cubin flashinfer-python 2>/dev/null || true
 
 WORKDIR /tmp/flashinfer
-RUN git clone --depth=1 https://github.com/flashinfer-ai/flashinfer.git . && \
+RUN git clone --depth=1 --recurse-submodules --shallow-submodules \
+    https://github.com/flashinfer-ai/flashinfer.git . && \
     git fetch --depth=1 origin pull/2913/head:fix-gdc-moe && \
-    git checkout fix-gdc-moe
+    git checkout fix-gdc-moe && \
+    git submodule update --init --recursive --depth=1
 
 # Build for SM 12.1 (DGX Spark). Cubins will JIT-compile on first runtime use.
 ENV FLASHINFER_CUDA_ARCH_LIST="12.1a"
