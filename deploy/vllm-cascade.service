@@ -36,8 +36,8 @@ ExecStart=/usr/bin/docker run \
     --port 8000 \
     --served-model-name nemotron-cascade-2 \
     --tensor-parallel-size 1 \
-    --gpu-memory-utilization 0.75 \
-    --max-model-len 131072 \
+    --gpu-memory-utilization 0.60 \
+    --max-model-len 32768 \
     --mamba-ssm-cache-dtype float32 \
     --kv-cache-dtype fp8 \
     --trust-remote-code \
