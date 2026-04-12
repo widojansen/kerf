@@ -21,11 +21,16 @@ FROM nvcr.io/nvidia/vllm:26.02-py3
 ENV PIP_CONSTRAINT=""
 
 # --- FlashInfer: apply GDC fix for SM 12.x MoE kernels (PR #2913) ---
+# Remove NGC's bundled FlashInfer (0.6.1) — includes flashinfer-cubin which
+# does a strict version check against the Python package at runtime.
+RUN pip uninstall -y flashinfer flashinfer-cubin flashinfer-python 2>/dev/null || true
+
 WORKDIR /tmp/flashinfer
 RUN git clone --depth=1 https://github.com/flashinfer-ai/flashinfer.git . && \
     git fetch --depth=1 origin pull/2913/head:fix-gdc-moe && \
     git checkout fix-gdc-moe
 
+# Build for SM 12.1 (DGX Spark). Cubins will JIT-compile on first runtime use.
 ENV FLASHINFER_CUDA_ARCH_LIST="12.1a"
 RUN pip install -e . -v
 
