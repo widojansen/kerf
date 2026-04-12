@@ -127,7 +127,7 @@ swap_service() {
 # --- Validate --------------------------------------------------------------
 
 validate() {
-  local max_wait=300
+  local max_wait=900
   local interval=10
   local elapsed=0
 
