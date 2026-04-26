@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.AddVectorColumns do
+defmodule Kerf.Repo.Migrations.AddVectorColumns do
   use Ecto.Migration
 
   def change do

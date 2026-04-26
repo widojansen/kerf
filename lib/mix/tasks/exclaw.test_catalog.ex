@@ -1,5 +1,5 @@
 defmodule Mix.Tasks.Exclaw.TestCatalog do
-  @moduledoc "Generate a catalog of all ExClaw tests"
+  @moduledoc "Generate a catalog of all Kerf tests"
   @shortdoc "Generate test catalog"
 
   use Mix.Task
@@ -97,7 +97,7 @@ defmodule Mix.Tasks.Exclaw.TestCatalog do
     now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
 
     header = """
-    # ExClaw Test Catalog
+    # Kerf Test Catalog
 
     Generated: #{now}
     Total: #{total_tests} tests across #{file_count} #{if file_count == 1, do: "file", else: "files"}
@@ -203,7 +203,7 @@ defmodule Mix.Tasks.Exclaw.TestCatalog do
 
   defp display_name(module_name) do
     module_name
-    |> String.replace_prefix("ExClaw.", "")
+    |> String.replace_prefix("Kerf.", "")
     |> String.replace_suffix("Test", "")
   end
 

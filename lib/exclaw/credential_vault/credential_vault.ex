@@ -1,4 +1,4 @@
-defmodule ExClaw.CredentialVault do
+defmodule Kerf.CredentialVault do
   @moduledoc """
   GenServer wrapping the credential storage backend.
 
@@ -7,7 +7,7 @@ defmodule ExClaw.CredentialVault do
   """
   use GenServer
 
-  alias ExClaw.CredentialVault.Backend.LocalEncrypted
+  alias Kerf.CredentialVault.Backend.LocalEncrypted
 
   # --- Client API ---
 

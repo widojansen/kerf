@@ -1,4 +1,4 @@
-defmodule ExClaw.Ingestors.Email.GmailClient do
+defmodule Kerf.Ingestors.Email.GmailClient do
   @moduledoc """
   Gmail REST API client using OAuth2 Bearer tokens for authentication.
   """

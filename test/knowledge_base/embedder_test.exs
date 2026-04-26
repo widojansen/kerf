@@ -1,7 +1,7 @@
-defmodule ExClaw.KnowledgeBase.EmbedderTest do
+defmodule Kerf.KnowledgeBase.EmbedderTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.KnowledgeBase.Embedder
+  alias Kerf.KnowledgeBase.Embedder
 
   @fake_embedding List.duplicate(0.1, 1024)
 

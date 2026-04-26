@@ -1,7 +1,7 @@
-defmodule ExClaw.Tools.WebSearchTest do
+defmodule Kerf.Tools.WebSearchTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Tools.WebSearch
+  alias Kerf.Tools.WebSearch
 
   # --- Input validation ---
 

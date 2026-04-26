@@ -1,4 +1,4 @@
-defmodule ExClaw.KnowledgeBase.Chunk do
+defmodule Kerf.KnowledgeBase.Chunk do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -6,7 +6,7 @@ defmodule ExClaw.KnowledgeBase.Chunk do
   @foreign_key_type :binary_id
 
   schema "kb_chunks" do
-    belongs_to :document, ExClaw.KnowledgeBase.Document
+    belongs_to :document, Kerf.KnowledgeBase.Document
     field :chunk_index, :integer
     field :content, :string
     field :embedding, Pgvector.Ecto.Vector

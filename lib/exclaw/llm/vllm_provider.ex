@@ -1,9 +1,9 @@
-defmodule ExClaw.LLM.VLLMProvider do
+defmodule Kerf.LLM.VLLMProvider do
   @moduledoc """
   LLM Provider backend for vLLM (and any OpenAI-compatible server).
 
   Speaks the standard OpenAI /v1/chat/completions format and returns
-  the same internal response shape as ExClaw.LLM.Provider so callers
+  the same internal response shape as Kerf.LLM.Provider so callers
   are backend-agnostic:
 
       {:ok, %{type: :text, content: string, usage: %{input_tokens: n, output_tokens: n}}}
@@ -12,7 +12,7 @@ defmodule ExClaw.LLM.VLLMProvider do
 
   Configured via:
 
-      config :exclaw, ExClaw.LLM.VLLMProvider,
+      config :exclaw, Kerf.LLM.VLLMProvider,
         base_url: "http://localhost:8000",
         default_model: "nemotron-cascade-2",
         default_max_tokens: 8192
@@ -24,7 +24,7 @@ defmodule ExClaw.LLM.VLLMProvider do
   use GenServer
   require Logger
 
-  # --- Public API (mirrors ExClaw.LLM.Provider) ---
+  # --- Public API (mirrors Kerf.LLM.Provider) ---
 
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
@@ -41,7 +41,7 @@ defmodule ExClaw.LLM.VLLMProvider do
   def init(opts) do
     base_url = Keyword.get(opts, :base_url, "http://localhost:8000")
     adapter = Keyword.get(opts, :adapter)
-    rate_limiter = Keyword.get(opts, :rate_limiter, ExClaw.LLM.RateLimiter)
+    rate_limiter = Keyword.get(opts, :rate_limiter, Kerf.LLM.RateLimiter)
     api_key = Keyword.get(opts, :api_key, "not-needed")
 
     headers = [
@@ -91,7 +91,7 @@ defmodule ExClaw.LLM.VLLMProvider do
   end
 
   defp check_rate_limit(%{rate_limiter: rl}) do
-    ExClaw.LLM.RateLimiter.check_budget(rl)
+    Kerf.LLM.RateLimiter.check_budget(rl)
   end
 
   defp build_request_body(model, messages, opts, state) do
@@ -308,7 +308,7 @@ defmodule ExClaw.LLM.VLLMProvider do
 
   defp record_usage(%{usage: usage}, %{rate_limiter: rl}) do
     total = (usage.input_tokens || 0) + (usage.output_tokens || 0)
-    ExClaw.LLM.RateLimiter.record_usage(rl, total)
+    Kerf.LLM.RateLimiter.record_usage(rl, total)
   end
 
   defp record_usage(_, _), do: :ok
@@ -317,7 +317,7 @@ defmodule ExClaw.LLM.VLLMProvider do
     try do
       usage = Map.get(response, :usage, %{})
 
-      ExClaw.Dashboard.EventLog.log(:llm_call, %{
+      Kerf.Dashboard.EventLog.log(:llm_call, %{
         model: model,
         duration_ms: duration_ms,
         input_tokens: Map.get(usage, :input_tokens),
@@ -326,7 +326,7 @@ defmodule ExClaw.LLM.VLLMProvider do
         timestamp: DateTime.utc_now()
       })
 
-      ExClaw.LLM.Instrumentation.emit_call_stop(:vllm, model, duration_ms, response)
+      Kerf.LLM.Instrumentation.emit_call_stop(:vllm, model, duration_ms, response)
     rescue
       _ -> :ok
     end
@@ -334,14 +334,14 @@ defmodule ExClaw.LLM.VLLMProvider do
 
   defp log_llm_error(model, duration_ms, reason) do
     try do
-      ExClaw.Dashboard.EventLog.log(:llm_error, %{
+      Kerf.Dashboard.EventLog.log(:llm_error, %{
         model: model,
         duration_ms: duration_ms,
         error: inspect(reason),
         timestamp: DateTime.utc_now()
       })
 
-      ExClaw.LLM.Instrumentation.emit_call_error(:vllm, model, duration_ms, reason)
+      Kerf.LLM.Instrumentation.emit_call_error(:vllm, model, duration_ms, reason)
     rescue
       _ -> :ok
     end

@@ -1,4 +1,4 @@
-defmodule ExClaw.Memory.Fact do
+defmodule Kerf.Memory.Fact do
   use Ecto.Schema
   import Ecto.Changeset
 

@@ -1,7 +1,7 @@
-defmodule ExClaw.Telemetry.LoggerTest do
+defmodule Kerf.Telemetry.LoggerTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Telemetry.Logger
+  alias Kerf.Telemetry.Logger
 
   @moduletag :telemetry
 

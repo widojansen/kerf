@@ -1,7 +1,7 @@
-defmodule ExClaw.Dashboard.EventLogTest do
+defmodule Kerf.Dashboard.EventLogTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Dashboard.EventLog
+  alias Kerf.Dashboard.EventLog
 
   setup do
     suffix = System.unique_integer([:positive])

@@ -1,4 +1,4 @@
-defmodule ExClaw.Scheduler.ScheduledTask do
+defmodule Kerf.Scheduler.ScheduledTask do
   use Ecto.Schema
   import Ecto.Changeset
 

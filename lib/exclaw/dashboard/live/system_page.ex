@@ -1,9 +1,9 @@
-defmodule ExClaw.Dashboard.Live.SystemPage do
+defmodule Kerf.Dashboard.Live.SystemPage do
   @moduledoc false
   use Phoenix.LiveDashboard.PageBuilder, refresher?: true
 
   @impl true
-  def menu_link(_, _), do: {:ok, "ExClaw System"}
+  def menu_link(_, _), do: {:ok, "Kerf System"}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -19,7 +19,7 @@ defmodule ExClaw.Dashboard.Live.SystemPage do
   def render(assigns) do
     ~H"""
     <.card>
-      <h5>ExClaw System Info</h5>
+      <h5>Kerf System Info</h5>
       <.fields_card
         fields={[
           processes: @system_info.process_count,
@@ -54,7 +54,7 @@ defmodule ExClaw.Dashboard.Live.SystemPage do
 
   defp build_supervision_tree do
     try do
-      format_tree(ExClaw.Supervisor, 0)
+      format_tree(Kerf.Supervisor, 0)
     rescue
       _ -> "Could not read supervision tree"
     catch

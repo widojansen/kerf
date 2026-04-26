@@ -1,7 +1,7 @@
-defmodule ExClaw.Agents.EmailTriage.TelegramFormatterTest do
+defmodule Kerf.Agents.EmailTriage.TelegramFormatterTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Agents.EmailTriage.TelegramFormatter
+  alias Kerf.Agents.EmailTriage.TelegramFormatter
 
   @high_priority_result %{
     document_id: "doc_001",

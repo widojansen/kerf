@@ -1,7 +1,7 @@
-defmodule ExClaw.KnowledgeBase.ChunkTest do
-  use ExClaw.DataCase
+defmodule Kerf.KnowledgeBase.ChunkTest do
+  use Kerf.DataCase
 
-  alias ExClaw.KnowledgeBase.{Document, Chunk}
+  alias Kerf.KnowledgeBase.{Document, Chunk}
 
   setup do
     {:ok, doc} =

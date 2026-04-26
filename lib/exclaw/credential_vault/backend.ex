@@ -1,4 +1,4 @@
-defmodule ExClaw.CredentialVault.Backend do
+defmodule Kerf.CredentialVault.Backend do
   @moduledoc """
   Behaviour for credential storage backends.
   """

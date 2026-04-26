@@ -1,4 +1,4 @@
-defmodule ExClaw.LLM.Supervisor do
+defmodule Kerf.LLM.Supervisor do
   @moduledoc """
   Supervises the LLM subsystem:
   - RateLimiter   : sliding-window token/request budget
@@ -7,8 +7,8 @@ defmodule ExClaw.LLM.Supervisor do
   - OllamaProvider: legacy Ollama backend (started when configured)
   - ModelRouter   : routes model names to the right backend
 
-  Callers address ExClaw.LLM.ModelRouter directly.
-  Legacy callers using ExClaw.LLM.Provider still work -- they route
+  Callers address Kerf.LLM.ModelRouter directly.
+  Legacy callers using Kerf.LLM.Provider still work -- they route
   through ModelRouter for any model matching the claude-* pattern.
 
   Configure via LLM_BACKEND env var:
@@ -25,22 +25,22 @@ defmodule ExClaw.LLM.Supervisor do
 
   @impl true
   def init(_opts) do
-    rl_config       = Application.get_env(:exclaw, ExClaw.LLM.RateLimiter, [])
-    anthropic_config = Application.get_env(:exclaw, ExClaw.LLM.Provider, [])
-    vllm_config     = Application.get_env(:exclaw, ExClaw.LLM.VLLMProvider, nil)
-    ollama_config   = Application.get_env(:exclaw, ExClaw.LLM.OllamaProvider, nil)
+    rl_config       = Application.get_env(:exclaw, Kerf.LLM.RateLimiter, [])
+    anthropic_config = Application.get_env(:exclaw, Kerf.LLM.Provider, [])
+    vllm_config     = Application.get_env(:exclaw, Kerf.LLM.VLLMProvider, nil)
+    ollama_config   = Application.get_env(:exclaw, Kerf.LLM.OllamaProvider, nil)
 
     # Always start a shared RateLimiter and the Anthropic Provider.
     base_children = [
-      {ExClaw.LLM.RateLimiter, rl_config},
-      {ExClaw.LLM.Provider, anthropic_config}
+      {Kerf.LLM.RateLimiter, rl_config},
+      {Kerf.LLM.Provider, anthropic_config}
     ]
 
     # Start the local inference backend (vLLM preferred over Ollama).
     local_children =
       cond do
-        vllm_config   -> [{ExClaw.LLM.VLLMProvider, vllm_config}]
-        ollama_config -> [{ExClaw.LLM.OllamaProvider, ollama_config}]
+        vllm_config   -> [{Kerf.LLM.VLLMProvider, vllm_config}]
+        ollama_config -> [{Kerf.LLM.OllamaProvider, ollama_config}]
         true          -> []
       end
 
@@ -48,8 +48,8 @@ defmodule ExClaw.LLM.Supervisor do
     routes = build_routes(vllm_config, ollama_config)
 
     router_child = [
-      {ExClaw.LLM.ModelRouter,
-       name: ExClaw.LLM.ModelRouter, routes: routes}
+      {Kerf.LLM.ModelRouter,
+       name: Kerf.LLM.ModelRouter, routes: routes}
     ]
 
     children = base_children ++ local_children ++ router_child
@@ -60,15 +60,15 @@ defmodule ExClaw.LLM.Supervisor do
   # Build routing table based on which local backend is configured.
   defp build_routes(nil, nil) do
     # No local backend -- route everything to Anthropic.
-    [{~r/./, ExClaw.LLM.Provider}]
+    [{~r/./, Kerf.LLM.Provider}]
   end
 
   defp build_routes(vllm_config, _ollama_config) when vllm_config != nil do
-    local = ExClaw.LLM.VLLMProvider
+    local = Kerf.LLM.VLLMProvider
 
     [
       # Anthropic models
-      {~r/^claude-/, ExClaw.LLM.Provider},
+      {~r/^claude-/, Kerf.LLM.Provider},
       # vLLM models (HuggingFace-style names via NVFP4 quantization)
       {~r/^nvidia\//, local},
       # Also match bare model names for convenience
@@ -79,23 +79,23 @@ defmodule ExClaw.LLM.Supervisor do
       {~r/^llama/i,     local},
       {~r/^phi/i,       local},
       # Fallback: unknown models go to Anthropic
-      {~r/./, ExClaw.LLM.Provider}
+      {~r/./, Kerf.LLM.Provider}
     ]
   end
 
   defp build_routes(nil, _ollama_config) do
-    local = ExClaw.LLM.OllamaProvider
+    local = Kerf.LLM.OllamaProvider
 
     [
       # Anthropic models
-      {~r/^claude-/, ExClaw.LLM.Provider},
+      {~r/^claude-/, Kerf.LLM.Provider},
       # Ollama models available on the Spark
       {~r/^qwen3/,     local},
       {~r/^deepseek-/, local},
       {~r/^glm-/,      local},
       {~r/^nemotron-/, local},
       # Fallback: unknown models go to Anthropic
-      {~r/./, ExClaw.LLM.Provider}
+      {~r/./, Kerf.LLM.Provider}
     ]
   end
 end

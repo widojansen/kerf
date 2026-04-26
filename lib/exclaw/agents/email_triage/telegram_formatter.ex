@@ -1,4 +1,4 @@
-defmodule ExClaw.Agents.EmailTriage.TelegramFormatter do
+defmodule Kerf.Agents.EmailTriage.TelegramFormatter do
   @moduledoc """
   Renders triage results as Telegram messages.
   """

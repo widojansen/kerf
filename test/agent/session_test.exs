@@ -1,8 +1,8 @@
-defmodule ExClaw.Agent.SessionTest do
+defmodule Kerf.Agent.SessionTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Agent.Session
-  alias ExClaw.LLM.{Provider, RateLimiter}
+  alias Kerf.Agent.Session
+  alias Kerf.LLM.{Provider, RateLimiter}
 
   # --- Test helpers ---
 

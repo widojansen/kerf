@@ -1,5 +1,5 @@
-defmodule ExClaw.Dashboard.DashboardLiveTest do
-  use ExClaw.ConnCase, async: false
+defmodule Kerf.Dashboard.DashboardLiveTest do
+  use Kerf.ConnCase, async: false
   @moduletag :integration
 
   describe "root redirect" do

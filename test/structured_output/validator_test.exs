@@ -1,7 +1,7 @@
-defmodule ExClaw.StructuredOutput.ValidatorTest do
+defmodule Kerf.StructuredOutput.ValidatorTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.StructuredOutput.Validator
+  alias Kerf.StructuredOutput.Validator
 
   # -- Helpers --
 

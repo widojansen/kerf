@@ -1,15 +1,15 @@
-defmodule ExClaw.CredentialVault.TokenRefreshWorkerTest do
-  use ExClaw.DataCase, async: false
+defmodule Kerf.CredentialVault.TokenRefreshWorkerTest do
+  use Kerf.DataCase, async: false
 
-  alias ExClaw.CredentialVault
-  alias ExClaw.CredentialVault.{TokenRefreshWorker, Credential}
+  alias Kerf.CredentialVault
+  alias Kerf.CredentialVault.{TokenRefreshWorker, Credential}
 
   @vault_name :test_trw_vault
   @worker_name :test_token_refresh_worker
   @encryption_key :crypto.hash(:sha256, "test-trw-key")
 
   setup do
-    ExClaw.Repo.delete_all(Credential)
+    Kerf.Repo.delete_all(Credential)
 
     {:ok, vault_pid} =
       CredentialVault.start_link(name: @vault_name, encryption_key: @encryption_key)

@@ -1,4 +1,4 @@
-defmodule ExClaw.Agents.EmailTriage.InterestMatcher do
+defmodule Kerf.Agents.EmailTriage.InterestMatcher do
   @moduledoc """
   Semantic and keyword-based interest matching for email triage.
   """

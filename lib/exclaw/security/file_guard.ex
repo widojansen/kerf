@@ -1,4 +1,4 @@
-defmodule ExClaw.Security.FileGuard do
+defmodule Kerf.Security.FileGuard do
   @moduledoc """
   Validates file paths to prevent directory traversal and
   access to sensitive system files.
@@ -121,7 +121,7 @@ defmodule ExClaw.Security.FileGuard do
 
   defp maybe_log_denial({:denied, reason}, module, input_preview) do
     try do
-      ExClaw.Dashboard.EventLog.log(:security_denial, %{
+      Kerf.Dashboard.EventLog.log(:security_denial, %{
         module: module,
         reason: reason,
         input_preview: String.slice(inspect(input_preview), 0, 200),
@@ -142,7 +142,7 @@ defmodule ExClaw.Security.FileGuard do
           {:denied, reason} -> {"denied", reason}
         end
 
-      ExClaw.Telemetry.emit(:security_check, %{
+      Kerf.Telemetry.emit(:security_check, %{
         module: "FileGuard",
         tool_name: tool_name,
         security_result: security_result,

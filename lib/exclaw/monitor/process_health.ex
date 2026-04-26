@@ -1,4 +1,4 @@
-defmodule ExClaw.Monitor.ProcessHealth do
+defmodule Kerf.Monitor.ProcessHealth do
   @moduledoc """
   Periodic health checker for critical named processes.
 

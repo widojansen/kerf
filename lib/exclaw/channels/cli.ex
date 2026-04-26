@@ -1,15 +1,15 @@
-defmodule ExClaw.Channels.CLI do
+defmodule Kerf.Channels.CLI do
   @moduledoc """
-  Terminal REPL channel for ExClaw.
+  Terminal REPL channel for Kerf.
 
   Not a GenServer — the CLI is a synchronous blocking REPL.
   The agent loop is already a GenServer (Agent.Session).
   Core logic extracted into testable public functions.
   """
 
-  alias ExClaw.Agent.Supervisor, as: AgentSupervisor
-  alias ExClaw.Memory.Store
-  alias ExClaw.Tools.Dispatcher
+  alias Kerf.Agent.Supervisor, as: AgentSupervisor
+  alias Kerf.Memory.Store
+  alias Kerf.Tools.Dispatcher
 
   @exit_commands ~w(exit quit :q /exit /quit)
 
@@ -71,14 +71,14 @@ defmodule ExClaw.Channels.CLI do
   def process_input(input, group_id, opts \\ []) do
     started_at = System.monotonic_time(:millisecond)
     sup = Keyword.get(opts, :agent_supervisor, AgentSupervisor)
-    registry = Keyword.get(opts, :registry, ExClaw.SessionRegistry)
-    provider = Keyword.get(opts, :provider, ExClaw.LLM.ModelRouter)
+    registry = Keyword.get(opts, :registry, Kerf.SessionRegistry)
+    provider = Keyword.get(opts, :provider, Kerf.LLM.ModelRouter)
     model = Keyword.get(opts, :model, "claude-sonnet-4-20250514")
     system_prompt = Keyword.get(opts, :system_prompt)
 
-    container_manager = Keyword.get(opts, :container_manager, ExClaw.Container.Manager)
+    container_manager = Keyword.get(opts, :container_manager, Kerf.Container.Manager)
     workspaces_dir = Keyword.get(opts, :workspaces_dir,
-      Application.get_env(:exclaw, ExClaw.Container.Manager, [])[:workspaces_dir] || "priv/workspaces")
+      Application.get_env(:exclaw, Kerf.Container.Manager, [])[:workspaces_dir] || "priv/workspaces")
 
     tool_executor = Keyword.get(opts, :tool_executor,
       Dispatcher.build_executor(
@@ -106,7 +106,7 @@ defmodule ExClaw.Channels.CLI do
     end
 
     try do
-      ExClaw.Telemetry.emit(:channel_event, %{
+      Kerf.Telemetry.emit(:channel_event, %{
         channel: "cli",
         group_id: group_id,
         event: "message_processed",
@@ -178,7 +178,7 @@ defmodule ExClaw.Channels.CLI do
   defp print_banner(group_id, model) do
     IO.puts("""
 
-    ExClaw CLI — #{model}
+    Kerf CLI — #{model}
     Group: #{group_id}
     Type 'exit', 'quit', ':q', '/exit', or '/quit' to leave.
     """)

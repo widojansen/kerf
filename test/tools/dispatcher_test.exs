@@ -1,9 +1,9 @@
-defmodule ExClaw.Tools.DispatcherTest do
+defmodule Kerf.Tools.DispatcherTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Tools.Dispatcher
-  alias ExClaw.Tools.Registry, as: ToolRegistry
-  alias ExClaw.Tools.Registrations
+  alias Kerf.Tools.Dispatcher
+  alias Kerf.Tools.Registry, as: ToolRegistry
+  alias Kerf.Tools.Registrations
 
   defp start_registry do
     name = :"disp_reg_#{System.unique_integer([:positive])}"
@@ -27,7 +27,7 @@ defmodule ExClaw.Tools.DispatcherTest do
       end
     end
 
-    {:ok, pid} = ExClaw.Container.Manager.start_link(
+    {:ok, pid} = Kerf.Container.Manager.start_link(
       workspaces_dir: workspaces_dir,
       image: "exclaw-sandbox:latest",
       docker_adapter: adapter,

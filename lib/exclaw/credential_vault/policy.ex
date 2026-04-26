@@ -1,4 +1,4 @@
-defmodule ExClaw.CredentialVault.Policy do
+defmodule Kerf.CredentialVault.Policy do
   @moduledoc """
   Ecto schema for credential_vault_policies table.
   Maps (agent_module, credential_name, group_id) to allowed scopes and rate limits.

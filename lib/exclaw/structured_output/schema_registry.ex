@@ -1,4 +1,4 @@
-defmodule ExClaw.StructuredOutput.SchemaRegistry do
+defmodule Kerf.StructuredOutput.SchemaRegistry do
   @moduledoc """
   GenServer + ETS registry for named JSON schemas.
 
@@ -55,7 +55,7 @@ defmodule ExClaw.StructuredOutput.SchemaRegistry do
     :ets.new(table, [:named_table, :set, :public, read_concurrency: true])
 
     if Keyword.get(opts, :register_builtins, false) do
-      Enum.each(ExClaw.StructuredOutput.Builtins.schemas(), fn {schema_name, schema_def} ->
+      Enum.each(Kerf.StructuredOutput.Builtins.schemas(), fn {schema_name, schema_def} ->
         :ets.insert(table, {schema_name, schema_def})
       end)
     end

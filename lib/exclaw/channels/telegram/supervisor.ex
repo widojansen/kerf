@@ -1,4 +1,4 @@
-defmodule ExClaw.Channels.Telegram.Supervisor do
+defmodule Kerf.Channels.Telegram.Supervisor do
   @moduledoc """
   Supervisor for the Telegram channel GenServer.
   """
@@ -14,7 +14,7 @@ defmodule ExClaw.Channels.Telegram.Supervisor do
     telegram_opts = Keyword.get(opts, :telegram_opts, [])
 
     children = [
-      {ExClaw.Channels.Telegram, telegram_opts}
+      {Kerf.Channels.Telegram, telegram_opts}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

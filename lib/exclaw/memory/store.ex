@@ -1,7 +1,7 @@
-defmodule ExClaw.Memory.Store do
+defmodule Kerf.Memory.Store do
   use GenServer
 
-  alias ExClaw.Memory.{Fact, Message, Embedder}
+  alias Kerf.Memory.{Fact, Message, Embedder}
   import Ecto.Query
   require Logger
 
@@ -49,7 +49,7 @@ defmodule ExClaw.Memory.Store do
         "priv/data"
 
     data_dir = Path.expand(data_dir)
-    repo = Keyword.get(opts, :repo, ExClaw.Repo)
+    repo = Keyword.get(opts, :repo, Kerf.Repo)
     embedder = Keyword.get(opts, :embedder)
     task_supervisor = Keyword.get(opts, :task_supervisor)
 
@@ -365,7 +365,7 @@ defmodule ExClaw.Memory.Store do
       duration_ms = System.monotonic_time(:millisecond) - started_at
 
       try do
-        ExClaw.Telemetry.emit(:memory_operation, %{
+        Kerf.Telemetry.emit(:memory_operation, %{
           op_type: op_type,
           group_id: group_id,
           duration_ms: duration_ms

@@ -1,4 +1,4 @@
-defmodule ExClaw.StructuredOutput.Builtins do
+defmodule Kerf.StructuredOutput.Builtins do
   @moduledoc """
   Built-in schemas registered at application startup.
   """

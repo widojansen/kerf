@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo do
+defmodule Kerf.Repo do
   use Ecto.Repo,
     otp_app: :exclaw,
     adapter: Ecto.Adapters.Postgres

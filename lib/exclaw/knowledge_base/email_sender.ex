@@ -1,4 +1,4 @@
-defmodule ExClaw.KnowledgeBase.EmailSender do
+defmodule Kerf.KnowledgeBase.EmailSender do
   use Ecto.Schema
   import Ecto.Changeset
 

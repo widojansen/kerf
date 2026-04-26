@@ -1,4 +1,4 @@
-defmodule ExClaw.StructuredOutput.JSONParser do
+defmodule Kerf.StructuredOutput.JSONParser do
   @moduledoc """
   Extracts and parses JSON from LLM response content.
 

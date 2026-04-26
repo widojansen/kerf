@@ -12,7 +12,7 @@ defmodule Mix.Tasks.Exclaw.SeedInterests do
   def run(_args) do
     Mix.Task.run("app.start")
 
-    interests = ExClaw.Repo.all(ExClaw.KnowledgeBase.Interest)
+    interests = Kerf.Repo.all(Kerf.KnowledgeBase.Interest)
 
     if interests == [] do
       IO.puts("No interests found. Seed the kb_interests table first.")
@@ -22,11 +22,11 @@ defmodule Mix.Tasks.Exclaw.SeedInterests do
       for interest <- interests do
         text = interest.topic <> " " <> Enum.join(interest.keywords || [], " ")
 
-        case ExClaw.KnowledgeBase.Embedder.embed(text) do
+        case Kerf.KnowledgeBase.Embedder.embed(text) do
           {:ok, embedding} ->
             interest
             |> Ecto.Changeset.change(%{embedding: Pgvector.new(embedding)})
-            |> ExClaw.Repo.update!()
+            |> Kerf.Repo.update!()
 
             IO.puts("  OK #{interest.topic}")
 

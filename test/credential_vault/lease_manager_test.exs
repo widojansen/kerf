@@ -1,16 +1,16 @@
-defmodule ExClaw.CredentialVault.LeaseManagerTest do
-  use ExClaw.DataCase, async: false
+defmodule Kerf.CredentialVault.LeaseManagerTest do
+  use Kerf.DataCase, async: false
 
-  alias ExClaw.CredentialVault
-  alias ExClaw.CredentialVault.{LeaseManager, Credential, Policy}
+  alias Kerf.CredentialVault
+  alias Kerf.CredentialVault.{LeaseManager, Credential, Policy}
 
   @vault_name :test_lm_vault
   @lm_name :test_lease_manager
   @encryption_key :crypto.hash(:sha256, "test-lease-mgr-key")
 
   setup do
-    ExClaw.Repo.delete_all(Policy)
-    ExClaw.Repo.delete_all(Credential)
+    Kerf.Repo.delete_all(Policy)
+    Kerf.Repo.delete_all(Credential)
 
     {:ok, vault_pid} =
       CredentialVault.start_link(name: @vault_name, encryption_key: @encryption_key)
@@ -34,7 +34,7 @@ defmodule ExClaw.CredentialVault.LeaseManagerTest do
         allowed_scopes: ["gmail.readonly", "gmail.labels"],
         max_lease_ttl: 300
       })
-      |> ExClaw.Repo.insert()
+      |> Kerf.Repo.insert()
 
     {:ok, lm_pid} =
       LeaseManager.start_link(
@@ -92,7 +92,7 @@ defmodule ExClaw.CredentialVault.LeaseManagerTest do
           credential_name: "ghost",
           allowed_scopes: ["read"]
         })
-        |> ExClaw.Repo.insert()
+        |> Kerf.Repo.insert()
 
       assert {:error, :not_found} =
                LeaseManager.acquire(lm, TestAgent, "ghost", ["read"])
@@ -165,7 +165,7 @@ defmodule ExClaw.CredentialVault.LeaseManagerTest do
 
       agent_pid =
         spawn(fn ->
-          Ecto.Adapters.SQL.Sandbox.allow(ExClaw.Repo, test_pid, self())
+          Ecto.Adapters.SQL.Sandbox.allow(Kerf.Repo, test_pid, self())
 
           {:ok, lease} =
             LeaseManager.acquire(lm, TestAgent, "gmail", ["gmail.readonly"])

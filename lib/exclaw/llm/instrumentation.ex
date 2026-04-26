@@ -1,4 +1,4 @@
-defmodule ExClaw.LLM.Instrumentation do
+defmodule Kerf.LLM.Instrumentation do
   @moduledoc """
   Shared telemetry emission for LLM provider calls.
 

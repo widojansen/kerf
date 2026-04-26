@@ -1,4 +1,4 @@
-defmodule ExClaw.Monitor.LLMTelemetryTest do
+defmodule Kerf.Monitor.LLMTelemetryTest do
   use ExUnit.Case, async: true
 
   @moduledoc """
@@ -10,7 +10,7 @@ defmodule ExClaw.Monitor.LLMTelemetryTest do
   helper that all three providers call.
   """
 
-  alias ExClaw.LLM.Instrumentation
+  alias Kerf.LLM.Instrumentation
 
   defp attach_handler(event_name) do
     ref = make_ref()

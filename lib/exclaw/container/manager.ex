@@ -1,4 +1,4 @@
-defmodule ExClaw.Container.Manager do
+defmodule Kerf.Container.Manager do
   @moduledoc """
   GenServer managing Docker container lifecycle per group.
 

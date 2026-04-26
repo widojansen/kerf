@@ -1,14 +1,14 @@
-defmodule ExClaw.CredentialVault.SupervisorTest do
-  use ExClaw.DataCase, async: false
+defmodule Kerf.CredentialVault.SupervisorTest do
+  use Kerf.DataCase, async: false
 
-  alias ExClaw.CredentialVault
-  alias ExClaw.CredentialVault.{LeaseManager, Credential, Policy}
+  alias Kerf.CredentialVault
+  alias Kerf.CredentialVault.{LeaseManager, Credential, Policy}
 
   @encryption_key :crypto.hash(:sha256, "test-supervisor-key")
 
   setup do
-    ExClaw.Repo.delete_all(Policy)
-    ExClaw.Repo.delete_all(Credential)
+    Kerf.Repo.delete_all(Policy)
+    Kerf.Repo.delete_all(Credential)
     :ok
   end
 
@@ -46,7 +46,7 @@ defmodule ExClaw.CredentialVault.SupervisorTest do
           credential_name: "test_api",
           allowed_scopes: ["read", "write"]
         })
-        |> ExClaw.Repo.insert()
+        |> Kerf.Repo.insert()
 
       # 3. Acquire a lease
       {:ok, lease} =
@@ -70,7 +70,7 @@ defmodule ExClaw.CredentialVault.SupervisorTest do
       end
 
       {:ok, response} =
-        ExClaw.CredentialVault.Proxy.request(
+        Kerf.CredentialVault.Proxy.request(
           lease,
           :get,
           "https://api.example.com/data",
@@ -116,7 +116,7 @@ defmodule ExClaw.CredentialVault.SupervisorTest do
           credential_name: "svc",
           allowed_scopes: ["read"]
         })
-        |> ExClaw.Repo.insert()
+        |> Kerf.Repo.insert()
 
       {:ok, lease1} = LeaseManager.acquire(lm_name, KillAgent, "svc", ["read"])
       {:ok, lease2} = LeaseManager.acquire(lm_name, KillAgent, "svc", ["read"])

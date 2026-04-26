@@ -1,4 +1,4 @@
-defmodule ExClaw.Telemetry do
+defmodule Kerf.Telemetry do
   @moduledoc """
   Public API for telemetry event emission.
 
@@ -7,7 +7,7 @@ defmodule ExClaw.Telemetry do
   discarded.
   """
 
-  alias ExClaw.Telemetry.Logger
+  alias Kerf.Telemetry.Logger
 
   @doc """
   Emit a telemetry event (non-blocking cast).

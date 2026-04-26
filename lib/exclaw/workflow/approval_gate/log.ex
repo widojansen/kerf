@@ -1,4 +1,4 @@
-defmodule ExClaw.Workflow.ApprovalGate.Log do
+defmodule Kerf.Workflow.ApprovalGate.Log do
   @moduledoc """
   Ecto schema for the approval gate audit log.
   """
@@ -6,7 +6,7 @@ defmodule ExClaw.Workflow.ApprovalGate.Log do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias ExClaw.Repo
+  alias Kerf.Repo
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id

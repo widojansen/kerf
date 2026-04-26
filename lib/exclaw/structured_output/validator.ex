@@ -1,4 +1,4 @@
-defmodule ExClaw.StructuredOutput.Validator do
+defmodule Kerf.StructuredOutput.Validator do
   @moduledoc """
   Validates parsed data against JSON Schema definitions and applies
   Elixir-side type coercions.

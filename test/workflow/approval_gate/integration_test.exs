@@ -1,7 +1,7 @@
-defmodule ExClaw.Workflow.ApprovalGate.IntegrationTest do
-  use ExClaw.DataCase, async: false
+defmodule Kerf.Workflow.ApprovalGate.IntegrationTest do
+  use Kerf.DataCase, async: false
 
-  alias ExClaw.Workflow.ApprovalGate.{Manager, CallbackHandler, AutoRule, Log, Supervisor}
+  alias Kerf.Workflow.ApprovalGate.{Manager, CallbackHandler, AutoRule, Log, Supervisor}
 
   @moduletag :integration
   describe "full approval lifecycle" do
@@ -29,12 +29,12 @@ defmodule ExClaw.Workflow.ApprovalGate.IntegrationTest do
 
       {_, manager, _, _} =
         Enum.find(children, fn {id, _, _, _} ->
-          id == ExClaw.Workflow.ApprovalGate.Manager
+          id == Kerf.Workflow.ApprovalGate.Manager
         end)
 
       {_, handler, _, _} =
         Enum.find(children, fn {id, _, _, _} ->
-          id == ExClaw.Workflow.ApprovalGate.CallbackHandler
+          id == Kerf.Workflow.ApprovalGate.CallbackHandler
         end)
 
       allow_repo(manager)
@@ -219,7 +219,7 @@ defmodule ExClaw.Workflow.ApprovalGate.IntegrationTest do
       Process.sleep(50)
 
       log =
-        ExClaw.Repo.get_by(Log, request_id: pending.request_id)
+        Kerf.Repo.get_by(Log, request_id: pending.request_id)
 
       assert log != nil
       assert log.agent_module == "Elixir.AuditAgent"

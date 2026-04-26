@@ -1,7 +1,7 @@
-defmodule ExClaw.KnowledgeBase.ChunkerTest do
+defmodule Kerf.KnowledgeBase.ChunkerTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.KnowledgeBase.Chunker
+  alias Kerf.KnowledgeBase.Chunker
 
   describe "chunk/2 with :paragraph strategy" do
     test "splits on double newlines" do

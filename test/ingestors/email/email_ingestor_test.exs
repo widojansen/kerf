@@ -1,8 +1,8 @@
-defmodule ExClaw.Ingestors.Email.EmailIngestorTest do
-  use ExClaw.DataCase
+defmodule Kerf.Ingestors.Email.EmailIngestorTest do
+  use Kerf.DataCase
 
-  alias ExClaw.Ingestors.Email.EmailIngestor
-  alias ExClaw.KnowledgeBase.{Document, Chunk, EmailSender}
+  alias Kerf.Ingestors.Email.EmailIngestor
+  alias Kerf.KnowledgeBase.{Document, Chunk, EmailSender}
 
   @sample_email %{
     id: "msg_ingest_1",
@@ -36,7 +36,7 @@ defmodule ExClaw.Ingestors.Email.EmailIngestorTest do
       Keyword.merge(
         [
           name: name,
-          repo: ExClaw.Repo,
+          repo: Kerf.Repo,
           gmail_client: &fake_gmail_client/2,
           embedder: &fake_embedder/2,
           poll_interval_ms: :infinity,

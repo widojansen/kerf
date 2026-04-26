@@ -1,4 +1,4 @@
-defmodule ExClaw.Workflow.ApprovalGate.CallbackHandler do
+defmodule Kerf.Workflow.ApprovalGate.CallbackHandler do
   @moduledoc """
   GenServer that receives Telegram callback query updates
   and routes them to the Manager for resolution.
@@ -6,7 +6,7 @@ defmodule ExClaw.Workflow.ApprovalGate.CallbackHandler do
 
   use GenServer
 
-  alias ExClaw.Workflow.ApprovalGate.TelegramRenderer
+  alias Kerf.Workflow.ApprovalGate.TelegramRenderer
 
   # --- Public API ---
 
@@ -44,7 +44,7 @@ defmodule ExClaw.Workflow.ApprovalGate.CallbackHandler do
     case TelegramRenderer.parse_callback_data(callback_data) do
       {:ok, request_id, option_index} ->
         # Look up the pending request to get the option label
-        pending = ExClaw.Workflow.ApprovalGate.Manager.pending(state.manager)
+        pending = Kerf.Workflow.ApprovalGate.Manager.pending(state.manager)
 
         case Enum.find(pending, &(&1.request_id == request_id)) do
           nil ->
@@ -54,7 +54,7 @@ defmodule ExClaw.Workflow.ApprovalGate.CallbackHandler do
           entry ->
             decision = Enum.at(entry.options, option_index, "unknown")
 
-            ExClaw.Workflow.ApprovalGate.Manager.resolve(
+            Kerf.Workflow.ApprovalGate.Manager.resolve(
               state.manager,
               request_id,
               decision,

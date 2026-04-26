@@ -31,8 +31,8 @@ defmodule Mix.Tasks.Exclaw.BackfillTriage do
     limit = Keyword.get(opts, :limit, 10)
     dry_run = Keyword.get(opts, :dry_run, false)
 
-    alias ExClaw.KnowledgeBase.{Document, Feedback}
-    alias ExClaw.Agents.EmailTriage.EmailTriage
+    alias Kerf.KnowledgeBase.{Document, Feedback}
+    alias Kerf.Agents.EmailTriage.EmailTriage
 
     triaged_ids = from(f in Feedback, where: f.feedback_type == "triage", select: f.document_id)
 
@@ -42,13 +42,13 @@ defmodule Mix.Tasks.Exclaw.BackfillTriage do
         order_by: [desc: d.inserted_at],
         limit: ^limit
       )
-      |> ExClaw.Repo.all()
+      |> Kerf.Repo.all()
 
     total_untriaged =
       from(d in Document,
         where: d.source_type == "email" and d.id not in subquery(triaged_ids)
       )
-      |> ExClaw.Repo.aggregate(:count)
+      |> Kerf.Repo.aggregate(:count)
 
     IO.puts("Found #{total_untriaged} untriaged emails (processing #{min(limit, total_untriaged)})")
 
@@ -62,12 +62,12 @@ defmodule Mix.Tasks.Exclaw.BackfillTriage do
       # Start a local EmailTriage GenServer for this backfill run
       triage_name = :"backfill_triage_#{System.unique_integer([:positive])}"
 
-      triage_config = Application.get_env(:exclaw, ExClaw.Agents.EmailTriage, [])
+      triage_config = Application.get_env(:exclaw, Kerf.Agents.EmailTriage, [])
 
       {:ok, _pid} =
         EmailTriage.start_link(
           name: triage_name,
-          repo: ExClaw.Repo,
+          repo: Kerf.Repo,
           interest_threshold: Keyword.get(triage_config, :interest_threshold, 0.5),
           high_priority_threshold: Keyword.get(triage_config, :high_priority_threshold, 4)
         )

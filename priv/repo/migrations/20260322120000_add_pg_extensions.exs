@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.AddPgExtensions do
+defmodule Kerf.Repo.Migrations.AddPgExtensions do
   use Ecto.Migration
 
   def change do

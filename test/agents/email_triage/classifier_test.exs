@@ -1,7 +1,7 @@
-defmodule ExClaw.Agents.EmailTriage.ClassifierTest do
+defmodule Kerf.Agents.EmailTriage.ClassifierTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Agents.EmailTriage.Classifier
+  alias Kerf.Agents.EmailTriage.Classifier
 
   describe "classify/2" do
     test "returns classification from structured output" do

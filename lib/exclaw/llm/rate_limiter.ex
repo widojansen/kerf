@@ -1,4 +1,4 @@
-defmodule ExClaw.LLM.RateLimiter do
+defmodule Kerf.LLM.RateLimiter do
   @moduledoc """
   Sliding-window rate limiter for LLM API calls.
   Tracks requests and tokens per minute to stay within API limits.

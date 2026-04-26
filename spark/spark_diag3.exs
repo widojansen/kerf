@@ -1,11 +1,11 @@
 import Ecto.Query
 
 # Check what source_metadata actually contains
-doc = from(d in ExClaw.KnowledgeBase.Document,
+doc = from(d in Kerf.KnowledgeBase.Document,
   where: d.source_type == "email",
   order_by: [desc: d.inserted_at],
   limit: 1)
-|> ExClaw.Repo.one()
+|> Kerf.Repo.one()
 
 IO.puts("--- Sample document source_metadata keys ---")
 if doc do

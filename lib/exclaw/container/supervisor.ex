@@ -1,4 +1,4 @@
-defmodule ExClaw.Container.Supervisor do
+defmodule Kerf.Container.Supervisor do
   @moduledoc """
   Supervises the Container.Manager.
   """
@@ -14,7 +14,7 @@ defmodule ExClaw.Container.Supervisor do
     manager_opts = Keyword.get(opts, :manager_opts, [])
 
     children = [
-      {ExClaw.Container.Manager, manager_opts}
+      {Kerf.Container.Manager, manager_opts}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

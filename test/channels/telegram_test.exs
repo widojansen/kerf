@@ -1,7 +1,7 @@
-defmodule ExClaw.Channels.TelegramTest do
+defmodule Kerf.Channels.TelegramTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Channels.Telegram
+  alias Kerf.Channels.Telegram
 
   describe "derive_group_id/1" do
     test "derives group_id from chat id" do
@@ -23,12 +23,12 @@ defmodule ExClaw.Channels.TelegramTest do
           "message_id" => 42,
           "chat" => %{"id" => 12345},
           "from" => %{"id" => 999, "first_name" => "Alice"},
-          "text" => "Hello ExClaw"
+          "text" => "Hello Kerf"
         }
       }
 
       assert {:ok, msg} = Telegram.extract_message(update)
-      assert msg.text == "Hello ExClaw"
+      assert msg.text == "Hello Kerf"
       assert msg.chat_id == 12345
       assert msg.from_id == 999
       assert msg.update_id == 1001

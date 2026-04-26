@@ -1,4 +1,4 @@
-defmodule ExClaw.LLM.Provider do
+defmodule Kerf.LLM.Provider do
   @moduledoc """
   GenServer wrapping Req for the Anthropic Messages API.
   Handles completion requests with rate limiting and error handling.
@@ -26,7 +26,7 @@ defmodule ExClaw.LLM.Provider do
     base_url = Keyword.get(opts, :base_url, "https://api.anthropic.com/v1")
     anthropic_version = Keyword.get(opts, :anthropic_version, "2023-06-01")
     adapter = Keyword.get(opts, :adapter)
-    rate_limiter = Keyword.get(opts, :rate_limiter, ExClaw.LLM.RateLimiter)
+    rate_limiter = Keyword.get(opts, :rate_limiter, Kerf.LLM.RateLimiter)
 
     req =
       if api_key do
@@ -88,7 +88,7 @@ defmodule ExClaw.LLM.Provider do
   end
 
   defp check_rate_limit(%{rate_limiter: rl}) do
-    ExClaw.LLM.RateLimiter.check_budget(rl)
+    Kerf.LLM.RateLimiter.check_budget(rl)
   end
 
   defp build_request_body(model, messages, opts, state) do
@@ -170,7 +170,7 @@ defmodule ExClaw.LLM.Provider do
 
   defp record_usage(%{usage: usage}, %{rate_limiter: rl}) do
     total = (usage.input_tokens || 0) + (usage.output_tokens || 0)
-    ExClaw.LLM.RateLimiter.record_usage(rl, total)
+    Kerf.LLM.RateLimiter.record_usage(rl, total)
   end
 
   defp record_usage(_, _), do: :ok
@@ -189,9 +189,9 @@ defmodule ExClaw.LLM.Provider do
         timestamp: DateTime.utc_now()
       }
 
-      ExClaw.Dashboard.EventLog.log(:llm_call, event)
-      ExClaw.Telemetry.emit(:llm_call, Map.put(event, :process_memory_bytes, mem))
-      ExClaw.LLM.Instrumentation.emit_call_stop(:anthropic, model, duration_ms, response)
+      Kerf.Dashboard.EventLog.log(:llm_call, event)
+      Kerf.Telemetry.emit(:llm_call, Map.put(event, :process_memory_bytes, mem))
+      Kerf.LLM.Instrumentation.emit_call_stop(:anthropic, model, duration_ms, response)
     rescue
       _ -> :ok
     end
@@ -206,14 +206,14 @@ defmodule ExClaw.LLM.Provider do
         timestamp: DateTime.utc_now()
       }
 
-      ExClaw.Dashboard.EventLog.log(:llm_error, event)
-      ExClaw.Telemetry.emit(:llm_error, %{
+      Kerf.Dashboard.EventLog.log(:llm_error, event)
+      Kerf.Telemetry.emit(:llm_error, %{
         model: model,
         duration_ms: duration_ms,
         error_type: "llm_error",
         error_message: inspect(reason)
       })
-      ExClaw.LLM.Instrumentation.emit_call_error(:anthropic, model, duration_ms, reason)
+      Kerf.LLM.Instrumentation.emit_call_error(:anthropic, model, duration_ms, reason)
     rescue
       _ -> :ok
     end

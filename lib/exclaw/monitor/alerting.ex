@@ -1,4 +1,4 @@
-defmodule ExClaw.Monitor.Alerting do
+defmodule Kerf.Monitor.Alerting do
   @moduledoc """
   Debounced alert delivery via Telegram.
 
@@ -113,7 +113,7 @@ defmodule ExClaw.Monitor.Alerting do
     time = Calendar.strftime(DateTime.utc_now(), "%Y-%m-%d %H:%M:%S UTC")
 
     """
-    \u{1F534} ExClaw Alert: #{name} DOWN
+    \u{1F534} Kerf Alert: #{name} DOWN
     Process #{inspect(metadata[:name])} is not running.
     Detected at #{time}\
     """
@@ -124,7 +124,7 @@ defmodule ExClaw.Monitor.Alerting do
     time = Calendar.strftime(DateTime.utc_now(), "%Y-%m-%d %H:%M:%S UTC")
 
     """
-    \u26A0\uFE0F ExClaw Alert: #{name} queue high
+    \u26A0\uFE0F Kerf Alert: #{name} queue high
     Message queue: #{measurements[:queue_len]} (threshold: #{metadata[:threshold]})
     Detected at #{time}\
     """
@@ -136,7 +136,7 @@ defmodule ExClaw.Monitor.Alerting do
     time = Calendar.strftime(DateTime.utc_now(), "%Y-%m-%d %H:%M:%S UTC")
 
     """
-    \u26A0\uFE0F ExClaw Alert: #{name} memory high
+    \u26A0\uFE0F Kerf Alert: #{name} memory high
     Memory: #{mb} MB (threshold: #{metadata[:threshold]} MB)
     Detected at #{time}\
     """
@@ -146,7 +146,7 @@ defmodule ExClaw.Monitor.Alerting do
     time = Calendar.strftime(DateTime.utc_now(), "%Y-%m-%d %H:%M:%S UTC")
 
     """
-    \u26A0\uFE0F ExClaw Alert: #{event_type}
+    \u26A0\uFE0F Kerf Alert: #{event_type}
     Measurements: #{inspect(measurements)}
     Metadata: #{inspect(metadata)}
     Detected at #{time}\
@@ -157,7 +157,7 @@ defmodule ExClaw.Monitor.Alerting do
     name = short_name(metadata[:name])
     duration_str = format_duration(duration_seconds)
 
-    "\u2705 ExClaw: #{name} recovered (#{event_type} resolved, was down for #{duration_str})"
+    "\u2705 Kerf: #{name} recovered (#{event_type} resolved, was down for #{duration_str})"
   end
 
   defp short_name(nil), do: "unknown"
@@ -181,7 +181,7 @@ defmodule ExClaw.Monitor.Alerting do
   end
 
   defp default_telegram_sender(chat_id, text) do
-    token = Application.get_env(:exclaw, ExClaw.Channels.Telegram, [])[:token]
+    token = Application.get_env(:exclaw, Kerf.Channels.Telegram, [])[:token]
 
     if token do
       url = "https://api.telegram.org/bot#{token}/sendMessage"

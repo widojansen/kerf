@@ -1,16 +1,16 @@
-defmodule ExClaw.CredentialVault.ProxyTest do
-  use ExClaw.DataCase, async: false
+defmodule Kerf.CredentialVault.ProxyTest do
+  use Kerf.DataCase, async: false
 
-  alias ExClaw.CredentialVault
-  alias ExClaw.CredentialVault.{Proxy, LeaseManager, Credential, Policy, Lease}
+  alias Kerf.CredentialVault
+  alias Kerf.CredentialVault.{Proxy, LeaseManager, Credential, Policy, Lease}
 
   @vault_name :test_proxy_vault
   @lm_name :test_proxy_lm
   @encryption_key :crypto.hash(:sha256, "test-proxy-key")
 
   setup do
-    ExClaw.Repo.delete_all(Policy)
-    ExClaw.Repo.delete_all(Credential)
+    Kerf.Repo.delete_all(Policy)
+    Kerf.Repo.delete_all(Credential)
 
     {:ok, vault_pid} =
       CredentialVault.start_link(name: @vault_name, encryption_key: @encryption_key)
@@ -40,7 +40,7 @@ defmodule ExClaw.CredentialVault.ProxyTest do
         credential_name: "stripe",
         allowed_scopes: ["read_charges"]
       })
-      |> ExClaw.Repo.insert()
+      |> Kerf.Repo.insert()
 
     {:ok, _} =
       %Policy{}
@@ -49,7 +49,7 @@ defmodule ExClaw.CredentialVault.ProxyTest do
         credential_name: "gmail",
         allowed_scopes: ["gmail.readonly"]
       })
-      |> ExClaw.Repo.insert()
+      |> Kerf.Repo.insert()
 
     {:ok, lm_pid} =
       LeaseManager.start_link(name: @lm_name, vault: @vault_name)

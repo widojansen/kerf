@@ -1,4 +1,4 @@
-defmodule ExClaw.Agents.EmailTriage.FastClassifier do
+defmodule Kerf.Agents.EmailTriage.FastClassifier do
   @moduledoc """
   Deterministic pre-LLM classifier. Checks email_senders for known patterns
   and classification overrides before falling through to LLM classification.
@@ -7,8 +7,8 @@ defmodule ExClaw.Agents.EmailTriage.FastClassifier do
   or :no_match to signal the caller should use the LLM Classifier.
   """
 
-  alias ExClaw.Agents.EmailTriage.FastClassifier.Cache
-  alias ExClaw.KnowledgeBase.EmailSender
+  alias Kerf.Agents.EmailTriage.FastClassifier.Cache
+  alias Kerf.KnowledgeBase.EmailSender
   import Ecto.Query
 
   @doc """
@@ -27,7 +27,7 @@ defmodule ExClaw.Agents.EmailTriage.FastClassifier do
   """
   def classify(%{from: from} = email, opts \\ []) do
     cache = Keyword.get(opts, :cache)
-    repo = Keyword.get(opts, :repo, ExClaw.Repo)
+    repo = Keyword.get(opts, :repo, Kerf.Repo)
     sender_email = extract_email(from)
     sender_domain = extract_domain(sender_email)
 

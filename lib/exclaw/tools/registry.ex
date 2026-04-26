@@ -1,4 +1,4 @@
-defmodule ExClaw.Tools.Registry do
+defmodule Kerf.Tools.Registry do
   @moduledoc """
   Dynamic tool registry backed by ETS.
 
@@ -72,7 +72,7 @@ defmodule ExClaw.Tools.Registry do
 
     if Keyword.get(opts, :register_builtins, false) do
       # Insert directly into ETS to avoid GenServer.call deadlock during init
-      for spec <- ExClaw.Tools.Registrations.builtins() do
+      for spec <- Kerf.Tools.Registrations.builtins() do
         :ets.insert(table, {spec.name, spec})
       end
     end

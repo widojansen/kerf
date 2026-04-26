@@ -1,10 +1,10 @@
-defmodule ExClaw.Tools.Registrations do
+defmodule Kerf.Tools.Registrations do
   @moduledoc """
   Registers all built-in tools with the Tool Registry on startup.
   Single source of truth for tool definitions.
   """
 
-  alias ExClaw.Tools.Registry, as: ToolRegistry
+  alias Kerf.Tools.Registry, as: ToolRegistry
 
   @doc "Register all built-in tools with the given registry."
   def register_builtins(registry \\ ToolRegistry) do
@@ -27,7 +27,7 @@ defmodule ExClaw.Tools.Registrations do
           },
           "required" => ["command"]
         },
-        module: ExClaw.Tools.Shell,
+        module: Kerf.Tools.Shell,
         function: :execute
       },
       %{
@@ -43,7 +43,7 @@ defmodule ExClaw.Tools.Registrations do
           },
           "required" => ["path"]
         },
-        module: ExClaw.Tools.FileOps,
+        module: Kerf.Tools.FileOps,
         function: :read
       },
       %{
@@ -63,7 +63,7 @@ defmodule ExClaw.Tools.Registrations do
           },
           "required" => ["path", "content"]
         },
-        module: ExClaw.Tools.FileOps,
+        module: Kerf.Tools.FileOps,
         function: :write
       },
       %{
@@ -84,7 +84,7 @@ defmodule ExClaw.Tools.Registrations do
           },
           "required" => ["url"]
         },
-        module: ExClaw.Tools.WebFetch,
+        module: Kerf.Tools.WebFetch,
         function: :fetch
       },
       %{
@@ -104,7 +104,7 @@ defmodule ExClaw.Tools.Registrations do
           },
           "required" => ["query"]
         },
-        module: ExClaw.Tools.WebSearch,
+        module: Kerf.Tools.WebSearch,
         function: :search
       }
     ]

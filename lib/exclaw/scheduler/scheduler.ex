@@ -1,8 +1,8 @@
-defmodule ExClaw.Scheduler.Scheduler do
+defmodule Kerf.Scheduler.Scheduler do
   use GenServer
 
-  alias ExClaw.Scheduler.ScheduledTask
-  alias ExClaw.Scheduler.TaskRunLog
+  alias Kerf.Scheduler.ScheduledTask
+  alias Kerf.Scheduler.TaskRunLog
 
   import Ecto.Query
 
@@ -394,7 +394,7 @@ defmodule ExClaw.Scheduler.Scheduler do
 
       {status, result, error} =
         try do
-          case ExClaw.Agent.Supervisor.handle_message(
+          case Kerf.Agent.Supervisor.handle_message(
                  state.agent_sup,
                  state.registry,
                  effective_group_id,
@@ -467,7 +467,7 @@ defmodule ExClaw.Scheduler.Scheduler do
 
   defp emit_telemetry(category, data) do
     try do
-      ExClaw.Telemetry.emit(category, data)
+      Kerf.Telemetry.emit(category, data)
     rescue
       _ -> :ok
     end

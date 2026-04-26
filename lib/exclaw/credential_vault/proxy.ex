@@ -1,4 +1,4 @@
-defmodule ExClaw.CredentialVault.Proxy do
+defmodule Kerf.CredentialVault.Proxy do
   @moduledoc """
   Makes authenticated HTTP requests on behalf of agents using lease tokens.
 
@@ -10,8 +10,8 @@ defmodule ExClaw.CredentialVault.Proxy do
 
   require Logger
 
-  alias ExClaw.CredentialVault
-  alias ExClaw.CredentialVault.LeaseManager
+  alias Kerf.CredentialVault
+  alias Kerf.CredentialVault.LeaseManager
 
   @doc """
   Make an authenticated HTTP request using a lease.

@@ -1,4 +1,4 @@
-defmodule ExClaw.KnowledgeBase.Supervisor do
+defmodule Kerf.KnowledgeBase.Supervisor do
   @moduledoc """
   Supervisor for the Knowledge Base subsystem.
   """

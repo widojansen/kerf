@@ -1,10 +1,10 @@
-defmodule ExClaw.Memory.StoreTest do
-  use ExClaw.DataCase
+defmodule Kerf.Memory.StoreTest do
+  use Kerf.DataCase
 
-  alias ExClaw.Memory.Store
-  alias ExClaw.Memory.Fact
-  alias ExClaw.Memory.Message
-  alias ExClaw.Memory.Embedder
+  alias Kerf.Memory.Store
+  alias Kerf.Memory.Fact
+  alias Kerf.Memory.Message
+  alias Kerf.Memory.Embedder
 
   setup do
     # Set up Ecto Sandbox for this test process
@@ -20,7 +20,7 @@ defmodule ExClaw.Memory.StoreTest do
       Store.start_link(
         name: name,
         data_dir: tmp_dir,
-        repo: ExClaw.Repo
+        repo: Kerf.Repo
       )
 
     # Allow the GenServer process to use the sandbox connection
@@ -318,7 +318,7 @@ defmodule ExClaw.Memory.StoreTest do
   describe "async embedding" do
     setup do
       # Use shared sandbox so async tasks can access the DB
-      Ecto.Adapters.SQL.Sandbox.mode(ExClaw.Repo, {:shared, self()})
+      Ecto.Adapters.SQL.Sandbox.mode(Kerf.Repo, {:shared, self()})
 
       tmp_dir = Path.join(System.tmp_dir!(), "exclaw_embed_test_#{System.unique_integer([:positive])}")
       File.mkdir_p!(tmp_dir)
@@ -351,7 +351,7 @@ defmodule ExClaw.Memory.StoreTest do
         Store.start_link(
           name: store_name,
           data_dir: tmp_dir,
-          repo: ExClaw.Repo,
+          repo: Kerf.Repo,
           embedder: embedder_name,
           task_supervisor: task_sup
         )
@@ -368,7 +368,7 @@ defmodule ExClaw.Memory.StoreTest do
       # Wait for async embedding task
       Process.sleep(200)
 
-      updated = ExClaw.Repo.get!(Fact, fact.id)
+      updated = Kerf.Repo.get!(Fact, fact.id)
       assert %Pgvector{} = updated.embedding
       assert length(Pgvector.to_list(updated.embedding)) == 1024
     end
@@ -378,7 +378,7 @@ defmodule ExClaw.Memory.StoreTest do
 
       Process.sleep(200)
 
-      updated = ExClaw.Repo.get!(Message, msg.id)
+      updated = Kerf.Repo.get!(Message, msg.id)
       assert %Pgvector{} = updated.embedding
       assert length(Pgvector.to_list(updated.embedding)) == 1024
     end
@@ -388,7 +388,7 @@ defmodule ExClaw.Memory.StoreTest do
 
       Process.sleep(200)
 
-      updated = ExClaw.Repo.get!(Message, msg.id)
+      updated = Kerf.Repo.get!(Message, msg.id)
       assert %Pgvector{} = updated.embedding
     end
 
@@ -401,7 +401,7 @@ defmodule ExClaw.Memory.StoreTest do
 
       Process.sleep(200)
 
-      updated = ExClaw.Repo.get!(Message, msg.id)
+      updated = Kerf.Repo.get!(Message, msg.id)
       assert updated.embedding == nil
     end
 
@@ -410,7 +410,7 @@ defmodule ExClaw.Memory.StoreTest do
 
       Process.sleep(200)
 
-      updated = ExClaw.Repo.get!(Message, msg.id)
+      updated = Kerf.Repo.get!(Message, msg.id)
       assert updated.embedding == nil
     end
   end
@@ -419,7 +419,7 @@ defmodule ExClaw.Memory.StoreTest do
 
   describe "semantic_search/4" do
     setup do
-      Ecto.Adapters.SQL.Sandbox.mode(ExClaw.Repo, {:shared, self()})
+      Ecto.Adapters.SQL.Sandbox.mode(Kerf.Repo, {:shared, self()})
 
       tmp_dir = Path.join(System.tmp_dir!(), "exclaw_search_test_#{System.unique_integer([:positive])}")
       File.mkdir_p!(tmp_dir)
@@ -455,7 +455,7 @@ defmodule ExClaw.Memory.StoreTest do
         Store.start_link(
           name: store_name,
           data_dir: tmp_dir,
-          repo: ExClaw.Repo,
+          repo: Kerf.Repo,
           embedder: embedder_name,
           task_supervisor: task_sup
         )
@@ -524,7 +524,7 @@ defmodule ExClaw.Memory.StoreTest do
         Store.start_link(
           name: store_name,
           data_dir: tmp_dir,
-          repo: ExClaw.Repo,
+          repo: Kerf.Repo,
           embedder: broken_embedder,
           task_supervisor: ctx[:task_sup] || :"ts_#{System.unique_integer([:positive])}"
         )

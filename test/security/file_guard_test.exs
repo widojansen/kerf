@@ -1,7 +1,7 @@
-defmodule ExClaw.Security.FileGuardTest do
+defmodule Kerf.Security.FileGuardTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Security.FileGuard
+  alias Kerf.Security.FileGuard
 
   describe "check/2 with file_read tool" do
     test "allows reading files within /workspace" do

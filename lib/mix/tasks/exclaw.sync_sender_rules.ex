@@ -255,14 +255,14 @@ defmodule Mix.Tasks.Exclaw.SyncSenderRules do
     {opts, _, _} = OptionParser.parse(args, switches: [dry_run: :boolean])
     dry_run = Keyword.get(opts, :dry_run, false)
 
-    alias ExClaw.KnowledgeBase.EmailSender
+    alias Kerf.KnowledgeBase.EmailSender
 
     {created, updated, skipped} =
       Enum.reduce(@sender_rules, {0, 0, 0}, fn {pattern, category, priority_override, is_priority}, {c, u, s} ->
         # Use a synthetic email as the unique key for pattern-based rules
         rule_email = "rule-#{:erlang.phash2(pattern)}@fast-classifier"
 
-        existing = ExClaw.Repo.one(from(s in EmailSender, where: s.email == ^rule_email))
+        existing = Kerf.Repo.one(from(s in EmailSender, where: s.email == ^rule_email))
 
         cond do
           dry_run ->
@@ -281,7 +281,7 @@ defmodule Mix.Tasks.Exclaw.SyncSenderRules do
             if changeset.changes == %{} do
               {c, u, s + 1}
             else
-              ExClaw.Repo.update!(changeset)
+              Kerf.Repo.update!(changeset)
               {c, u + 1, s}
             end
 
@@ -296,7 +296,7 @@ defmodule Mix.Tasks.Exclaw.SyncSenderRules do
               is_priority: is_priority,
               priority_override: priority_override
             })
-            |> ExClaw.Repo.insert!()
+            |> Kerf.Repo.insert!()
 
             {c + 1, u, s}
         end

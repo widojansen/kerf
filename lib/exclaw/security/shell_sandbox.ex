@@ -1,4 +1,4 @@
-defmodule ExClaw.Security.ShellSandbox do
+defmodule Kerf.Security.ShellSandbox do
   @moduledoc """
   Filters shell commands to block dangerous operations.
   """
@@ -102,7 +102,7 @@ defmodule ExClaw.Security.ShellSandbox do
 
   defp maybe_log_denial({:denied, reason}, module, input_preview) do
     try do
-      ExClaw.Dashboard.EventLog.log(:security_denial, %{
+      Kerf.Dashboard.EventLog.log(:security_denial, %{
         module: module,
         reason: reason,
         input_preview: String.slice(inspect(input_preview), 0, 200),
@@ -123,7 +123,7 @@ defmodule ExClaw.Security.ShellSandbox do
           {:denied, reason} -> {"denied", reason}
         end
 
-      ExClaw.Telemetry.emit(:security_check, %{
+      Kerf.Telemetry.emit(:security_check, %{
         module: "ShellSandbox",
         tool_name: tool_name,
         security_result: security_result,

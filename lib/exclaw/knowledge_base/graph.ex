@@ -1,6 +1,6 @@
-defmodule ExClaw.KnowledgeBase.Graph do
+defmodule Kerf.KnowledgeBase.Graph do
   @moduledoc """
-  AGE graph helpers for the ExClaw knowledge graph.
+  AGE graph helpers for the Kerf knowledge graph.
   Wraps raw Cypher queries executed via Ecto.Adapters.SQL.query!/3.
 
   AGE returns `agtype` columns which Postgrex can't decode natively.

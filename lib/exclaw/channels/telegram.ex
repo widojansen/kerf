@@ -1,6 +1,6 @@
-defmodule ExClaw.Channels.Telegram do
+defmodule Kerf.Channels.Telegram do
   @moduledoc """
-  Telegram Bot channel for ExClaw using long polling.
+  Telegram Bot channel for Kerf using long polling.
 
   Polls the Telegram Bot API for updates, routes messages through
   Agent.Session, and sends responses back. Only processes messages
@@ -8,7 +8,7 @@ defmodule ExClaw.Channels.Telegram do
 
   Configured via:
 
-      config :exclaw, ExClaw.Channels.Telegram,
+      config :exclaw, Kerf.Channels.Telegram,
         enabled: true,
         token: "bot123:ABC...",
         allow_from: [12345, 67890],
@@ -21,9 +21,9 @@ defmodule ExClaw.Channels.Telegram do
   use GenServer
   require Logger
 
-  alias ExClaw.Agent.Supervisor, as: AgentSupervisor
-  alias ExClaw.Memory.Store
-  alias ExClaw.Tools.Dispatcher
+  alias Kerf.Agent.Supervisor, as: AgentSupervisor
+  alias Kerf.Memory.Store
+  alias Kerf.Tools.Dispatcher
 
   @telegram_api "https://api.telegram.org"
   @max_message_length 4096
@@ -42,7 +42,7 @@ defmodule ExClaw.Channels.Telegram do
 
   # --- Pure functions (testable without GenServer) ---
 
-  @doc "Derive an ExClaw group_id from a Telegram update."
+  @doc "Derive an Kerf group_id from a Telegram update."
   def derive_group_id(%{"message" => %{"chat" => %{"id" => chat_id}}}) do
     "tg_#{chat_id}"
   end
@@ -247,7 +247,7 @@ defmodule ExClaw.Channels.Telegram do
     http_client = state.http_client
 
     Task.Supervisor.async_nolink(
-      ExClaw.TaskSupervisor,
+      Kerf.TaskSupervisor,
       fn ->
         group_id = "tg_#{msg.chat_id}"
         Logger.info("[Telegram] #{msg.first_name} (#{msg.from_id}): #{String.slice(msg.text, 0..60)}")
@@ -255,8 +255,8 @@ defmodule ExClaw.Channels.Telegram do
         session_opts = build_session_opts(group_id)
 
         case AgentSupervisor.handle_message(
-               ExClaw.Agent.Supervisor,
-               ExClaw.SessionRegistry,
+               Kerf.Agent.Supervisor,
+               Kerf.SessionRegistry,
                group_id,
                msg.text,
                session_opts
@@ -278,17 +278,17 @@ defmodule ExClaw.Channels.Telegram do
     config = Application.get_env(:exclaw, __MODULE__, [])
 
     model = config[:model] ||
-            Application.get_env(:exclaw, ExClaw.Channels.CLI, [])[:model] ||
+            Application.get_env(:exclaw, Kerf.Channels.CLI, [])[:model] ||
             "claude-sonnet-4-20250514"
 
     base_prompt = config[:base_prompt] ||
-      "You are Tina, a personal AI assistant on Telegram, powered by ExClaw. Be concise and helpful. Keep responses under 4000 characters."
+      "You are Tina, a personal AI assistant on Telegram, powered by Kerf. Be concise and helpful. Keep responses under 4000 characters."
 
     system_prompt = load_system_prompt(group_id, base_prompt)
 
-    container_manager = ExClaw.Container.Manager
+    container_manager = Kerf.Container.Manager
     workspaces_dir =
-      Application.get_env(:exclaw, ExClaw.Container.Manager, [])[:workspaces_dir] || "priv/workspaces"
+      Application.get_env(:exclaw, Kerf.Container.Manager, [])[:workspaces_dir] || "priv/workspaces"
 
     tool_executor =
       Dispatcher.build_executor(
@@ -299,13 +299,13 @@ defmodule ExClaw.Channels.Telegram do
 
     tools = Dispatcher.tool_definitions()
 
-    [provider: ExClaw.LLM.ModelRouter, model: model, system_prompt: system_prompt, tool_executor: tool_executor, tools: tools]
+    [provider: Kerf.LLM.ModelRouter, model: model, system_prompt: system_prompt, tool_executor: tool_executor, tools: tools]
   end
 
   defp load_system_prompt(group_id, base_prompt) do
     memory_content =
       try do
-        case Store.load_group(ExClaw.Memory.Store, group_id) do
+        case Store.load_group(Kerf.Memory.Store, group_id) do
           {:ok, ""} -> nil
           {:ok, content} -> content
           {:error, _} -> nil
@@ -342,8 +342,8 @@ defmodule ExClaw.Channels.Telegram do
 
   defp persist_exchange(group_id, user_msg, assistant_msg) do
     try do
-      Store.save_message(ExClaw.Memory.Store, group_id, "user", user_msg)
-      Store.save_message(ExClaw.Memory.Store, group_id, "assistant", assistant_msg)
+      Store.save_message(Kerf.Memory.Store, group_id, "user", user_msg)
+      Store.save_message(Kerf.Memory.Store, group_id, "assistant", assistant_msg)
     rescue
       _ -> :ok
     end
@@ -355,8 +355,8 @@ defmodule ExClaw.Channels.Telegram do
 
   defp forward_callback_query(callback) do
     # Forward to ApprovalGate.CallbackHandler if it's running
-    if pid = Process.whereis(ExClaw.Workflow.ApprovalGate.CallbackHandler) do
-      ExClaw.Workflow.ApprovalGate.CallbackHandler.handle_callback(pid, callback)
+    if pid = Process.whereis(Kerf.Workflow.ApprovalGate.CallbackHandler) do
+      Kerf.Workflow.ApprovalGate.CallbackHandler.handle_callback(pid, callback)
     end
   end
 

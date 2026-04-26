@@ -1,6 +1,6 @@
-defmodule ExClaw.Channels.WhatsApp do
+defmodule Kerf.Channels.WhatsApp do
   @moduledoc """
-  WhatsApp channel for ExClaw via Node.js Baileys sidecar.
+  WhatsApp channel for Kerf via Node.js Baileys sidecar.
 
   Communicates with a Node.js process (whatsapp-bridge/bridge.js) over
   an Erlang Port using newline-delimited JSON on stdin/stdout.
@@ -11,9 +11,9 @@ defmodule ExClaw.Channels.WhatsApp do
   use GenServer
   require Logger
 
-  alias ExClaw.Agent.Supervisor, as: AgentSupervisor
-  alias ExClaw.Memory.Store
-  alias ExClaw.Tools.Dispatcher
+  alias Kerf.Agent.Supervisor, as: AgentSupervisor
+  alias Kerf.Memory.Store
+  alias Kerf.Tools.Dispatcher
 
   # --- Public API ---
 
@@ -41,7 +41,7 @@ defmodule ExClaw.Channels.WhatsApp do
   # --- Pure functions (testable without GenServer) ---
 
   @doc """
-  Derive an ExClaw group_id from a WhatsApp message event.
+  Derive an Kerf group_id from a WhatsApp message event.
 
   DM:    %{"from" => "12345@s.whatsapp.net"} -> "wa_12345"
   Group: %{"from" => "12345-67890@g.us"}     -> "wa_12345-67890_g"
@@ -122,7 +122,7 @@ defmodule ExClaw.Channels.WhatsApp do
 
     base_prompt =
       Keyword.get(opts, :base_prompt) ||
-        Keyword.get(config, :base_prompt, "You are ExClaw, a personal AI assistant on WhatsApp.")
+        Keyword.get(config, :base_prompt, "You are Kerf, a personal AI assistant on WhatsApp.")
 
     port_opener =
       Keyword.get(opts, :port_opener, &default_port_opener/3)
@@ -131,16 +131,16 @@ defmodule ExClaw.Channels.WhatsApp do
       Keyword.get(opts, :agent_supervisor, AgentSupervisor)
 
     registry =
-      Keyword.get(opts, :registry, ExClaw.SessionRegistry)
+      Keyword.get(opts, :registry, Kerf.SessionRegistry)
 
     store =
       Keyword.get(opts, :store, Store)
 
     provider =
-      Keyword.get(opts, :provider, ExClaw.LLM.ModelRouter)
+      Keyword.get(opts, :provider, Kerf.LLM.ModelRouter)
 
     tool_registry =
-      Keyword.get(opts, :tool_registry, ExClaw.Tools.Registry)
+      Keyword.get(opts, :tool_registry, Kerf.Tools.Registry)
 
     state = %{
       port: nil,
@@ -387,14 +387,14 @@ defmodule ExClaw.Channels.WhatsApp do
       system_prompt = build_system_prompt_for_group(group_id, base_prompt, store)
 
       container_manager_config =
-        Application.get_env(:exclaw, ExClaw.Container.Manager, [])
+        Application.get_env(:exclaw, Kerf.Container.Manager, [])
 
       workspaces_dir =
         container_manager_config[:workspaces_dir] || "priv/workspaces"
 
       tool_executor =
         Dispatcher.build_executor(
-          container_manager: ExClaw.Container.Manager,
+          container_manager: Kerf.Container.Manager,
           group_id: group_id,
           workspaces_dir: workspaces_dir,
           registry: tool_registry
@@ -484,7 +484,7 @@ defmodule ExClaw.Channels.WhatsApp do
 
   defp emit_telemetry(event_name, metadata) do
     try do
-      ExClaw.Telemetry.emit(:channel_event, Map.merge(metadata, %{
+      Kerf.Telemetry.emit(:channel_event, Map.merge(metadata, %{
         channel: "whatsapp",
         event: event_name
       }))

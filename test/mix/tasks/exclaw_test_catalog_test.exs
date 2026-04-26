@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Exclaw.TestCatalogTest do
   alias Mix.Tasks.Exclaw.TestCatalog
 
   @sample_test_file """
-  defmodule ExClaw.Security.FileGuardTest do
+  defmodule Kerf.Security.FileGuardTest do
     use ExUnit.Case, async: true
 
     @moduletag :security
@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Exclaw.TestCatalogTest do
   """
 
   @sample_test_file_no_describe """
-  defmodule ExClaw.Simple.ModuleTest do
+  defmodule Kerf.Simple.ModuleTest do
     use ExUnit.Case, async: true
 
     test "first thing" do
@@ -51,7 +51,7 @@ defmodule Mix.Tasks.Exclaw.TestCatalogTest do
   """
 
   @sample_nested_describe """
-  defmodule ExClaw.Nested.ExampleTest do
+  defmodule Kerf.Nested.ExampleTest do
     use ExUnit.Case, async: true
 
     describe "outer" do
@@ -75,7 +75,7 @@ defmodule Mix.Tasks.Exclaw.TestCatalogTest do
   describe "parse_file/1" do
     test "extracts module name" do
       result = TestCatalog.parse_file(@sample_test_file)
-      assert result.module == "ExClaw.Security.FileGuardTest"
+      assert result.module == "Kerf.Security.FileGuardTest"
     end
 
     test "extracts describe blocks" do
@@ -119,7 +119,7 @@ defmodule Mix.Tasks.Exclaw.TestCatalogTest do
 
     test "handles tests outside any describe block" do
       result = TestCatalog.parse_file(@sample_test_file_no_describe)
-      assert result.module == "ExClaw.Simple.ModuleTest"
+      assert result.module == "Kerf.Simple.ModuleTest"
       assert result.describes == []
       assert length(result.top_level_tests) == 2
       names = Enum.map(result.top_level_tests, & &1.name)
@@ -158,7 +158,7 @@ defmodule Mix.Tasks.Exclaw.TestCatalogTest do
       entries = [%{parsed: parsed, file: "test/security/file_guard_test.exs"}]
       md = TestCatalog.render_markdown(entries, summary: false)
 
-      assert md =~ "# ExClaw Test Catalog"
+      assert md =~ "# Kerf Test Catalog"
       assert md =~ "Total: 5 tests across 1 file"
       assert md =~ "Security.FileGuard"
       assert md =~ "allows workspace paths"
@@ -171,18 +171,18 @@ defmodule Mix.Tasks.Exclaw.TestCatalogTest do
       entries = [%{parsed: parsed, file: "test/security/file_guard_test.exs"}]
       md = TestCatalog.render_markdown(entries, summary: true)
 
-      assert md =~ "# ExClaw Test Catalog"
+      assert md =~ "# Kerf Test Catalog"
       assert md =~ "| Security.FileGuard |"
       refute md =~ "allows workspace paths"
     end
 
-    test "module name strips ExClaw. prefix and Test suffix" do
+    test "module name strips Kerf. prefix and Test suffix" do
       parsed = TestCatalog.parse_file(@sample_test_file)
       entries = [%{parsed: parsed, file: "test/security/file_guard_test.exs"}]
       md = TestCatalog.render_markdown(entries, summary: false)
 
       assert md =~ "### Security.FileGuard"
-      refute md =~ "### ExClaw.Security.FileGuardTest"
+      refute md =~ "### Kerf.Security.FileGuardTest"
     end
   end
 
@@ -198,7 +198,7 @@ defmodule Mix.Tasks.Exclaw.TestCatalogTest do
 
       filtered = TestCatalog.filter(entries, "security")
       assert length(filtered) == 1
-      assert hd(filtered).parsed.module == "ExClaw.Security.FileGuardTest"
+      assert hd(filtered).parsed.module == "Kerf.Security.FileGuardTest"
     end
 
     test "filters by file path pattern" do
@@ -212,7 +212,7 @@ defmodule Mix.Tasks.Exclaw.TestCatalogTest do
 
       filtered = TestCatalog.filter(entries, "simple")
       assert length(filtered) == 1
-      assert hd(filtered).parsed.module == "ExClaw.Simple.ModuleTest"
+      assert hd(filtered).parsed.module == "Kerf.Simple.ModuleTest"
     end
 
     test "nil filter returns all entries" do
@@ -235,7 +235,7 @@ defmodule Mix.Tasks.Exclaw.TestCatalogTest do
 
       assert File.exists?(output_path)
       content = File.read!(output_path)
-      assert content =~ "# ExClaw Test Catalog"
+      assert content =~ "# Kerf Test Catalog"
       assert content =~ "Security.FileGuard"
     end
   end

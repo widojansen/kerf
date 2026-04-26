@@ -1,4 +1,4 @@
-defmodule ExClaw.Workflow.ApprovalGate.Manager do
+defmodule Kerf.Workflow.ApprovalGate.Manager do
   @moduledoc """
   GenServer that manages approval request lifecycle.
 
@@ -9,7 +9,7 @@ defmodule ExClaw.Workflow.ApprovalGate.Manager do
 
   use GenServer
 
-  alias ExClaw.Workflow.ApprovalGate.{AutoRule, TelegramRenderer, Log}
+  alias Kerf.Workflow.ApprovalGate.{AutoRule, TelegramRenderer, Log}
 
   # --- Public API ---
 

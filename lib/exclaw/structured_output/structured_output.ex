@@ -1,4 +1,4 @@
-defmodule ExClaw.StructuredOutput do
+defmodule Kerf.StructuredOutput do
   @moduledoc """
   High-level API for getting structured LLM responses.
 
@@ -6,7 +6,7 @@ defmodule ExClaw.StructuredOutput do
   and retry with error feedback.
   """
 
-  alias ExClaw.StructuredOutput.{JSONParser, SchemaRegistry, Validator}
+  alias Kerf.StructuredOutput.{JSONParser, SchemaRegistry, Validator}
 
   @default_max_retries 2
   @default_temperature 0.1
@@ -190,6 +190,6 @@ defmodule ExClaw.StructuredOutput do
   end
 
   defp default_provider(model, messages, opts) do
-    ExClaw.LLM.ModelRouter.complete(ExClaw.LLM.ModelRouter, model, messages, opts)
+    Kerf.LLM.ModelRouter.complete(Kerf.LLM.ModelRouter, model, messages, opts)
   end
 end

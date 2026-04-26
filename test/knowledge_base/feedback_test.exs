@@ -1,7 +1,7 @@
-defmodule ExClaw.KnowledgeBase.FeedbackTest do
-  use ExClaw.DataCase
+defmodule Kerf.KnowledgeBase.FeedbackTest do
+  use Kerf.DataCase
 
-  alias ExClaw.KnowledgeBase.{Document, Feedback}
+  alias Kerf.KnowledgeBase.{Document, Feedback}
 
   describe "changeset/2" do
     test "valid with required fields" do

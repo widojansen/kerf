@@ -1,4 +1,4 @@
-defmodule ExClaw.Memory.Embedder do
+defmodule Kerf.Memory.Embedder do
   @moduledoc """
   Generates text embeddings via an OpenAI-compatible /v1/embeddings endpoint.
 
@@ -11,7 +11,7 @@ defmodule ExClaw.Memory.Embedder do
 
   ## Configuration
 
-      config :exclaw, ExClaw.Memory.Embedder,
+      config :exclaw, Kerf.Memory.Embedder,
         base_url: "http://localhost:11434",
         model: "bge-m3"
 

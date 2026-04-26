@@ -1,4 +1,4 @@
-defmodule ExClaw.Container.IntegrationTest do
+defmodule Kerf.Container.IntegrationTest do
   @moduledoc """
   Integration tests for Docker container sandboxing.
   Requires Docker to be installed and the sandbox image to be built:
@@ -11,8 +11,8 @@ defmodule ExClaw.Container.IntegrationTest do
 
   @moduletag :docker
 
-  alias ExClaw.Container.Manager
-  alias ExClaw.Tools.{Shell, FileOps, Dispatcher}
+  alias Kerf.Container.Manager
+  alias Kerf.Tools.{Shell, FileOps, Dispatcher}
 
   @image "exclaw-sandbox:latest"
 

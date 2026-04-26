@@ -1,4 +1,4 @@
-defmodule ExClaw.Telemetry.SupervisorTest do
+defmodule Kerf.Telemetry.SupervisorTest do
   use ExUnit.Case, async: true
 
   @moduletag :telemetry
@@ -11,7 +11,7 @@ defmodule ExClaw.Telemetry.SupervisorTest do
       name = :"telem_sup_#{System.unique_integer([:positive])}"
       logger_name = :"telem_sup_logger_#{System.unique_integer([:positive])}"
 
-      {:ok, pid} = ExClaw.Telemetry.Supervisor.start_link(
+      {:ok, pid} = Kerf.Telemetry.Supervisor.start_link(
         name: name,
         logger_name: logger_name,
         logger_opts: [
@@ -36,7 +36,7 @@ defmodule ExClaw.Telemetry.SupervisorTest do
       name = :"telem_sup2_#{System.unique_integer([:positive])}"
       logger_name = :"telem_sup2_logger_#{System.unique_integer([:positive])}"
 
-      {:ok, sup_pid} = ExClaw.Telemetry.Supervisor.start_link(
+      {:ok, sup_pid} = Kerf.Telemetry.Supervisor.start_link(
         name: name,
         logger_name: logger_name,
         logger_opts: [
@@ -61,7 +61,7 @@ defmodule ExClaw.Telemetry.SupervisorTest do
       name = :"telem_sup3_#{System.unique_integer([:positive])}"
       logger_name = :"telem_sup3_logger_#{System.unique_integer([:positive])}"
 
-      {:ok, _sup_pid} = ExClaw.Telemetry.Supervisor.start_link(
+      {:ok, _sup_pid} = Kerf.Telemetry.Supervisor.start_link(
         name: name,
         logger_name: logger_name,
         logger_opts: [

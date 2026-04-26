@@ -1,7 +1,7 @@
-defmodule ExClaw.KnowledgeBase.InterestTest do
-  use ExClaw.DataCase
+defmodule Kerf.KnowledgeBase.InterestTest do
+  use Kerf.DataCase
 
-  alias ExClaw.KnowledgeBase.Interest
+  alias Kerf.KnowledgeBase.Interest
 
   describe "changeset/2" do
     test "valid with topic" do

@@ -1,4 +1,4 @@
-defmodule ExClaw.CredentialVault.Credential do
+defmodule Kerf.CredentialVault.Credential do
   @moduledoc """
   Ecto schema for credential_vault_credentials table.
   Stores encrypted credential data with unencrypted metadata for querying.

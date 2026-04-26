@@ -1,4 +1,4 @@
-defmodule ExClaw.Tools.WebFetch do
+defmodule Kerf.Tools.WebFetch do
   @moduledoc """
   Fetches and extracts readable content from web URLs.
 
@@ -115,7 +115,7 @@ defmodule ExClaw.Tools.WebFetch do
     config = Application.get_env(:exclaw, __MODULE__, [])
     timeout = Keyword.get(opts, :timeout, config[:timeout] || 15_000)
     max_chars = Keyword.get(opts, :max_content_chars, config[:max_content_chars] || 50_000)
-    user_agent = Keyword.get(opts, :user_agent, config[:user_agent] || "ExClaw/0.1")
+    user_agent = Keyword.get(opts, :user_agent, config[:user_agent] || "Kerf/0.1")
     http_client = Keyword.get(opts, :http_client, &default_http_client/2)
 
     case http_client.(url, timeout: timeout, user_agent: user_agent) do
@@ -137,7 +137,7 @@ defmodule ExClaw.Tools.WebFetch do
 
   defp default_http_client(url, opts) do
     timeout = Keyword.get(opts, :timeout, 15_000)
-    user_agent = Keyword.get(opts, :user_agent, "ExClaw/0.1")
+    user_agent = Keyword.get(opts, :user_agent, "Kerf/0.1")
 
     case Req.get(url, receive_timeout: timeout, headers: [{"user-agent", user_agent}]) do
       {:ok, %Req.Response{status: status, headers: headers, body: body}} ->

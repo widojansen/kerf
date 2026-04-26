@@ -1,4 +1,4 @@
-defmodule ExClaw.Workflow.ApprovalGate.AutoRule do
+defmodule Kerf.Workflow.ApprovalGate.AutoRule do
   @moduledoc """
   Ecto schema and matching logic for auto-approval rules.
   Rules match on {agent_module, action, context_pattern} and can
@@ -9,7 +9,7 @@ defmodule ExClaw.Workflow.ApprovalGate.AutoRule do
   import Ecto.Changeset
   import Ecto.Query
 
-  alias ExClaw.Repo
+  alias Kerf.Repo
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id

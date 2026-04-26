@@ -1,4 +1,4 @@
-defmodule ExClaw.Monitor.TelemetryHandlers do
+defmodule Kerf.Monitor.TelemetryHandlers do
   @moduledoc """
   Attaches `:telemetry` handlers that persist events to the
   `telemetry_events` PostgreSQL table.
@@ -8,8 +8,8 @@ defmodule ExClaw.Monitor.TelemetryHandlers do
   """
   require Logger
 
-  alias ExClaw.Monitor.TelemetryEvent
-  alias ExClaw.Repo
+  alias Kerf.Monitor.TelemetryEvent
+  alias Kerf.Repo
 
   @handler_prefix "exclaw-monitor"
 
@@ -113,7 +113,7 @@ defmodule ExClaw.Monitor.TelemetryHandlers do
 
     @impl true
     def init(_opts) do
-      ExClaw.Monitor.TelemetryHandlers.attach()
+      Kerf.Monitor.TelemetryHandlers.attach()
       {:ok, %{}}
     end
   end

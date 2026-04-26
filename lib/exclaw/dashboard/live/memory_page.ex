@@ -1,9 +1,9 @@
-defmodule ExClaw.Dashboard.Live.MemoryPage do
+defmodule Kerf.Dashboard.Live.MemoryPage do
   @moduledoc false
   use Phoenix.LiveDashboard.PageBuilder, refresher?: true
 
   @impl true
-  def menu_link(_, _), do: {:ok, "ExClaw Memory"}
+  def menu_link(_, _), do: {:ok, "Kerf Memory"}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -120,11 +120,11 @@ defmodule ExClaw.Dashboard.Live.MemoryPage do
 
   defp load_sessions do
     try do
-      Registry.select(ExClaw.SessionRegistry, [{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
+      Registry.select(Kerf.SessionRegistry, [{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
       |> Enum.map(fn {group_id, pid} ->
         info =
           try do
-            ExClaw.Agent.Session.get_info(pid)
+            Kerf.Agent.Session.get_info(pid)
           catch
             :exit, _ -> %{group_id: group_id, message_count: 0, model: "?", started_at: nil, last_activity: nil}
           end
@@ -138,7 +138,7 @@ defmodule ExClaw.Dashboard.Live.MemoryPage do
   defp load_memory_data(group_id) do
     facts =
       try do
-        case ExClaw.Memory.Store.get_facts(group_id) do
+        case Kerf.Memory.Store.get_facts(group_id) do
           {:ok, f} -> f
           _ -> []
         end
@@ -150,7 +150,7 @@ defmodule ExClaw.Dashboard.Live.MemoryPage do
 
     group_memory =
       try do
-        case ExClaw.Memory.Store.load_group(group_id) do
+        case Kerf.Memory.Store.load_group(group_id) do
           {:ok, m} -> m
           _ -> ""
         end
@@ -162,7 +162,7 @@ defmodule ExClaw.Dashboard.Live.MemoryPage do
 
     messages =
       try do
-        case ExClaw.Memory.Store.get_messages(group_id, limit: 20) do
+        case Kerf.Memory.Store.get_messages(group_id, limit: 20) do
           {:ok, m} -> m
           _ -> []
         end

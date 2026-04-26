@@ -1,4 +1,4 @@
-defmodule ExClaw.Dashboard.RedirectController do
+defmodule Kerf.Dashboard.RedirectController do
   use Phoenix.Controller, formats: [:html]
 
   def index(conn, _params) do

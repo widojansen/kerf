@@ -1,4 +1,4 @@
-defmodule ExClaw.Security.Supervisor do
+defmodule Kerf.Security.Supervisor do
   @moduledoc """
   Supervises all security GenServers:
   - FileGuard: path validation and traversal prevention
@@ -14,9 +14,9 @@ defmodule ExClaw.Security.Supervisor do
   @impl true
   def init(_opts) do
     children = [
-      ExClaw.Security.FileGuard,
-      ExClaw.Security.ShellSandbox,
-      ExClaw.Security.PromptGuard
+      Kerf.Security.FileGuard,
+      Kerf.Security.ShellSandbox,
+      Kerf.Security.PromptGuard
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

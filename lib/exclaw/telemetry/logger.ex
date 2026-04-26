@@ -1,4 +1,4 @@
-defmodule ExClaw.Telemetry.Logger do
+defmodule Kerf.Telemetry.Logger do
   @moduledoc """
   GenServer that buffers telemetry events and flushes them to ClickHouse
   or a JSONL fallback file.

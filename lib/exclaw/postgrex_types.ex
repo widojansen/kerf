@@ -1,5 +1,5 @@
 Postgrex.Types.define(
-  ExClaw.PostgrexTypes,
+  Kerf.PostgrexTypes,
   Pgvector.extensions() ++ Ecto.Adapters.Postgres.extensions(),
   []
 )

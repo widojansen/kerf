@@ -1,4 +1,4 @@
-defmodule ExClaw.Dashboard.Telemetry do
+defmodule Kerf.Dashboard.Telemetry do
   @moduledoc """
   Telemetry metrics definitions for Phoenix LiveDashboard.
   """

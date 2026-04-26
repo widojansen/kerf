@@ -1,7 +1,7 @@
-defmodule ExClaw.Tools.FileOpsTest do
+defmodule Kerf.Tools.FileOpsTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Tools.FileOps
+  alias Kerf.Tools.FileOps
 
   setup do
     workspaces_dir = System.tmp_dir!() |> Path.join("exclaw_fileops_#{:rand.uniform(1_000_000)}")

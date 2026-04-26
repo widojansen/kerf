@@ -1,7 +1,7 @@
-defmodule ExClaw.Channels.WhatsApp.SupervisorTest do
+defmodule Kerf.Channels.WhatsApp.SupervisorTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Channels.WhatsApp.Supervisor, as: WhatsAppSup
+  alias Kerf.Channels.WhatsApp.Supervisor, as: WhatsAppSup
 
   test "starts successfully" do
     name = :"wa_sup_test_#{System.unique_integer([:positive])}"

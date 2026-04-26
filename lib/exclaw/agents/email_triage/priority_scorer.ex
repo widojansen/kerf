@@ -1,4 +1,4 @@
-defmodule ExClaw.Agents.EmailTriage.PriorityScorer do
+defmodule Kerf.Agents.EmailTriage.PriorityScorer do
   @moduledoc """
   Combines classification priority, sender score, interest matches,
   and thread context into a final priority score (1-5).

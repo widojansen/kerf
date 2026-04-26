@@ -1,10 +1,10 @@
-defmodule ExClaw.Telemetry.Supervisor do
+defmodule Kerf.Telemetry.Supervisor do
   @moduledoc """
   Supervises the Telemetry.Logger GenServer.
   """
   use Supervisor
 
-  alias ExClaw.Telemetry.Logger
+  alias Kerf.Telemetry.Logger
 
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)

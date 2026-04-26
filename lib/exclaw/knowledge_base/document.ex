@@ -1,4 +1,4 @@
-defmodule ExClaw.KnowledgeBase.Document do
+defmodule Kerf.KnowledgeBase.Document do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -16,8 +16,8 @@ defmodule ExClaw.KnowledgeBase.Document do
     field :content_hash, :string
     field :processed_at, :utc_datetime_usec
 
-    has_many :chunks, ExClaw.KnowledgeBase.Chunk
-    has_many :feedback, ExClaw.KnowledgeBase.Feedback
+    has_many :chunks, Kerf.KnowledgeBase.Chunk
+    has_many :feedback, Kerf.KnowledgeBase.Feedback
 
     timestamps(type: :utc_datetime_usec)
   end

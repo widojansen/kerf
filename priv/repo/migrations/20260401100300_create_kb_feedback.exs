@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.CreateKbFeedback do
+defmodule Kerf.Repo.Migrations.CreateKbFeedback do
   use Ecto.Migration
 
   def change do

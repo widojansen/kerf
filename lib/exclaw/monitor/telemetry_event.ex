@@ -1,4 +1,4 @@
-defmodule ExClaw.Monitor.TelemetryEvent do
+defmodule Kerf.Monitor.TelemetryEvent do
   @moduledoc """
   Ecto schema for the telemetry_events table.
 

@@ -1,10 +1,10 @@
-defmodule ExClaw.Agents.EmailTriage.FeedbackHandler do
+defmodule Kerf.Agents.EmailTriage.FeedbackHandler do
   @moduledoc """
   Processes ApprovalGate callbacks for email triage feedback.
   Records feedback, updates sender scores, and learns from decisions.
   """
 
-  alias ExClaw.KnowledgeBase.{Document, EmailSender, Feedback}
+  alias Kerf.KnowledgeBase.{Document, EmailSender, Feedback}
 
   import Ecto.Query
 

@@ -1,8 +1,8 @@
-defmodule ExClaw.Agent.SupervisorTest do
+defmodule Kerf.Agent.SupervisorTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Agent.Supervisor
-  alias ExClaw.LLM.{Provider, RateLimiter}
+  alias Kerf.Agent.Supervisor
+  alias Kerf.LLM.{Provider, RateLimiter}
 
   defp text_response(text) do
     %{

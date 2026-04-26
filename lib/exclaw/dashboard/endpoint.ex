@@ -1,4 +1,4 @@
-defmodule ExClaw.Dashboard.Endpoint do
+defmodule Kerf.Dashboard.Endpoint do
   use Phoenix.Endpoint, otp_app: :exclaw
 
   @session_options [
@@ -24,5 +24,5 @@ defmodule ExClaw.Dashboard.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
   plug Plug.Session, @session_options
-  plug ExClaw.Dashboard.Router
+  plug Kerf.Dashboard.Router
 end

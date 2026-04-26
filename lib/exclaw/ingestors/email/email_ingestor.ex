@@ -1,11 +1,11 @@
-defmodule ExClaw.Ingestors.Email.EmailIngestor do
+defmodule Kerf.Ingestors.Email.EmailIngestor do
   @moduledoc """
   Polls Gmail for new emails, stores them in the knowledge base,
   generates embeddings, and builds the AGE graph.
   """
   use GenServer
 
-  alias ExClaw.KnowledgeBase.{Document, Chunk, EmailSender, Chunker}
+  alias Kerf.KnowledgeBase.{Document, Chunk, EmailSender, Chunker}
 
   import Ecto.Query
 
@@ -326,6 +326,6 @@ defmodule ExClaw.Ingestors.Email.EmailIngestor do
   end
 
   defp default_embedder(texts, opts) do
-    ExClaw.KnowledgeBase.Embedder.embed_batch(texts, opts)
+    Kerf.KnowledgeBase.Embedder.embed_batch(texts, opts)
   end
 end

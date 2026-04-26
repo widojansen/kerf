@@ -1,11 +1,11 @@
-defmodule ExClaw.Release do
+defmodule Kerf.Release do
   @moduledoc """
   Release tasks (migrations) callable without Mix.
 
   Usage from release binary:
 
-      bin/exclaw eval "ExClaw.Release.migrate()"
-      bin/exclaw eval "ExClaw.Release.rollback(ExClaw.Repo, 20260219175156)"
+      bin/exclaw eval "Kerf.Release.migrate()"
+      bin/exclaw eval "Kerf.Release.rollback(Kerf.Repo, 20260219175156)"
   """
 
   @app :exclaw

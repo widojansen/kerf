@@ -1,4 +1,4 @@
-defmodule ExClaw.Dashboard.Supervisor do
+defmodule Kerf.Dashboard.Supervisor do
   use Supervisor
 
   def start_link(opts \\ []) do
@@ -9,8 +9,8 @@ defmodule ExClaw.Dashboard.Supervisor do
   @impl true
   def init(_opts) do
     children = [
-      ExClaw.Dashboard.EventLog,
-      ExClaw.Dashboard.Endpoint
+      Kerf.Dashboard.EventLog,
+      Kerf.Dashboard.Endpoint
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

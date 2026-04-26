@@ -1,4 +1,4 @@
-defmodule ExClaw.Agents.EmailTriage.Classifier do
+defmodule Kerf.Agents.EmailTriage.Classifier do
   @moduledoc """
   StructuredOutput wrapper for email classification.
   """
@@ -100,6 +100,6 @@ defmodule ExClaw.Agents.EmailTriage.Classifier do
   end
 
   defp default_provider(schema_name, model, messages, opts) do
-    ExClaw.StructuredOutput.complete(schema_name, model, messages, opts)
+    Kerf.StructuredOutput.complete(schema_name, model, messages, opts)
   end
 end

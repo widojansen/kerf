@@ -1,4 +1,4 @@
-defmodule ExClaw.CredentialVault.Lease do
+defmodule Kerf.CredentialVault.Lease do
   @moduledoc """
   Struct representing an active credential lease.
   """

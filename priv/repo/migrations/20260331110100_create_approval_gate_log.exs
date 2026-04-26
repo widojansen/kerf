@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.CreateApprovalGateLog do
+defmodule Kerf.Repo.Migrations.CreateApprovalGateLog do
   use Ecto.Migration
 
   def change do

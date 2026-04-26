@@ -1,10 +1,10 @@
-defmodule ExClaw.Tools.Dispatcher do
+defmodule Kerf.Tools.Dispatcher do
   @moduledoc """
   Routes tool calls to the appropriate tool module via the Tool Registry
   and builds the `tool_executor` closure for Agent.Session injection.
   """
 
-  alias ExClaw.Tools.Registry, as: ToolRegistry
+  alias Kerf.Tools.Registry, as: ToolRegistry
 
   @doc """
   Dispatch a tool call to the appropriate handler via Registry lookup.

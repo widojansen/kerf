@@ -1,4 +1,4 @@
-defmodule ExClaw.LLM.ModelRouter do
+defmodule Kerf.LLM.ModelRouter do
   @moduledoc """
   Routes LLM completion requests to the correct backend based on model name.
 
@@ -70,14 +70,14 @@ defmodule ExClaw.LLM.ModelRouter do
   # All three providers share the same complete/4 API shape.
   defp dispatch(backend, model, messages, opts) do
     case backend_module(backend) do
-      ExClaw.LLM.VLLMProvider ->
-        ExClaw.LLM.VLLMProvider.complete(backend, model, messages, opts)
+      Kerf.LLM.VLLMProvider ->
+        Kerf.LLM.VLLMProvider.complete(backend, model, messages, opts)
 
-      ExClaw.LLM.OllamaProvider ->
-        ExClaw.LLM.OllamaProvider.complete(backend, model, messages, opts)
+      Kerf.LLM.OllamaProvider ->
+        Kerf.LLM.OllamaProvider.complete(backend, model, messages, opts)
 
       _ ->
-        ExClaw.LLM.Provider.complete(backend, model, messages, opts)
+        Kerf.LLM.Provider.complete(backend, model, messages, opts)
     end
   end
 

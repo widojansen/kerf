@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.SetupAgeGraph do
+defmodule Kerf.Repo.Migrations.SetupAgeGraph do
   use Ecto.Migration
 
   def up do

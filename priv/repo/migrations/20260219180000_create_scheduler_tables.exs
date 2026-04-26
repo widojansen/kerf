@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.CreateSchedulerTables do
+defmodule Kerf.Repo.Migrations.CreateSchedulerTables do
   use Ecto.Migration
 
   def change do

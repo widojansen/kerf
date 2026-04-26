@@ -1,7 +1,7 @@
-defmodule ExClaw.Tools.ShellTest do
+defmodule Kerf.Tools.ShellTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Tools.Shell
+  alias Kerf.Tools.Shell
 
   defp start_mock_manager(opts \\ []) do
     adapter = Keyword.get(opts, :docker_adapter, fn args ->
@@ -19,7 +19,7 @@ defmodule ExClaw.Tools.ShellTest do
     workspaces_dir = System.tmp_dir!() |> Path.join("exclaw_shell_#{:rand.uniform(1_000_000)}")
     File.mkdir_p!(workspaces_dir)
 
-    {:ok, pid} = ExClaw.Container.Manager.start_link(
+    {:ok, pid} = Kerf.Container.Manager.start_link(
       workspaces_dir: workspaces_dir,
       image: "exclaw-sandbox:latest",
       docker_adapter: adapter,

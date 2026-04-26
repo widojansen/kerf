@@ -1,7 +1,7 @@
-defmodule ExClaw.LLM.RateLimiterTest do
+defmodule Kerf.LLM.RateLimiterTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.LLM.RateLimiter
+  alias Kerf.LLM.RateLimiter
 
   setup do
     # Start a fresh RateLimiter per test with generous defaults

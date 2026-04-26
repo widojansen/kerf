@@ -1,4 +1,4 @@
-defmodule ExClaw.Dashboard.EventLog do
+defmodule Kerf.Dashboard.EventLog do
   use GenServer
 
   defmodule Entry do

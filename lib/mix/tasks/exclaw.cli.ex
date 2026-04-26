@@ -1,18 +1,18 @@
 defmodule Mix.Tasks.Exclaw.Cli do
   @moduledoc """
-  Starts the ExClaw CLI REPL.
+  Starts the Kerf CLI REPL.
 
       mix exclaw.cli
 
-  Options are read from `config :exclaw, ExClaw.Channels.CLI`.
+  Options are read from `config :exclaw, Kerf.Channels.CLI`.
   """
   use Mix.Task
 
-  @shortdoc "Start the ExClaw CLI assistant"
+  @shortdoc "Start the Kerf CLI assistant"
 
   @impl true
   def run(_args) do
     Mix.Task.run("app.start")
-    ExClaw.Channels.CLI.start()
+    Kerf.Channels.CLI.start()
   end
 end

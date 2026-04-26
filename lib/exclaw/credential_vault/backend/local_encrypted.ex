@@ -1,4 +1,4 @@
-defmodule ExClaw.CredentialVault.Backend.LocalEncrypted do
+defmodule Kerf.CredentialVault.Backend.LocalEncrypted do
   @moduledoc """
   PostgreSQL-backed credential storage with AES-256-GCM encryption at rest.
 
@@ -6,10 +6,10 @@ defmodule ExClaw.CredentialVault.Backend.LocalEncrypted do
   is derived from `SECRET_KEY_BASE` at boot time.
   """
 
-  @behaviour ExClaw.CredentialVault.Backend
+  @behaviour Kerf.CredentialVault.Backend
 
-  alias ExClaw.CredentialVault.Credential
-  alias ExClaw.Repo
+  alias Kerf.CredentialVault.Credential
+  alias Kerf.Repo
   import Ecto.Query
 
   @aad "exclaw_credential_vault_v1"

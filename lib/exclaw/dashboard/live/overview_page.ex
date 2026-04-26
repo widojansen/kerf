@@ -1,9 +1,9 @@
-defmodule ExClaw.Dashboard.Live.OverviewPage do
+defmodule Kerf.Dashboard.Live.OverviewPage do
   @moduledoc false
   use Phoenix.LiveDashboard.PageBuilder, refresher?: true
 
   @impl true
-  def menu_link(_, _), do: {:ok, "ExClaw Overview"}
+  def menu_link(_, _), do: {:ok, "Kerf Overview"}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -74,11 +74,11 @@ defmodule ExClaw.Dashboard.Live.OverviewPage do
 
   defp load_sessions do
     try do
-      Registry.select(ExClaw.SessionRegistry, [{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
+      Registry.select(Kerf.SessionRegistry, [{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
       |> Enum.map(fn {group_id, pid} ->
         info =
           try do
-            ExClaw.Agent.Session.get_info(pid)
+            Kerf.Agent.Session.get_info(pid)
           catch
             :exit, _ -> %{group_id: group_id, message_count: 0, model: "?", started_at: nil, last_activity: nil}
           end
@@ -91,7 +91,7 @@ defmodule ExClaw.Dashboard.Live.OverviewPage do
 
   defp load_rate_limiter_stats do
     try do
-      ExClaw.LLM.RateLimiter.get_stats()
+      Kerf.LLM.RateLimiter.get_stats()
     rescue
       _ -> %{}
     catch

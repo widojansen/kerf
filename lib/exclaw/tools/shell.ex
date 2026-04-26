@@ -1,10 +1,10 @@
-defmodule ExClaw.Tools.Shell do
+defmodule Kerf.Tools.Shell do
   @moduledoc """
   Shell execution tool that runs commands inside a Docker container
   managed by Container.Manager.
   """
 
-  alias ExClaw.Container.Manager
+  alias Kerf.Container.Manager
 
   @doc """
   Execute a shell command in the group's container.

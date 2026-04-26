@@ -1,4 +1,4 @@
-defmodule ExClaw.KnowledgeBase.Interest do
+defmodule Kerf.KnowledgeBase.Interest do
   use Ecto.Schema
   import Ecto.Changeset
 

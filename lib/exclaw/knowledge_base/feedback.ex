@@ -1,4 +1,4 @@
-defmodule ExClaw.KnowledgeBase.Feedback do
+defmodule Kerf.KnowledgeBase.Feedback do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -6,7 +6,7 @@ defmodule ExClaw.KnowledgeBase.Feedback do
   @foreign_key_type :binary_id
 
   schema "kb_feedback" do
-    belongs_to :document, ExClaw.KnowledgeBase.Document
+    belongs_to :document, Kerf.KnowledgeBase.Document
     field :feedback_type, :string
     field :decision, :string
     field :context, :map, default: %{}

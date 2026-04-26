@@ -1,4 +1,4 @@
-defmodule ExClaw.Scheduler.Supervisor do
+defmodule Kerf.Scheduler.Supervisor do
   use Supervisor
 
   def start_link(opts) do
@@ -8,16 +8,16 @@ defmodule ExClaw.Scheduler.Supervisor do
 
   @impl true
   def init(opts) do
-    scheduler_name = Keyword.get(opts, :scheduler_name, ExClaw.Scheduler.Scheduler)
-    task_runner_name = Keyword.get(opts, :task_runner_name, ExClaw.Scheduler.TaskRunner)
-    repo = Keyword.get(opts, :repo, ExClaw.Repo)
-    agent_sup = Keyword.get(opts, :agent_sup, ExClaw.Agent.Supervisor)
-    registry = Keyword.get(opts, :registry, ExClaw.SessionRegistry)
+    scheduler_name = Keyword.get(opts, :scheduler_name, Kerf.Scheduler.Scheduler)
+    task_runner_name = Keyword.get(opts, :task_runner_name, Kerf.Scheduler.TaskRunner)
+    repo = Keyword.get(opts, :repo, Kerf.Repo)
+    agent_sup = Keyword.get(opts, :agent_sup, Kerf.Agent.Supervisor)
+    registry = Keyword.get(opts, :registry, Kerf.SessionRegistry)
     agent_opts = Keyword.get(opts, :agent_opts, [])
 
     children = [
       {Task.Supervisor, name: task_runner_name},
-      {ExClaw.Scheduler.Scheduler,
+      {Kerf.Scheduler.Scheduler,
        name: scheduler_name,
        repo: repo,
        agent_sup: agent_sup,

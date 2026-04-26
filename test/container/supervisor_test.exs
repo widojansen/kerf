@@ -1,7 +1,7 @@
-defmodule ExClaw.Container.SupervisorTest do
+defmodule Kerf.Container.SupervisorTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Container.Supervisor, as: ContainerSup
+  alias Kerf.Container.Supervisor, as: ContainerSup
 
   test "starts successfully" do
     opts = [
@@ -56,7 +56,7 @@ defmodule ExClaw.Container.SupervisorTest do
 
     {:ok, _pid} = ContainerSup.start_link(opts)
 
-    assert {:ok, []} = ExClaw.Container.Manager.list_containers(manager_name)
+    assert {:ok, []} = Kerf.Container.Manager.list_containers(manager_name)
 
     Supervisor.stop(opts[:name])
   end

@@ -1,4 +1,4 @@
-defmodule ExClaw.Scheduler.TaskRunLog do
+defmodule Kerf.Scheduler.TaskRunLog do
   use Ecto.Schema
   import Ecto.Changeset
 

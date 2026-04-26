@@ -1,4 +1,4 @@
-defmodule ExClaw.Tools.FileOps do
+defmodule Kerf.Tools.FileOps do
   @moduledoc """
   File read/write tools operating on the host filesystem
   within the group's bind-mounted workspace directory.

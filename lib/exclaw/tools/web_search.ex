@@ -1,4 +1,4 @@
-defmodule ExClaw.Tools.WebSearch do
+defmodule Kerf.Tools.WebSearch do
   @moduledoc """
   Web search via self-hosted SearXNG instance.
 

@@ -1,10 +1,10 @@
-defmodule ExClaw.Agent.Supervisor do
+defmodule Kerf.Agent.Supervisor do
   @moduledoc """
   DynamicSupervisor for Agent.Session processes.
   """
   use DynamicSupervisor
 
-  alias ExClaw.Agent.Session
+  alias Kerf.Agent.Session
 
   def start_link(opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
@@ -15,7 +15,7 @@ defmodule ExClaw.Agent.Supervisor do
     DynamicSupervisor.start_child(sup, {Session, opts})
   end
 
-  def handle_message(sup \\ __MODULE__, registry \\ ExClaw.SessionRegistry, group_id, message, opts \\ []) do
+  def handle_message(sup \\ __MODULE__, registry \\ Kerf.SessionRegistry, group_id, message, opts \\ []) do
     case find_or_start_session(sup, registry, group_id, opts) do
       {:ok, pid} ->
         try do
@@ -77,7 +77,7 @@ defmodule ExClaw.Agent.Supervisor do
 
   defp emit_telemetry(category, data) do
     try do
-      ExClaw.Telemetry.emit(category, data)
+      Kerf.Telemetry.emit(category, data)
     rescue
       _ -> :ok
     end

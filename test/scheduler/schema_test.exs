@@ -1,8 +1,8 @@
-defmodule ExClaw.Scheduler.SchemaTest do
+defmodule Kerf.Scheduler.SchemaTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Scheduler.ScheduledTask
-  alias ExClaw.Scheduler.TaskRunLog
+  alias Kerf.Scheduler.ScheduledTask
+  alias Kerf.Scheduler.TaskRunLog
 
   describe "ScheduledTask changeset" do
     test "valid cron changeset" do

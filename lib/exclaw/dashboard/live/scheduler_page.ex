@@ -1,9 +1,9 @@
-defmodule ExClaw.Dashboard.Live.SchedulerPage do
+defmodule Kerf.Dashboard.Live.SchedulerPage do
   @moduledoc false
   use Phoenix.LiveDashboard.PageBuilder, refresher?: true
 
   @impl true
-  def menu_link(_, _), do: {:ok, "ExClaw Scheduler"}
+  def menu_link(_, _), do: {:ok, "Kerf Scheduler"}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -47,7 +47,7 @@ defmodule ExClaw.Dashboard.Live.SchedulerPage do
 
   defp load_scheduler_tasks do
     try do
-      case ExClaw.Scheduler.Scheduler.list_tasks() do
+      case Kerf.Scheduler.Scheduler.list_tasks() do
         {:ok, tasks} -> tasks
         _ -> []
       end

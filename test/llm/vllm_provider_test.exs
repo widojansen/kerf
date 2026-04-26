@@ -1,7 +1,7 @@
-defmodule ExClaw.LLM.VLLMProviderTest do
+defmodule Kerf.LLM.VLLMProviderTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.LLM.VLLMProvider
+  alias Kerf.LLM.VLLMProvider
 
   defp start_provider(adapter) do
     suffix = System.unique_integer([:positive])
@@ -9,7 +9,7 @@ defmodule ExClaw.LLM.VLLMProviderTest do
     rl_name = :"vllm_rl_#{suffix}"
 
     {:ok, _} =
-      ExClaw.LLM.RateLimiter.start_link(
+      Kerf.LLM.RateLimiter.start_link(
         name: rl_name,
         max_requests_per_minute: 1000,
         max_tokens_per_minute: 1_000_000
@@ -229,7 +229,7 @@ defmodule ExClaw.LLM.VLLMProviderTest do
 
     test "respects rate limiter" do
       {:ok, rl} =
-        ExClaw.LLM.RateLimiter.start_link(
+        Kerf.LLM.RateLimiter.start_link(
           name: :"rl_zero_vllm_#{System.unique_integer([:positive])}",
           max_requests_per_minute: 0,
           max_tokens_per_minute: 0

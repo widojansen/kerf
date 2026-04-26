@@ -1,11 +1,11 @@
-defmodule ExClaw.Memory.SupervisorTest do
+defmodule Kerf.Memory.SupervisorTest do
   use ExUnit.Case, async: false
 
-  alias ExClaw.Memory.Supervisor, as: MemSup
+  alias Kerf.Memory.Supervisor, as: MemSup
 
   setup do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(ExClaw.Repo)
-    Ecto.Adapters.SQL.Sandbox.mode(ExClaw.Repo, {:shared, self()})
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Kerf.Repo)
+    Ecto.Adapters.SQL.Sandbox.mode(Kerf.Repo, {:shared, self()})
 
     tmp_dir = Path.join(System.tmp_dir!(), "exclaw_sup_test_#{System.unique_integer([:positive])}")
     File.mkdir_p!(tmp_dir)
@@ -26,7 +26,7 @@ defmodule ExClaw.Memory.SupervisorTest do
         name: sup_name,
         store_name: store_name,
         data_dir: tmp_dir,
-        repo: ExClaw.Repo
+        repo: Kerf.Repo
       )
 
     assert Process.alive?(sup_pid)
@@ -46,7 +46,7 @@ defmodule ExClaw.Memory.SupervisorTest do
         name: sup_name,
         store_name: store_name,
         data_dir: tmp_dir,
-        repo: ExClaw.Repo
+        repo: Kerf.Repo
       )
 
     old_pid = GenServer.whereis(store_name)
@@ -70,7 +70,7 @@ defmodule ExClaw.Memory.SupervisorTest do
         name: sup_name,
         store_name: store_name,
         data_dir: tmp_dir,
-        repo: ExClaw.Repo
+        repo: Kerf.Repo
       )
 
     # Kill and wait for restart
@@ -80,8 +80,8 @@ defmodule ExClaw.Memory.SupervisorTest do
 
     # Should still work after restart
     new_pid = GenServer.whereis(store_name)
-    Ecto.Adapters.SQL.Sandbox.allow(ExClaw.Repo, self(), new_pid)
+    Ecto.Adapters.SQL.Sandbox.allow(Kerf.Repo, self(), new_pid)
 
-    assert {:ok, []} = ExClaw.Memory.Store.get_facts(store_name, "group1")
+    assert {:ok, []} = Kerf.Memory.Store.get_facts(store_name, "group1")
   end
 end

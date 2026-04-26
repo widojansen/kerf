@@ -1,4 +1,4 @@
-defmodule ExClaw.KnowledgeBase.Chunker do
+defmodule Kerf.KnowledgeBase.Chunker do
   @moduledoc """
   Splits documents into chunks for embedding.
   """

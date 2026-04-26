@@ -1,4 +1,4 @@
-defmodule ExClaw.Security.PromptGuard do
+defmodule Kerf.Security.PromptGuard do
   @moduledoc """
   Detects prompt injection attempts in user input and tool arguments.
   Scans all string values in the input map, not just the primary text field.
@@ -120,7 +120,7 @@ defmodule ExClaw.Security.PromptGuard do
 
   defp maybe_log_denial({:denied, reason}, module, input_preview) do
     try do
-      ExClaw.Dashboard.EventLog.log(:security_denial, %{
+      Kerf.Dashboard.EventLog.log(:security_denial, %{
         module: module,
         reason: reason,
         input_preview: String.slice(inspect(input_preview), 0, 200),
@@ -141,7 +141,7 @@ defmodule ExClaw.Security.PromptGuard do
           {:denied, reason} -> {"denied", reason}
         end
 
-      ExClaw.Telemetry.emit(:security_check, %{
+      Kerf.Telemetry.emit(:security_check, %{
         module: "PromptGuard",
         tool_name: "prompt_check",
         security_result: security_result,

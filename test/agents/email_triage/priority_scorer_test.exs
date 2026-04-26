@@ -1,7 +1,7 @@
-defmodule ExClaw.Agents.EmailTriage.PriorityScorerTest do
+defmodule Kerf.Agents.EmailTriage.PriorityScorerTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Agents.EmailTriage.PriorityScorer
+  alias Kerf.Agents.EmailTriage.PriorityScorer
 
   describe "score/1" do
     test "high priority sender boosts score" do

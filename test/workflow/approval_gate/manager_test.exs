@@ -1,7 +1,7 @@
-defmodule ExClaw.Workflow.ApprovalGate.ManagerTest do
-  use ExClaw.DataCase, async: false
+defmodule Kerf.Workflow.ApprovalGate.ManagerTest do
+  use Kerf.DataCase, async: false
 
-  alias ExClaw.Workflow.ApprovalGate.Manager
+  alias Kerf.Workflow.ApprovalGate.Manager
 
   setup do
     opts = [
@@ -257,7 +257,7 @@ defmodule ExClaw.Workflow.ApprovalGate.ManagerTest do
   describe "auto-approval" do
     test "auto-approves when rule matches", %{manager: manager} do
       # Create an auto-approval rule
-      {:ok, rule} = ExClaw.Workflow.ApprovalGate.AutoRule.create(%{
+      {:ok, rule} = Kerf.Workflow.ApprovalGate.AutoRule.create(%{
         agent_module: "Elixir.AutoTestAgent",
         action: "auto_action",
         context_pattern: %{},

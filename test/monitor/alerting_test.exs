@@ -1,7 +1,7 @@
-defmodule ExClaw.Monitor.AlertingTest do
+defmodule Kerf.Monitor.AlertingTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Monitor.Alerting
+  alias Kerf.Monitor.Alerting
 
   import ExUnit.CaptureLog
 
@@ -36,7 +36,7 @@ defmodule ExClaw.Monitor.AlertingTest do
     test "sends Telegram message on :process_down" do
       {_pid, name} = start_alerting()
 
-      attach_and_fire(name, :process_down, %{}, %{name: ExClaw.ModelRouter})
+      attach_and_fire(name, :process_down, %{}, %{name: Kerf.ModelRouter})
 
       assert_receive {:telegram_sent, "12345", text}, 1000
       assert text =~ "ModelRouter"
@@ -47,7 +47,7 @@ defmodule ExClaw.Monitor.AlertingTest do
       {_pid, name} = start_alerting()
 
       attach_and_fire(name, :queue_high, %{queue_len: 342}, %{
-        name: ExClaw.Channels.Telegram,
+        name: Kerf.Channels.Telegram,
         threshold: 100
       })
 
@@ -60,7 +60,7 @@ defmodule ExClaw.Monitor.AlertingTest do
       {_pid, name} = start_alerting()
 
       attach_and_fire(name, :memory_high, %{memory_mb: 512.3}, %{
-        name: ExClaw.Agent.Supervisor,
+        name: Kerf.Agent.Supervisor,
         threshold: 256
       })
 
@@ -74,35 +74,35 @@ defmodule ExClaw.Monitor.AlertingTest do
     test "suppresses duplicate alerts within the debounce window" do
       {_pid, name} = start_alerting(debounce_window_ms: 5_000)
 
-      attach_and_fire(name, :process_down, %{}, %{name: ExClaw.ModelRouter})
+      attach_and_fire(name, :process_down, %{}, %{name: Kerf.ModelRouter})
       assert_receive {:telegram_sent, _, _}, 1000
 
       # Fire the same alert again — should be suppressed
-      attach_and_fire(name, :process_down, %{}, %{name: ExClaw.ModelRouter})
+      attach_and_fire(name, :process_down, %{}, %{name: Kerf.ModelRouter})
       refute_receive {:telegram_sent, _, _}, 200
     end
 
     test "allows the same alert after debounce window expires" do
       {_pid, name} = start_alerting(debounce_window_ms: 50)
 
-      attach_and_fire(name, :process_down, %{}, %{name: ExClaw.ModelRouter})
+      attach_and_fire(name, :process_down, %{}, %{name: Kerf.ModelRouter})
       assert_receive {:telegram_sent, _, _}, 1000
 
       # Wait for debounce to expire
       Process.sleep(80)
 
-      attach_and_fire(name, :process_down, %{}, %{name: ExClaw.ModelRouter})
+      attach_and_fire(name, :process_down, %{}, %{name: Kerf.ModelRouter})
       assert_receive {:telegram_sent, _, _}, 1000
     end
 
     test "different alert keys are independent" do
       {_pid, name} = start_alerting(debounce_window_ms: 5_000)
 
-      attach_and_fire(name, :process_down, %{}, %{name: ExClaw.ModelRouter})
+      attach_and_fire(name, :process_down, %{}, %{name: Kerf.ModelRouter})
       assert_receive {:telegram_sent, _, _}, 1000
 
       # Different process — should NOT be debounced
-      attach_and_fire(name, :process_down, %{}, %{name: ExClaw.Scheduler})
+      attach_and_fire(name, :process_down, %{}, %{name: Kerf.Scheduler})
       assert_receive {:telegram_sent, _, _}, 1000
     end
   end
@@ -111,11 +111,11 @@ defmodule ExClaw.Monitor.AlertingTest do
     test "sends recovery message when incident resolves" do
       {_pid, name} = start_alerting()
 
-      attach_and_fire(name, :process_down, %{}, %{name: ExClaw.ModelRouter})
+      attach_and_fire(name, :process_down, %{}, %{name: Kerf.ModelRouter})
       assert_receive {:telegram_sent, _, _}, 1000
 
       # Signal recovery
-      Alerting.resolve(name, :process_down, %{name: ExClaw.ModelRouter})
+      Alerting.resolve(name, :process_down, %{name: Kerf.ModelRouter})
 
       assert_receive {:telegram_sent, "12345", text}, 1000
       assert text =~ "recovered"
@@ -125,7 +125,7 @@ defmodule ExClaw.Monitor.AlertingTest do
     test "recovery is not sent if there was no active incident" do
       {_pid, name} = start_alerting()
 
-      Alerting.resolve(name, :process_down, %{name: ExClaw.ModelRouter})
+      Alerting.resolve(name, :process_down, %{name: Kerf.ModelRouter})
 
       refute_receive {:telegram_sent, _, _}, 200
     end
@@ -138,7 +138,7 @@ defmodule ExClaw.Monitor.AlertingTest do
 
       log =
         capture_log(fn ->
-          attach_and_fire(name, :process_down, %{}, %{name: ExClaw.ModelRouter})
+          attach_and_fire(name, :process_down, %{}, %{name: Kerf.ModelRouter})
           Process.sleep(100)
         end)
 
@@ -150,7 +150,7 @@ defmodule ExClaw.Monitor.AlertingTest do
     test "does not crash when telegram_chat_id is nil" do
       {_pid, name} = start_alerting(telegram_chat_id: nil)
 
-      attach_and_fire(name, :process_down, %{}, %{name: ExClaw.ModelRouter})
+      attach_and_fire(name, :process_down, %{}, %{name: Kerf.ModelRouter})
 
       refute_receive {:telegram_sent, _, _}, 200
     end

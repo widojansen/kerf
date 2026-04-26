@@ -1,7 +1,7 @@
-defmodule ExClaw.Monitor.ProcessHealthTest do
+defmodule Kerf.Monitor.ProcessHealthTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Monitor.ProcessHealth
+  alias Kerf.Monitor.ProcessHealth
 
   # Helper: start ProcessHealth with a custom watched list and fast tick
   defp start_health(opts \\ []) do

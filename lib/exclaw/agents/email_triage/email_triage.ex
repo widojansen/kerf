@@ -1,4 +1,4 @@
-defmodule ExClaw.Agents.EmailTriage.EmailTriage do
+defmodule Kerf.Agents.EmailTriage.EmailTriage do
   @moduledoc """
   Classifies new emails, scores priority, generates summaries,
   and surfaces results to Telegram with approval buttons.
@@ -6,8 +6,8 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriage do
   use GenServer
   require Logger
 
-  alias ExClaw.KnowledgeBase.{Document, Chunk, EmailSender, Feedback, Interest}
-  alias ExClaw.Agents.EmailTriage.{Classifier, FastClassifier, PriorityScorer, InterestMatcher, TelegramFormatter}
+  alias Kerf.KnowledgeBase.{Document, Chunk, EmailSender, Feedback, Interest}
+  alias Kerf.Agents.EmailTriage.{Classifier, FastClassifier, PriorityScorer, InterestMatcher, TelegramFormatter}
 
   import Ecto.Query
 
@@ -35,7 +35,7 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriage do
       classifier_fn: Keyword.get(opts, :classifier_fn, &default_classifier/2),
       telegram_fn: Keyword.get(opts, :telegram_fn),
       gmail_fn: Keyword.get(opts, :gmail_fn),
-      gmail_label: Keyword.get(opts, :gmail_label, "ExClaw/Triaged"),
+      gmail_label: Keyword.get(opts, :gmail_label, "Kerf/Triaged"),
       graph_enabled: Keyword.get(opts, :graph_enabled, false),
       interest_threshold: Keyword.get(opts, :interest_threshold, 0.5),
       high_priority_threshold: Keyword.get(opts, :high_priority_threshold, 4),
@@ -248,14 +248,14 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriage do
   end
 
   # Map classification categories to Gmail labels
-  defp label_for_category("business"), do: "ExClaw/Business"
-  defp label_for_category("personal"), do: "ExClaw/Personal"
-  defp label_for_category("newsletter"), do: "ExClaw/Newsletter"
-  defp label_for_category("transactional"), do: "ExClaw/Transactional"
-  defp label_for_category("marketing"), do: "ExClaw/Marketing"
-  defp label_for_category("social"), do: "ExClaw/Social"
-  defp label_for_category("spam"), do: "ExClaw/Spam"
-  defp label_for_category(_), do: "ExClaw/Triaged"
+  defp label_for_category("business"), do: "Kerf/Business"
+  defp label_for_category("personal"), do: "Kerf/Personal"
+  defp label_for_category("newsletter"), do: "Kerf/Newsletter"
+  defp label_for_category("transactional"), do: "Kerf/Transactional"
+  defp label_for_category("marketing"), do: "Kerf/Marketing"
+  defp label_for_category("social"), do: "Kerf/Social"
+  defp label_for_category("spam"), do: "Kerf/Spam"
+  defp label_for_category(_), do: "Kerf/Triaged"
 
   defp record_triage_feedback(repo, document_id, context) do
     decision = if Map.has_key?(context, :error), do: "unclassified", else: "classified"

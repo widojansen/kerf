@@ -1,4 +1,4 @@
-defmodule ExClaw.KnowledgeBase.Embedder do
+defmodule Kerf.KnowledgeBase.Embedder do
   @moduledoc """
   Generates embeddings via vLLM or Ollama's OpenAI-compatible endpoint.
   Calls POST /v1/embeddings with {"model": ..., "input": [...]}.

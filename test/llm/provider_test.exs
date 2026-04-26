@@ -1,7 +1,7 @@
-defmodule ExClaw.LLM.ProviderTest do
+defmodule Kerf.LLM.ProviderTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.LLM.Provider
+  alias Kerf.LLM.Provider
 
   # Helper: start a Provider with a given Req adapter function and its own RateLimiter
   defp start_provider(adapter_fn, opts \\ []) do
@@ -10,7 +10,7 @@ defmodule ExClaw.LLM.ProviderTest do
     provider_name = :"test_provider_#{suffix}"
 
     {:ok, _} =
-      ExClaw.LLM.RateLimiter.start_link(
+      Kerf.LLM.RateLimiter.start_link(
         name: rl_name,
         max_requests_per_minute: Keyword.get(opts, :max_requests, 1000),
         max_tokens_per_minute: Keyword.get(opts, :max_tokens, 1_000_000)
@@ -326,7 +326,7 @@ defmodule ExClaw.LLM.ProviderTest do
 
       assert {:ok, _} = Provider.complete(name, "claude-sonnet-4-20250514", [%{role: "user", content: "Hi"}])
 
-      stats = ExClaw.LLM.RateLimiter.get_stats(rl_name)
+      stats = Kerf.LLM.RateLimiter.get_stats(rl_name)
       assert stats.tokens_this_minute == 45
       assert stats.requests_this_minute == 1
     end

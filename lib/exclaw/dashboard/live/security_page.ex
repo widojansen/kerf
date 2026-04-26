@@ -1,11 +1,11 @@
-defmodule ExClaw.Dashboard.Live.SecurityPage do
+defmodule Kerf.Dashboard.Live.SecurityPage do
   @moduledoc false
   use Phoenix.LiveDashboard.PageBuilder, refresher?: true
 
-  alias ExClaw.Dashboard.EventLog
+  alias Kerf.Dashboard.EventLog
 
   @impl true
-  def menu_link(_, _), do: {:ok, "ExClaw Security"}
+  def menu_link(_, _), do: {:ok, "Kerf Security"}
 
   @impl true
   def mount(_params, _session, socket) do

@@ -1,11 +1,11 @@
-defmodule ExClaw.Dashboard.Live.LLMPage do
+defmodule Kerf.Dashboard.Live.LLMPage do
   @moduledoc false
   use Phoenix.LiveDashboard.PageBuilder, refresher?: true
 
-  alias ExClaw.Dashboard.EventLog
+  alias Kerf.Dashboard.EventLog
 
   @impl true
-  def menu_link(_, _), do: {:ok, "ExClaw LLM"}
+  def menu_link(_, _), do: {:ok, "Kerf LLM"}
 
   @impl true
   def mount(_params, _session, socket) do

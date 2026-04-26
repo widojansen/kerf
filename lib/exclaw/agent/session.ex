@@ -1,4 +1,4 @@
-defmodule ExClaw.Agent.Session do
+defmodule Kerf.Agent.Session do
   @moduledoc """
   GenServer per chat group — the core agent loop.
   Receives user messages, calls the LLM, executes tools, and loops
@@ -8,8 +8,8 @@ defmodule ExClaw.Agent.Session do
 
   require Logger
 
-  alias ExClaw.LLM.Provider
-  alias ExClaw.Security.{FileGuard, ShellSandbox, PromptGuard}
+  alias Kerf.LLM.Provider
+  alias Kerf.Security.{FileGuard, ShellSandbox, PromptGuard}
 
   @default_max_iterations 25
   @default_idle_timeout 1_800_000
@@ -243,7 +243,7 @@ defmodule ExClaw.Agent.Session do
 
   defp emit_telemetry(category, state, data) do
     try do
-      ExClaw.Telemetry.emit(category, Map.merge(data, %{
+      Kerf.Telemetry.emit(category, Map.merge(data, %{
         group_id: state.group_id,
         session_id: state.session_id,
         model: state.model

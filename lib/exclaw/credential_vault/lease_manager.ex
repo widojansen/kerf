@@ -1,4 +1,4 @@
-defmodule ExClaw.CredentialVault.LeaseManager do
+defmodule Kerf.CredentialVault.LeaseManager do
   @moduledoc """
   Manages scoped, time-limited credential leases backed by ETS.
 
@@ -12,8 +12,8 @@ defmodule ExClaw.CredentialVault.LeaseManager do
   """
   use GenServer
 
-  alias ExClaw.CredentialVault
-  alias ExClaw.CredentialVault.{Lease, Policy}
+  alias Kerf.CredentialVault
+  alias Kerf.CredentialVault.{Lease, Policy}
   import Ecto.Query
 
   @default_ttl 300
@@ -190,7 +190,7 @@ defmodule ExClaw.CredentialVault.LeaseManager do
         limit: 1
       )
 
-    case ExClaw.Repo.one(query) do
+    case Kerf.Repo.one(query) do
       nil -> {:error, :policy_violation}
       policy -> {:ok, policy}
     end

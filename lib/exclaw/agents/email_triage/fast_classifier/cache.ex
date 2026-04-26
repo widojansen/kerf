@@ -1,11 +1,11 @@
-defmodule ExClaw.Agents.EmailTriage.FastClassifier.Cache do
+defmodule Kerf.Agents.EmailTriage.FastClassifier.Cache do
   @moduledoc """
   ETS cache for FastClassifier sender rules.
   Refreshed on startup and periodically.
   """
   use GenServer
 
-  alias ExClaw.KnowledgeBase.EmailSender
+  alias Kerf.KnowledgeBase.EmailSender
   import Ecto.Query
 
   @refresh_interval :timer.minutes(5)
@@ -52,7 +52,7 @@ defmodule ExClaw.Agents.EmailTriage.FastClassifier.Cache do
 
   @impl true
   def init(opts) do
-    repo = Keyword.get(opts, :repo, ExClaw.Repo)
+    repo = Keyword.get(opts, :repo, Kerf.Repo)
     name = Keyword.fetch!(opts, :name)
     caller = Keyword.get(opts, :caller)
     table = :ets.new(table_name(name), [:named_table, :set, :public, read_concurrency: true])

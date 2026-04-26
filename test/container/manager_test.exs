@@ -1,7 +1,7 @@
-defmodule ExClaw.Container.ManagerTest do
+defmodule Kerf.Container.ManagerTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Container.Manager
+  alias Kerf.Container.Manager
 
   # --- Test Helpers ---
 

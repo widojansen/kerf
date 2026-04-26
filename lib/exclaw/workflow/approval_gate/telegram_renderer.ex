@@ -1,4 +1,4 @@
-defmodule ExClaw.Workflow.ApprovalGate.TelegramRenderer do
+defmodule Kerf.Workflow.ApprovalGate.TelegramRenderer do
   @moduledoc """
   Pure functions for building Telegram messages for approval requests.
   """

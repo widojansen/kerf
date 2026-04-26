@@ -1,8 +1,8 @@
-defmodule ExClaw.Monitor.TelemetryHandlersTest do
-  use ExClaw.DataCase, async: false
+defmodule Kerf.Monitor.TelemetryHandlersTest do
+  use Kerf.DataCase, async: false
 
-  alias ExClaw.Monitor.TelemetryHandlers
-  alias ExClaw.Monitor.TelemetryEvent
+  alias Kerf.Monitor.TelemetryHandlers
+  alias Kerf.Monitor.TelemetryEvent
 
   setup do
     # Detach handlers after each test to avoid leaks
@@ -38,7 +38,7 @@ defmodule ExClaw.Monitor.TelemetryHandlersTest do
       :telemetry.execute(
         [:exclaw, :monitor, :process_down],
         %{},
-        %{name: ExClaw.FakeProcess}
+        %{name: Kerf.FakeProcess}
       )
 
       # Small delay for async insert
@@ -49,7 +49,7 @@ defmodule ExClaw.Monitor.TelemetryHandlersTest do
       assert length(events) >= 1
 
       event = List.last(events)
-      assert event.metadata["name"] == "Elixir.ExClaw.FakeProcess"
+      assert event.metadata["name"] == "Elixir.Kerf.FakeProcess"
     end
 
     test "health_check event is written to telemetry_events" do

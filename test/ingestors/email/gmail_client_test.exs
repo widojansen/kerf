@@ -1,7 +1,7 @@
-defmodule ExClaw.Ingestors.Email.GmailClientTest do
+defmodule Kerf.Ingestors.Email.GmailClientTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Ingestors.Email.GmailClient
+  alias Kerf.Ingestors.Email.GmailClient
 
   @sample_message_response %{
     "id" => "msg_001",

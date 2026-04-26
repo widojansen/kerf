@@ -1,61 +1,61 @@
 import Config
 
-config :exclaw, ExClaw.Repo,
+config :exclaw, Kerf.Repo,
   database: "exclaw_test",
   hostname: "localhost",
   port: 5432,
   pool: Ecto.Adapters.SQL.Sandbox
 
-config :exclaw, ExClaw.LLM.Provider,
+config :exclaw, Kerf.LLM.Provider,
   api_key: "test-key-not-real",
-  adapter: {Req.Test, ExClaw.LLM.Provider}
+  adapter: {Req.Test, Kerf.LLM.Provider}
 
-config :exclaw, ExClaw.LLM.RateLimiter,
+config :exclaw, Kerf.LLM.RateLimiter,
   max_requests_per_minute: 1000,
   max_tokens_per_minute: 1_000_000
 
-config :exclaw, ExClaw.Memory.Store,
+config :exclaw, Kerf.Memory.Store,
   data_dir: "priv/data/test"
 
-config :exclaw, ExClaw.Channels.CLI,
+config :exclaw, Kerf.Channels.CLI,
   group_id: "cli_test",
   base_prompt: "You are a test assistant.",
   model: "claude-sonnet-4-20250514"
 
-config :exclaw, ExClaw.Scheduler,
-  provider: ExClaw.LLM.Provider,
+config :exclaw, Kerf.Scheduler,
+  provider: Kerf.LLM.Provider,
   model: "claude-sonnet-4-20250514"
 
-config :exclaw, ExClaw.Dashboard.Endpoint,
+config :exclaw, Kerf.Dashboard.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   server: false,
   secret_key_base: "test-only-secret-key-base-that-is-at-least-64-bytes-long-for-phoenix-to-accept-it"
 
-config :exclaw, ExClaw.Container.Manager,
+config :exclaw, Kerf.Container.Manager,
   workspaces_dir: "priv/workspaces/test",
   exec_timeout: 5_000
 
-config :exclaw, ExClaw.Tools.WebFetch,
+config :exclaw, Kerf.Tools.WebFetch,
   timeout: 5_000,
   max_content_chars: 10_000
 
-config :exclaw, ExClaw.Tools.WebSearch,
+config :exclaw, Kerf.Tools.WebSearch,
   searxng_url: "http://localhost:8080",
   timeout: 5_000
 
-config :exclaw, ExClaw.Memory.Embedder,
+config :exclaw, Kerf.Memory.Embedder,
   enabled: false
 
-config :exclaw, ExClaw.Channels.WhatsApp,
+config :exclaw, Kerf.Channels.WhatsApp,
   enabled: false
 
-config :exclaw, ExClaw.CredentialVault,
+config :exclaw, Kerf.CredentialVault,
   enabled: false
 
-config :exclaw, ExClaw.Workflow.ApprovalGate,
+config :exclaw, Kerf.Workflow.ApprovalGate,
   enabled: false
 
-config :exclaw, ExClaw.Telemetry.Logger,
+config :exclaw, Kerf.Telemetry.Logger,
   enabled: false,
   ch_opts: nil
 

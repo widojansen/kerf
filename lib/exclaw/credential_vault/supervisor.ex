@@ -1,4 +1,4 @@
-defmodule ExClaw.CredentialVault.Supervisor do
+defmodule Kerf.CredentialVault.Supervisor do
   @moduledoc """
   Supervises the Credential Vault subsystem:
   - CredentialVault (encrypted credential store)
@@ -13,7 +13,7 @@ defmodule ExClaw.CredentialVault.Supervisor do
 
   @impl true
   def init(_opts) do
-    config = Application.get_env(:exclaw, ExClaw.CredentialVault, [])
+    config = Application.get_env(:exclaw, Kerf.CredentialVault, [])
 
     encryption_key_base = config[:encryption_key_base]
 
@@ -21,19 +21,19 @@ defmodule ExClaw.CredentialVault.Supervisor do
       if encryption_key_base do
         :crypto.hash(:sha256, encryption_key_base)
       else
-        raise "CredentialVault requires SECRET_KEY_BASE (config :exclaw, ExClaw.CredentialVault, encryption_key_base: ...)"
+        raise "CredentialVault requires SECRET_KEY_BASE (config :exclaw, Kerf.CredentialVault, encryption_key_base: ...)"
       end
 
     children = [
-      {ExClaw.CredentialVault,
-       name: ExClaw.CredentialVault,
+      {Kerf.CredentialVault,
+       name: Kerf.CredentialVault,
        encryption_key: encryption_key},
-      {ExClaw.CredentialVault.LeaseManager,
-       name: ExClaw.CredentialVault.LeaseManager,
-       vault: ExClaw.CredentialVault},
-      {ExClaw.CredentialVault.TokenRefreshWorker,
-       name: ExClaw.CredentialVault.TokenRefreshWorker,
-       vault: ExClaw.CredentialVault,
+      {Kerf.CredentialVault.LeaseManager,
+       name: Kerf.CredentialVault.LeaseManager,
+       vault: Kerf.CredentialVault},
+      {Kerf.CredentialVault.TokenRefreshWorker,
+       name: Kerf.CredentialVault.TokenRefreshWorker,
+       vault: Kerf.CredentialVault,
        check_interval: config[:refresh_interval_ms] || :timer.minutes(5),
        refresh_threshold: config[:refresh_threshold] || 600}
     ]

@@ -1,4 +1,4 @@
-defmodule ExClaw.Channels.WhatsApp.Supervisor do
+defmodule Kerf.Channels.WhatsApp.Supervisor do
   @moduledoc """
   Supervisor for the WhatsApp channel GenServer.
   """
@@ -14,7 +14,7 @@ defmodule ExClaw.Channels.WhatsApp.Supervisor do
     wa_opts = Keyword.get(opts, :whatsapp_opts, [])
 
     children = [
-      {ExClaw.Channels.WhatsApp, wa_opts}
+      {Kerf.Channels.WhatsApp, wa_opts}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

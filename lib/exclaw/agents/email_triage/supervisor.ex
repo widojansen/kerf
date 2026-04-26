@@ -1,13 +1,13 @@
-defmodule ExClaw.Agents.EmailTriage.Supervisor do
+defmodule Kerf.Agents.EmailTriage.Supervisor do
   @moduledoc """
   Supervisor for the Email Triage Agent subsystem.
   Starts the EmailIngestor and EmailTriage GenServers.
   """
   use Supervisor
 
-  alias ExClaw.Ingestors.Email.{GmailClient, EmailIngestor}
-  alias ExClaw.Agents.EmailTriage.EmailTriage
-  alias ExClaw.CredentialVault
+  alias Kerf.Ingestors.Email.{GmailClient, EmailIngestor}
+  alias Kerf.Agents.EmailTriage.EmailTriage
+  alias Kerf.CredentialVault
 
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
@@ -16,7 +16,7 @@ defmodule ExClaw.Agents.EmailTriage.Supervisor do
   @impl true
   def init(_opts) do
     ingestor_config = Application.get_env(:exclaw, EmailIngestor, [])
-    triage_config = Application.get_env(:exclaw, ExClaw.Agents.EmailTriage, [])
+    triage_config = Application.get_env(:exclaw, Kerf.Agents.EmailTriage, [])
     credential_name = Keyword.get(ingestor_config, :credential_name, "gmail_oauth")
 
     children =
@@ -34,7 +34,7 @@ defmodule ExClaw.Agents.EmailTriage.Supervisor do
           {EmailIngestor,
            [
              name: EmailIngestor,
-             repo: ExClaw.Repo,
+             repo: Kerf.Repo,
              poll_interval_ms: Keyword.get(config, :poll_interval_ms, 300_000),
              access_token_fn: build_access_token_fn(credential_name),
              gmail_client: &GmailClient.fetch_new/2,
@@ -55,7 +55,7 @@ defmodule ExClaw.Agents.EmailTriage.Supervisor do
           {EmailTriage,
            [
              name: EmailTriage,
-             repo: ExClaw.Repo,
+             repo: Kerf.Repo,
              interest_threshold: Keyword.get(config, :interest_threshold, 0.5),
              high_priority_threshold: Keyword.get(config, :high_priority_threshold, 4),
              gmail_fn: build_gmail_fn(credential_name)

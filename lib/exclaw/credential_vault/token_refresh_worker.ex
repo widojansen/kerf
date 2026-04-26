@@ -1,4 +1,4 @@
-defmodule ExClaw.CredentialVault.TokenRefreshWorker do
+defmodule Kerf.CredentialVault.TokenRefreshWorker do
   @moduledoc """
   Proactively refreshes expiring OAuth2 tokens.
 
@@ -12,7 +12,7 @@ defmodule ExClaw.CredentialVault.TokenRefreshWorker do
 
   require Logger
 
-  alias ExClaw.CredentialVault
+  alias Kerf.CredentialVault
 
   @default_check_interval :timer.minutes(5)
   @default_refresh_threshold 600
