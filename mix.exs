@@ -1,9 +1,9 @@
-defmodule ExClaw.MixProject do
+defmodule Kerf.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :exclaw,
+      app: :kerf,
       version: "0.1.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
@@ -11,7 +11,7 @@ defmodule ExClaw.MixProject do
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env()),
       releases: [
-        exclaw: [
+        kerf: [
           include_executables_for: [:unix],
           applications: [runtime_tools: :permanent]
         ]
@@ -22,7 +22,7 @@ defmodule ExClaw.MixProject do
   def application do
     [
       extra_applications: [:logger, :runtime_tools, :os_mon],
-      mod: {ExClaw.Application, []}
+      mod: {Kerf.Application, []}
     ]
   end
 
