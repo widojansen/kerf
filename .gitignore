@@ -66,3 +66,6 @@ logs/
 # Telemetry fallback logs
 /priv/telemetry_fallback/
 
+
+# Memory/notes (workstation only)
+.remember/
