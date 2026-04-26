@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Exclaw.BackfillTriage do
+defmodule Mix.Tasks.Kerf.BackfillTriage do
   @shortdoc "Triage emails in the KB that have no feedback records"
   @moduledoc """
   Runs the email triage pipeline on emails that were ingested but never triaged.

@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Exclaw.SeedInterests do
+defmodule Mix.Tasks.Kerf.SeedInterests do
   @shortdoc "Seed interests and generate embeddings via bge-m3"
   @moduledoc """
   Re-generates embeddings for all interests using the configured embedding service.

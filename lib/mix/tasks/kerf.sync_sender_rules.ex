@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Exclaw.SyncSenderRules do
+defmodule Mix.Tasks.Kerf.SyncSenderRules do
   @shortdoc "Sync sender rules from Python pipeline into email_senders table"
   @moduledoc """
   Upserts sender pattern rules into the email_senders table for FastClassifier.

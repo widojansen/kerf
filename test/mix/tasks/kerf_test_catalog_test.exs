@@ -1,7 +1,7 @@
-defmodule Mix.Tasks.Exclaw.TestCatalogTest do
+defmodule Mix.Tasks.Kerf.TestCatalogTest do
   use ExUnit.Case, async: true
 
-  alias Mix.Tasks.Exclaw.TestCatalog
+  alias Mix.Tasks.Kerf.TestCatalog
 
   @sample_test_file """
   defmodule Kerf.Security.FileGuardTest do

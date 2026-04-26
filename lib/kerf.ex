@@ -1,6 +1,6 @@
-defmodule Exclaw do
+defmodule Kerf do
   @moduledoc """
-  Documentation for `Exclaw`.
+  Documentation for `Kerf`.
   """
 
   @doc """
@@ -8,7 +8,7 @@ defmodule Exclaw do
 
   ## Examples
 
-      iex> Exclaw.hello()
+      iex> Kerf.hello()
       :world
 
   """

@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Exclaw.Cli do
+defmodule Mix.Tasks.Kerf.Cli do
   @moduledoc """
   Starts the Kerf CLI REPL.
 

@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Exclaw.TestCatalog do
+defmodule Mix.Tasks.Kerf.TestCatalog do
   @moduledoc "Generate a catalog of all Kerf tests"
   @shortdoc "Generate test catalog"
 
