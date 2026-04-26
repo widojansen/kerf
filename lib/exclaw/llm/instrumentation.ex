@@ -11,7 +11,7 @@ defmodule Kerf.LLM.Instrumentation do
     usage = Map.get(response, :usage, %{})
 
     :telemetry.execute(
-      [:exclaw, :llm, :call, :stop],
+      [:kerf, :llm, :call, :stop],
       %{
         duration_ms: duration_ms,
         tokens_in: Map.get(usage, :input_tokens, 0) || 0,
@@ -30,7 +30,7 @@ defmodule Kerf.LLM.Instrumentation do
   @doc "Emit an LLM call error event."
   def emit_call_error(provider, model, duration_ms, reason) do
     :telemetry.execute(
-      [:exclaw, :llm, :call, :stop],
+      [:kerf, :llm, :call, :stop],
       %{duration_ms: duration_ms},
       %{
         model: model,

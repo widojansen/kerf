@@ -81,7 +81,7 @@ defmodule Kerf.Tools.WebSearch do
   # --- Private ---
 
   defp do_search(query, count, opts) do
-    config = Application.get_env(:exclaw, __MODULE__, [])
+    config = Application.get_env(:kerf, __MODULE__, [])
     base_url = Keyword.get(opts, :searxng_url, config[:searxng_url] || "http://localhost:8080")
     timeout = Keyword.get(opts, :timeout, config[:timeout] || 10_000)
     http_client = Keyword.get(opts, :http_client, &default_http_client/2)

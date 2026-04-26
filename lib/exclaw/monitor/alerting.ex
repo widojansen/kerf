@@ -181,7 +181,7 @@ defmodule Kerf.Monitor.Alerting do
   end
 
   defp default_telegram_sender(chat_id, text) do
-    token = Application.get_env(:exclaw, Kerf.Channels.Telegram, [])[:token]
+    token = Application.get_env(:kerf, Kerf.Channels.Telegram, [])[:token]
 
     if token do
       url = "https://api.telegram.org/bot#{token}/sendMessage"

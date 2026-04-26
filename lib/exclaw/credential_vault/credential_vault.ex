@@ -46,7 +46,7 @@ defmodule Kerf.CredentialVault do
   def init(opts) do
     encryption_key =
       Keyword.get_lazy(opts, :encryption_key, fn ->
-        secret = Application.get_env(:exclaw, __MODULE__, [])[:encryption_key_base]
+        secret = Application.get_env(:kerf, __MODULE__, [])[:encryption_key_base]
 
         if secret do
           :crypto.hash(:sha256, secret)

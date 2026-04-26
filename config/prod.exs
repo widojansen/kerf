@@ -1,12 +1,12 @@
 import Config
 
-config :exclaw, Kerf.Repo,
+config :kerf, Kerf.Repo,
   database: "exclaw_prod",
   hostname: "localhost",
   port: 5432,
   pool_size: 10
 
-config :exclaw, Kerf.Dashboard.Endpoint,
+config :kerf, Kerf.Dashboard.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4000],
   server: true
 

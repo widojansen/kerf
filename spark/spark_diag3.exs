@@ -18,7 +18,7 @@ else
 end
 
 IO.puts("\n--- EmailIngestor config check ---")
-config = Application.get_all_env(:exclaw)
+config = Application.get_all_env(:kerf)
   |> Enum.filter(fn {k, _} -> 
     k_str = Atom.to_string(k)
     String.contains?(k_str, "Ingestor") or String.contains?(k_str, "EmailTriage") or String.contains?(k_str, "Gmail")

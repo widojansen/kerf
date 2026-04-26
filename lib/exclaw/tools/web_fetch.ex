@@ -112,7 +112,7 @@ defmodule Kerf.Tools.WebFetch do
   end
 
   defp do_fetch(url, opts) do
-    config = Application.get_env(:exclaw, __MODULE__, [])
+    config = Application.get_env(:kerf, __MODULE__, [])
     timeout = Keyword.get(opts, :timeout, config[:timeout] || 15_000)
     max_chars = Keyword.get(opts, :max_content_chars, config[:max_content_chars] || 50_000)
     user_agent = Keyword.get(opts, :user_agent, config[:user_agent] || "Kerf/0.1")

@@ -169,7 +169,7 @@ defmodule Kerf.Channels.CLITest do
 
       prompt = CLI.build_system_prompt(infra.group_id, store: infra.store)
 
-      config_prompt = Application.get_env(:exclaw, Kerf.Channels.CLI)[:base_prompt]
+      config_prompt = Application.get_env(:kerf, Kerf.Channels.CLI)[:base_prompt]
       assert prompt == config_prompt
     end
   end

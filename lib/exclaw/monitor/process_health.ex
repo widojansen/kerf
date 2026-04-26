@@ -102,7 +102,7 @@ defmodule Kerf.Monitor.ProcessHealth do
     duration_us = System.monotonic_time(:microsecond) - start
 
     :telemetry.execute(
-      [:exclaw, :monitor, :health_check],
+      [:kerf, :monitor, :health_check],
       %{duration_us: duration_us},
       %{process_count: length(state.watched), all_healthy: all_healthy}
     )
@@ -111,7 +111,7 @@ defmodule Kerf.Monitor.ProcessHealth do
   defp check_process(name, thresholds) do
     case Process.whereis(name) do
       nil ->
-        :telemetry.execute([:exclaw, :monitor, :process_down], %{}, %{name: name})
+        :telemetry.execute([:kerf, :monitor, :process_down], %{}, %{name: name})
         false
 
       pid ->
@@ -122,7 +122,7 @@ defmodule Kerf.Monitor.ProcessHealth do
   defp check_pid_health(pid, name, thresholds) do
     case Process.info(pid, [:message_queue_len, :memory]) do
       nil ->
-        :telemetry.execute([:exclaw, :monitor, :process_down], %{}, %{name: name})
+        :telemetry.execute([:kerf, :monitor, :process_down], %{}, %{name: name})
         false
 
       info ->
@@ -135,7 +135,7 @@ defmodule Kerf.Monitor.ProcessHealth do
         healthy =
           if queue_len > thresholds.queue_high do
             :telemetry.execute(
-              [:exclaw, :monitor, :queue_high],
+              [:kerf, :monitor, :queue_high],
               %{queue_len: queue_len},
               %{name: name, threshold: thresholds.queue_high}
             )
@@ -148,7 +148,7 @@ defmodule Kerf.Monitor.ProcessHealth do
         healthy =
           if memory_mb > thresholds.memory_high_mb do
             :telemetry.execute(
-              [:exclaw, :monitor, :memory_high],
+              [:kerf, :monitor, :memory_high],
               %{memory_mb: memory_mb},
               %{name: name, threshold: thresholds.memory_high_mb}
             )

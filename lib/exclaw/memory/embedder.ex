@@ -11,7 +11,7 @@ defmodule Kerf.Memory.Embedder do
 
   ## Configuration
 
-      config :exclaw, Kerf.Memory.Embedder,
+      config :kerf, Kerf.Memory.Embedder,
         base_url: "http://localhost:11434",
         model: "bge-m3"
 
@@ -58,7 +58,7 @@ defmodule Kerf.Memory.Embedder do
 
   @impl true
   def init(opts) do
-    config = Application.get_env(:exclaw, __MODULE__, [])
+    config = Application.get_env(:kerf, __MODULE__, [])
 
     base_url = Keyword.get(opts, :base_url) || Keyword.get(config, :base_url, "http://localhost:8090")
     model = Keyword.get(opts, :model) || Keyword.get(config, :model, "nomic-embed-text")

@@ -42,7 +42,7 @@ defmodule Kerf.Container.Manager do
 
   @impl true
   def init(opts) do
-    config = Application.get_env(:exclaw, __MODULE__, [])
+    config = Application.get_env(:kerf, __MODULE__, [])
 
     workspaces_dir =
       Keyword.get(opts, :workspaces_dir) ||

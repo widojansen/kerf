@@ -67,7 +67,7 @@ defmodule Kerf.KnowledgeBase.Embedder do
   end
 
   defp config(key, default) do
-    Application.get_env(:exclaw, __MODULE__, [])
+    Application.get_env(:kerf, __MODULE__, [])
     |> Keyword.get(key, default)
   end
 end

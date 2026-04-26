@@ -12,7 +12,7 @@ defmodule Kerf.LLM.VLLMProvider do
 
   Configured via:
 
-      config :exclaw, Kerf.LLM.VLLMProvider,
+      config :kerf, Kerf.LLM.VLLMProvider,
         base_url: "http://localhost:8000",
         default_model: "nemotron-cascade-2",
         default_max_tokens: 8192

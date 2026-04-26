@@ -25,10 +25,10 @@ defmodule Kerf.LLM.Supervisor do
 
   @impl true
   def init(_opts) do
-    rl_config       = Application.get_env(:exclaw, Kerf.LLM.RateLimiter, [])
-    anthropic_config = Application.get_env(:exclaw, Kerf.LLM.Provider, [])
-    vllm_config     = Application.get_env(:exclaw, Kerf.LLM.VLLMProvider, nil)
-    ollama_config   = Application.get_env(:exclaw, Kerf.LLM.OllamaProvider, nil)
+    rl_config       = Application.get_env(:kerf, Kerf.LLM.RateLimiter, [])
+    anthropic_config = Application.get_env(:kerf, Kerf.LLM.Provider, [])
+    vllm_config     = Application.get_env(:kerf, Kerf.LLM.VLLMProvider, nil)
+    ollama_config   = Application.get_env(:kerf, Kerf.LLM.OllamaProvider, nil)
 
     # Always start a shared RateLimiter and the Anthropic Provider.
     base_children = [

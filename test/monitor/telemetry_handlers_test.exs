@@ -19,14 +19,14 @@ defmodule Kerf.Monitor.TelemetryHandlersTest do
     test "attaches handlers for monitor events" do
       :ok = TelemetryHandlers.attach()
 
-      handlers = :telemetry.list_handlers([:exclaw, :monitor, :process_down])
+      handlers = :telemetry.list_handlers([:kerf, :monitor, :process_down])
       assert length(handlers) >= 1
     end
 
     test "attaches handlers for LLM events" do
       :ok = TelemetryHandlers.attach()
 
-      handlers = :telemetry.list_handlers([:exclaw, :llm, :call, :stop])
+      handlers = :telemetry.list_handlers([:kerf, :llm, :call, :stop])
       assert length(handlers) >= 1
     end
   end
@@ -36,7 +36,7 @@ defmodule Kerf.Monitor.TelemetryHandlersTest do
       :ok = TelemetryHandlers.attach()
 
       :telemetry.execute(
-        [:exclaw, :monitor, :process_down],
+        [:kerf, :monitor, :process_down],
         %{},
         %{name: Kerf.FakeProcess}
       )
@@ -56,7 +56,7 @@ defmodule Kerf.Monitor.TelemetryHandlersTest do
       :ok = TelemetryHandlers.attach()
 
       :telemetry.execute(
-        [:exclaw, :monitor, :health_check],
+        [:kerf, :monitor, :health_check],
         %{duration_us: 1234},
         %{process_count: 5, all_healthy: true}
       )
@@ -76,7 +76,7 @@ defmodule Kerf.Monitor.TelemetryHandlersTest do
       :ok = TelemetryHandlers.attach()
 
       :telemetry.execute(
-        [:exclaw, :llm, :call, :stop],
+        [:kerf, :llm, :call, :stop],
         %{duration: 1_200_000_000, tokens_in: 150, tokens_out: 80},
         %{model: "qwen3-32b", provider: :vllm, status: :ok}
       )
@@ -103,7 +103,7 @@ defmodule Kerf.Monitor.TelemetryHandlersTest do
       # that would cause a DB error.
       # The key contract: execute returns :ok, no raise.
       :telemetry.execute(
-        [:exclaw, :monitor, :health_check],
+        [:kerf, :monitor, :health_check],
         %{duration_us: "not_a_number"},
         %{all_healthy: "not_a_bool"}
       )

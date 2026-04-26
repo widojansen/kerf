@@ -11,7 +11,7 @@ defmodule Kerf.LLM.OllamaProvider do
 
   Configured via:
 
-      config :exclaw, Kerf.LLM.OllamaProvider,
+      config :kerf, Kerf.LLM.OllamaProvider,
         base_url: "http://localhost:11434",
         default_model: "qwen3:8b",
         default_max_tokens: 8192

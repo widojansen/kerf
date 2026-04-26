@@ -59,7 +59,7 @@ defmodule Kerf.Dashboard.EventLog do
 
     max_size =
       Keyword.get(opts, :max_size) ||
-        Application.get_env(:exclaw, __MODULE__)[:max_size] ||
+        Application.get_env(:kerf, __MODULE__)[:max_size] ||
         500
 
     pubsub = Keyword.get(opts, :pubsub)

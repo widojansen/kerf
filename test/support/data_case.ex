@@ -31,7 +31,7 @@ defmodule Kerf.DataCase do
   defp ensure_repo_started do
     case Process.whereis(Kerf.Repo) do
       nil ->
-        config = Application.get_env(:exclaw, Kerf.Repo, [])
+        config = Application.get_env(:kerf, Kerf.Repo, [])
         {:ok, _} = Kerf.Repo.start_link(config)
       _pid -> :ok
     end

@@ -12,7 +12,7 @@ defmodule Kerf.Memory.Supervisor do
     data_dir = Keyword.get(opts, :data_dir)
     repo = Keyword.get(opts, :repo, Kerf.Repo)
 
-    embedder_config = Application.get_env(:exclaw, Kerf.Memory.Embedder, [])
+    embedder_config = Application.get_env(:kerf, Kerf.Memory.Embedder, [])
     embedder_enabled = Keyword.get(embedder_config, :enabled, true)
 
     embedder_children =

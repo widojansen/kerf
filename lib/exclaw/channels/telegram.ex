@@ -8,7 +8,7 @@ defmodule Kerf.Channels.Telegram do
 
   Configured via:
 
-      config :exclaw, Kerf.Channels.Telegram,
+      config :kerf, Kerf.Channels.Telegram,
         enabled: true,
         token: "bot123:ABC...",
         allow_from: [12345, 67890],
@@ -275,10 +275,10 @@ defmodule Kerf.Channels.Telegram do
   end
 
   defp build_session_opts(group_id) do
-    config = Application.get_env(:exclaw, __MODULE__, [])
+    config = Application.get_env(:kerf, __MODULE__, [])
 
     model = config[:model] ||
-            Application.get_env(:exclaw, Kerf.Channels.CLI, [])[:model] ||
+            Application.get_env(:kerf, Kerf.Channels.CLI, [])[:model] ||
             "claude-sonnet-4-20250514"
 
     base_prompt = config[:base_prompt] ||
@@ -288,7 +288,7 @@ defmodule Kerf.Channels.Telegram do
 
     container_manager = Kerf.Container.Manager
     workspaces_dir =
-      Application.get_env(:exclaw, Kerf.Container.Manager, [])[:workspaces_dir] || "priv/workspaces"
+      Application.get_env(:kerf, Kerf.Container.Manager, [])[:workspaces_dir] || "priv/workspaces"
 
     tool_executor =
       Dispatcher.build_executor(

@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Exclaw.Cli do
 
       mix exclaw.cli
 
-  Options are read from `config :exclaw, Kerf.Channels.CLI`.
+  Options are read from `config :kerf, Kerf.Channels.CLI`.
   """
   use Mix.Task
 

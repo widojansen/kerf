@@ -11,7 +11,7 @@ ExUnit.start(exclude: excluded)
 # ---------------------------------------------------------------------------
 # Repo: start and put in sandbox mode (safe with --no-start)
 # ---------------------------------------------------------------------------
-repo_config = Application.get_env(:exclaw, Kerf.Repo, [])
+repo_config = Application.get_env(:kerf, Kerf.Repo, [])
 
 case Process.whereis(Kerf.Repo) do
   nil -> {:ok, _} = Kerf.Repo.start_link(repo_config)

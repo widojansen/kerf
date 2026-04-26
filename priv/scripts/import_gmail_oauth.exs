@@ -11,7 +11,7 @@
 #   MIX_ENV=prod mix run --no-start -e '
 #     Application.ensure_all_started(:postgrex)
 #     Application.ensure_all_started(:ecto)
-#     {:ok, _} = Kerf.Repo.start_link(Application.get_env(:exclaw, Kerf.Repo))
+#     {:ok, _} = Kerf.Repo.start_link(Application.get_env(:kerf, Kerf.Repo))
 #   ' priv/scripts/import_gmail_oauth.exs
 
 token_path = System.get_env("GMAIL_TOKEN_PATH", "/tmp/gmail_token.json")
@@ -43,7 +43,7 @@ case Process.whereis(Kerf.CredentialVault) do
   nil ->
     IO.puts("\nCredentialVault not running — using backend directly.")
 
-    encryption_key_base = Application.get_env(:exclaw, Kerf.CredentialVault, [])[:encryption_key_base]
+    encryption_key_base = Application.get_env(:kerf, Kerf.CredentialVault, [])[:encryption_key_base]
 
     if is_nil(encryption_key_base) do
       IO.puts("ERROR: SECRET_KEY_BASE not set. Export it first.")

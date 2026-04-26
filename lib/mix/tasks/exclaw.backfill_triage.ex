@@ -62,7 +62,7 @@ defmodule Mix.Tasks.Exclaw.BackfillTriage do
       # Start a local EmailTriage GenServer for this backfill run
       triage_name = :"backfill_triage_#{System.unique_integer([:positive])}"
 
-      triage_config = Application.get_env(:exclaw, Kerf.Agents.EmailTriage, [])
+      triage_config = Application.get_env(:kerf, Kerf.Agents.EmailTriage, [])
 
       {:ok, _pid} =
         EmailTriage.start_link(

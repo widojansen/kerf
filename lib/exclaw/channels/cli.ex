@@ -19,7 +19,7 @@ defmodule Kerf.Channels.CLI do
   Start the CLI REPL. Blocks until the user exits.
   """
   def start(opts \\ []) do
-    config = Application.get_env(:exclaw, __MODULE__, [])
+    config = Application.get_env(:kerf, __MODULE__, [])
     group_id = Keyword.get(opts, :group_id, config[:group_id] || "cli")
     model = Keyword.get(opts, :model, config[:model] || "claude-sonnet-4-20250514")
 
@@ -43,7 +43,7 @@ defmodule Kerf.Channels.CLI do
   with any existing MEMORY.md content.
   """
   def build_system_prompt(group_id, opts \\ []) do
-    config = Application.get_env(:exclaw, __MODULE__, [])
+    config = Application.get_env(:kerf, __MODULE__, [])
     base_prompt = Keyword.get(opts, :base_prompt, config[:base_prompt] || "")
     store = Keyword.get(opts, :store, Store)
 
@@ -78,7 +78,7 @@ defmodule Kerf.Channels.CLI do
 
     container_manager = Keyword.get(opts, :container_manager, Kerf.Container.Manager)
     workspaces_dir = Keyword.get(opts, :workspaces_dir,
-      Application.get_env(:exclaw, Kerf.Container.Manager, [])[:workspaces_dir] || "priv/workspaces")
+      Application.get_env(:kerf, Kerf.Container.Manager, [])[:workspaces_dir] || "priv/workspaces")
 
     tool_executor = Keyword.get(opts, :tool_executor,
       Dispatcher.build_executor(

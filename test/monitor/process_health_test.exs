@@ -77,18 +77,18 @@ defmodule Kerf.Monitor.ProcessHealthTest do
 
   describe "telemetry events" do
     test "emits :process_down when a watched process is missing" do
-      attach_handler([:exclaw, :monitor, :process_down])
+      attach_handler([:kerf, :monitor, :process_down])
 
       {_pid, name} = start_health(watched: [:missing_genserver_xyz])
       ProcessHealth.check_now(name)
 
-      assert_receive {:telemetry, [:exclaw, :monitor, :process_down], %{}, %{name: :missing_genserver_xyz}},
+      assert_receive {:telemetry, [:kerf, :monitor, :process_down], %{}, %{name: :missing_genserver_xyz}},
                      1000
     end
 
     @tag capture_log: true
     test "emits :queue_high when message queue exceeds threshold" do
-      attach_handler([:exclaw, :monitor, :queue_high])
+      attach_handler([:kerf, :monitor, :queue_high])
 
       # Start a GenServer that accumulates messages without processing them
       {:ok, blocker} = Agent.start_link(fn -> :ok end)
@@ -100,7 +100,7 @@ defmodule Kerf.Monitor.ProcessHealthTest do
       {_pid, name} = start_health(watched: [:test_blocker], queue_high_threshold: 50)
       ProcessHealth.check_now(name)
 
-      assert_receive {:telemetry, [:exclaw, :monitor, :queue_high], %{queue_len: queue_len},
+      assert_receive {:telemetry, [:kerf, :monitor, :queue_high], %{queue_len: queue_len},
                        %{name: :test_blocker, threshold: 50}},
                      1000
 
@@ -109,29 +109,29 @@ defmodule Kerf.Monitor.ProcessHealthTest do
     end
 
     test "emits :health_check on every tick with summary" do
-      attach_handler([:exclaw, :monitor, :health_check])
+      attach_handler([:kerf, :monitor, :health_check])
 
       {_pid, name} = start_health(watched: [])
       ProcessHealth.check_now(name)
 
-      assert_receive {:telemetry, [:exclaw, :monitor, :health_check], %{duration_us: _},
+      assert_receive {:telemetry, [:kerf, :monitor, :health_check], %{duration_us: _},
                        %{process_count: 0, all_healthy: true}},
                      1000
     end
 
     test "health_check reports all_healthy: false when a process is down" do
-      attach_handler([:exclaw, :monitor, :health_check])
+      attach_handler([:kerf, :monitor, :health_check])
 
       {_pid, name} = start_health(watched: [:definitely_not_running])
       ProcessHealth.check_now(name)
 
-      assert_receive {:telemetry, [:exclaw, :monitor, :health_check], _,
+      assert_receive {:telemetry, [:kerf, :monitor, :health_check], _,
                        %{process_count: 1, all_healthy: false}},
                      1000
     end
 
     test "does not emit :process_down for alive processes" do
-      attach_handler([:exclaw, :monitor, :process_down])
+      attach_handler([:kerf, :monitor, :process_down])
 
       proc_name = :"alive_proc_#{System.unique_integer([:positive])}"
       {:ok, _} = Agent.start_link(fn -> :ok end, name: proc_name)
@@ -139,19 +139,19 @@ defmodule Kerf.Monitor.ProcessHealthTest do
       {_pid, name} = start_health(watched: [proc_name])
       ProcessHealth.check_now(name)
 
-      refute_receive {:telemetry, [:exclaw, :monitor, :process_down], _, _}, 200
+      refute_receive {:telemetry, [:kerf, :monitor, :process_down], _, _}, 200
     end
   end
 
   describe "periodic check" do
     test "runs checks on the configured interval" do
-      attach_handler([:exclaw, :monitor, :health_check])
+      attach_handler([:kerf, :monitor, :health_check])
 
       {_pid, _name} = start_health(watched: [], interval_ms: 50)
 
       # Should fire at least twice in 150ms
-      assert_receive {:telemetry, [:exclaw, :monitor, :health_check], _, _}, 200
-      assert_receive {:telemetry, [:exclaw, :monitor, :health_check], _, _}, 200
+      assert_receive {:telemetry, [:kerf, :monitor, :health_check], _, _}, 200
+      assert_receive {:telemetry, [:kerf, :monitor, :health_check], _, _}, 200
     end
   end
 end

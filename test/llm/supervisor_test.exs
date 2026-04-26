@@ -27,12 +27,12 @@ defmodule Kerf.LLM.SupervisorTest do
   defp ensure_supervisor_running do
     case Process.whereis(Kerf.LLM.Supervisor) do
       nil ->
-        Application.put_env(:exclaw, Kerf.LLM.RateLimiter, [
+        Application.put_env(:kerf, Kerf.LLM.RateLimiter, [
           max_requests_per_minute: 100,
           max_tokens_per_minute: 100_000
         ])
 
-        Application.put_env(:exclaw, Kerf.LLM.Provider, [
+        Application.put_env(:kerf, Kerf.LLM.Provider, [
           api_key: "test-key-not-real",
           adapter: fn request ->
             {request, Req.Response.json(%{"error" => "test"})}

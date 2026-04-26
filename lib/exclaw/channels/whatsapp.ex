@@ -94,7 +94,7 @@ defmodule Kerf.Channels.WhatsApp do
 
   @impl true
   def init(opts) do
-    config = Application.get_env(:exclaw, __MODULE__, [])
+    config = Application.get_env(:kerf, __MODULE__, [])
 
     bridge_dir =
       Keyword.get(opts, :bridge_dir) ||
@@ -387,7 +387,7 @@ defmodule Kerf.Channels.WhatsApp do
       system_prompt = build_system_prompt_for_group(group_id, base_prompt, store)
 
       container_manager_config =
-        Application.get_env(:exclaw, Kerf.Container.Manager, [])
+        Application.get_env(:kerf, Kerf.Container.Manager, [])
 
       workspaces_dir =
         container_manager_config[:workspaces_dir] || "priv/workspaces"

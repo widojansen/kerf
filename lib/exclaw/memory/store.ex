@@ -45,7 +45,7 @@ defmodule Kerf.Memory.Store do
   def init(opts) do
     data_dir =
       Keyword.get(opts, :data_dir) ||
-        Application.get_env(:exclaw, __MODULE__)[:data_dir] ||
+        Application.get_env(:kerf, __MODULE__)[:data_dir] ||
         "priv/data"
 
     data_dir = Path.expand(data_dir)

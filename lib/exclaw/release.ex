@@ -8,7 +8,7 @@ defmodule Kerf.Release do
       bin/exclaw eval "Kerf.Release.rollback(Kerf.Repo, 20260219175156)"
   """
 
-  @app :exclaw
+  @app :kerf
 
   def migrate do
     load_app()

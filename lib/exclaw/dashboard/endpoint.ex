@@ -1,5 +1,5 @@
 defmodule Kerf.Dashboard.Endpoint do
-  use Phoenix.Endpoint, otp_app: :exclaw
+  use Phoenix.Endpoint, otp_app: :kerf
 
   @session_options [
     store: :cookie,

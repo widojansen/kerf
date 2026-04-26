@@ -15,8 +15,8 @@ defmodule Kerf.Agents.EmailTriage.Supervisor do
 
   @impl true
   def init(_opts) do
-    ingestor_config = Application.get_env(:exclaw, EmailIngestor, [])
-    triage_config = Application.get_env(:exclaw, Kerf.Agents.EmailTriage, [])
+    ingestor_config = Application.get_env(:kerf, EmailIngestor, [])
+    triage_config = Application.get_env(:kerf, Kerf.Agents.EmailTriage, [])
     credential_name = Keyword.get(ingestor_config, :credential_name, "gmail_oauth")
 
     children =

@@ -21,7 +21,7 @@ defmodule Kerf.Application do
         # Phase 8: Telemetry (started early so all modules can emit)
         {Kerf.Telemetry.Supervisor,
          logger_opts:
-           Application.get_env(:exclaw, Kerf.Telemetry.Logger, [])
+           Application.get_env(:kerf, Kerf.Telemetry.Logger, [])
            |> Keyword.put(:name, Kerf.Telemetry.Logger)},
 
         # BEAM VM metrics — emits [:vm, :memory], [:vm, :total_run_queue_lengths] etc.
@@ -33,7 +33,7 @@ defmodule Kerf.Application do
         # Phase 9: Container Manager (Docker sandbox per group)
         {Kerf.Container.Supervisor,
          manager_opts:
-           Application.get_env(:exclaw, Kerf.Container.Manager, [])
+           Application.get_env(:kerf, Kerf.Container.Manager, [])
            |> Keyword.put(:name, Kerf.Container.Manager)},
 
         # Phase 11: Tool Registry (ETS-backed, auto-registers builtins)
@@ -42,7 +42,7 @@ defmodule Kerf.Application do
         # Phase A.5: Structured Output SchemaRegistry
         {Kerf.StructuredOutput.SchemaRegistry,
          name: Kerf.StructuredOutput.SchemaRegistry,
-         register_builtins: Application.get_env(:exclaw, Kerf.StructuredOutput, [])[:register_builtins] || false},
+         register_builtins: Application.get_env(:kerf, Kerf.StructuredOutput, [])[:register_builtins] || false},
 
         # Phase 2: LLM Provider
         Kerf.LLM.Supervisor,
@@ -68,7 +68,7 @@ defmodule Kerf.Application do
 
 
   defp credential_vault_children do
-    config = Application.get_env(:exclaw, Kerf.CredentialVault, [])
+    config = Application.get_env(:kerf, Kerf.CredentialVault, [])
 
     if config[:enabled] != false and config[:encryption_key_base] do
       [{Kerf.CredentialVault.Supervisor, []}]
@@ -78,7 +78,7 @@ defmodule Kerf.Application do
   end
 
   defp approval_gate_children do
-    config = Application.get_env(:exclaw, Kerf.Workflow.ApprovalGate, [])
+    config = Application.get_env(:kerf, Kerf.Workflow.ApprovalGate, [])
 
     if config[:enabled] != false do
       [{Kerf.Workflow.ApprovalGate.Supervisor, []}]
@@ -92,7 +92,7 @@ defmodule Kerf.Application do
   end
 
   defp email_triage_children do
-    config = Application.get_env(:exclaw, Kerf.Ingestors.Email.EmailIngestor, [])
+    config = Application.get_env(:kerf, Kerf.Ingestors.Email.EmailIngestor, [])
 
     if config[:enabled] do
       [{Kerf.Agents.EmailTriage.Supervisor, []}]
@@ -102,7 +102,7 @@ defmodule Kerf.Application do
   end
 
   defp telegram_children do
-    config = Application.get_env(:exclaw, Kerf.Channels.Telegram, [])
+    config = Application.get_env(:kerf, Kerf.Channels.Telegram, [])
 
     if config[:enabled] do
       [{Kerf.Channels.Telegram.Supervisor,
@@ -115,7 +115,7 @@ defmodule Kerf.Application do
   end
 
   defp whatsapp_children do
-    config = Application.get_env(:exclaw, Kerf.Channels.WhatsApp, [])
+    config = Application.get_env(:kerf, Kerf.Channels.WhatsApp, [])
 
     if config[:enabled] do
       [{Kerf.Channels.WhatsApp.Supervisor,
@@ -128,8 +128,8 @@ defmodule Kerf.Application do
   end
 
   defp monitor_children do
-    health_config = Application.get_env(:exclaw, Kerf.Monitor.ProcessHealth, [])
-    alerting_config = Application.get_env(:exclaw, Kerf.Monitor.Alerting, [])
+    health_config = Application.get_env(:kerf, Kerf.Monitor.ProcessHealth, [])
+    alerting_config = Application.get_env(:kerf, Kerf.Monitor.Alerting, [])
 
     [{Kerf.Monitor.Supervisor,
       name: Kerf.Monitor.Supervisor,

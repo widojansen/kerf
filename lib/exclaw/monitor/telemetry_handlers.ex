@@ -15,15 +15,15 @@ defmodule Kerf.Monitor.TelemetryHandlers do
 
   @events [
     # Process health (from ProcessHealth GenServer)
-    {[:exclaw, :monitor, :process_down], "monitor.process_down"},
-    {[:exclaw, :monitor, :queue_high], "monitor.queue_high"},
-    {[:exclaw, :monitor, :memory_high], "monitor.memory_high"},
-    {[:exclaw, :monitor, :health_check], "monitor.health_check"},
+    {[:kerf, :monitor, :process_down], "monitor.process_down"},
+    {[:kerf, :monitor, :queue_high], "monitor.queue_high"},
+    {[:kerf, :monitor, :memory_high], "monitor.memory_high"},
+    {[:kerf, :monitor, :health_check], "monitor.health_check"},
     # LLM provider spans
-    {[:exclaw, :llm, :call, :stop], "llm.call.stop"},
-    {[:exclaw, :llm, :call, :exception], "llm.call.exception"},
+    {[:kerf, :llm, :call, :stop], "llm.call.stop"},
+    {[:kerf, :llm, :call, :exception], "llm.call.exception"},
     # Ecto slow queries
-    {[:exclaw, :repo, :query], "repo.query"}
+    {[:kerf, :repo, :query], "repo.query"}
   ]
 
   @doc "Attach all telemetry handlers. Idempotent — safe to call multiple times."

@@ -13,7 +13,7 @@ defmodule Kerf.CredentialVault.Supervisor do
 
   @impl true
   def init(_opts) do
-    config = Application.get_env(:exclaw, Kerf.CredentialVault, [])
+    config = Application.get_env(:kerf, Kerf.CredentialVault, [])
 
     encryption_key_base = config[:encryption_key_base]
 
@@ -21,7 +21,7 @@ defmodule Kerf.CredentialVault.Supervisor do
       if encryption_key_base do
         :crypto.hash(:sha256, encryption_key_base)
       else
-        raise "CredentialVault requires SECRET_KEY_BASE (config :exclaw, Kerf.CredentialVault, encryption_key_base: ...)"
+        raise "CredentialVault requires SECRET_KEY_BASE (config :kerf, Kerf.CredentialVault, encryption_key_base: ...)"
       end
 
     children = [
