@@ -37,7 +37,7 @@ config :kerf, Kerf.Dashboard.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   pubsub_server: Kerf.PubSub,
-  live_view: [signing_salt: "exclaw_lv_salt"],
+  live_view: [signing_salt: "kerf_lv_salt"],
   render_errors: [formats: [html: Kerf.Dashboard.ErrorHTML]]
 
 config :kerf, Kerf.Dashboard.EventLog,
@@ -45,7 +45,7 @@ config :kerf, Kerf.Dashboard.EventLog,
 
 config :kerf, Kerf.Container.Manager,
   workspaces_dir: "priv/workspaces",
-  image: "exclaw-sandbox:latest",
+  image: "kerf-sandbox:latest",
   exec_timeout: 30_000,
   max_output_size: 102_400,
   container_opts: [

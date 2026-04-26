@@ -6,7 +6,7 @@ defmodule Kerf.Telemetry.LoggerTest do
   @moduletag :telemetry
 
   setup do
-    fallback_dir = Path.join(System.tmp_dir!(), "exclaw_telemetry_test_#{System.unique_integer([:positive])}")
+    fallback_dir = Path.join(System.tmp_dir!(), "kerf_telemetry_test_#{System.unique_integer([:positive])}")
     File.mkdir_p!(fallback_dir)
 
     opts = [
@@ -70,7 +70,7 @@ defmodule Kerf.Telemetry.LoggerTest do
     end
 
     test "auto-flush when buffer hits max_buffer_size" do
-      fallback_dir = Path.join(System.tmp_dir!(), "exclaw_telem_auto_#{System.unique_integer([:positive])}")
+      fallback_dir = Path.join(System.tmp_dir!(), "kerf_telem_auto_#{System.unique_integer([:positive])}")
       File.mkdir_p!(fallback_dir)
 
       name = :"auto_flush_test_#{System.unique_integer([:positive])}"
@@ -151,7 +151,7 @@ defmodule Kerf.Telemetry.LoggerTest do
   describe "enabled flag" do
     test "disabled logger discards events" do
       name = :"disabled_test_#{System.unique_integer([:positive])}"
-      dir = Path.join(System.tmp_dir!(), "exclaw_disabled_#{System.unique_integer([:positive])}")
+      dir = Path.join(System.tmp_dir!(), "kerf_disabled_#{System.unique_integer([:positive])}")
       File.mkdir_p!(dir)
 
       {:ok, _pid} = Logger.start_link(
@@ -199,7 +199,7 @@ defmodule Kerf.Telemetry.LoggerTest do
 
   describe "periodic flush" do
     test "timer fires and flushes buffer" do
-      dir = Path.join(System.tmp_dir!(), "exclaw_timer_#{System.unique_integer([:positive])}")
+      dir = Path.join(System.tmp_dir!(), "kerf_timer_#{System.unique_integer([:positive])}")
       File.mkdir_p!(dir)
       name = :"timer_test_#{System.unique_integer([:positive])}"
 

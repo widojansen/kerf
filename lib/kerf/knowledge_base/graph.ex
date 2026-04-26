@@ -7,7 +7,7 @@ defmodule Kerf.KnowledgeBase.Graph do
   Write operations use `count(*)` wrapper; read operations cast to text.
   """
 
-  @graph_name "exclaw_kg"
+  @graph_name "kerf_kg"
 
   @doc """
   Ensure AGE extension is loaded and search_path is set for the current connection.

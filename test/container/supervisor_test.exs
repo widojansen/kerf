@@ -7,7 +7,7 @@ defmodule Kerf.Container.SupervisorTest do
     opts = [
       name: :"container_sup_test_#{:rand.uniform(1_000_000)}",
       manager_opts: [
-        workspaces_dir: System.tmp_dir!() |> Path.join("exclaw_sup_test_#{:rand.uniform(1_000_000)}"),
+        workspaces_dir: System.tmp_dir!() |> Path.join("kerf_sup_test_#{:rand.uniform(1_000_000)}"),
         docker_adapter: fn _args -> {"", 0} end,
         exec_timeout: 5_000
       ]
@@ -25,7 +25,7 @@ defmodule Kerf.Container.SupervisorTest do
       name: :"container_sup_child_#{:rand.uniform(1_000_000)}",
       manager_opts: [
         name: manager_name,
-        workspaces_dir: System.tmp_dir!() |> Path.join("exclaw_sup_child_#{:rand.uniform(1_000_000)}"),
+        workspaces_dir: System.tmp_dir!() |> Path.join("kerf_sup_child_#{:rand.uniform(1_000_000)}"),
         docker_adapter: fn _args -> {"", 0} end,
         exec_timeout: 5_000
       ]
@@ -48,7 +48,7 @@ defmodule Kerf.Container.SupervisorTest do
       name: :"container_sup_named_#{:rand.uniform(1_000_000)}",
       manager_opts: [
         name: manager_name,
-        workspaces_dir: System.tmp_dir!() |> Path.join("exclaw_sup_named_#{:rand.uniform(1_000_000)}"),
+        workspaces_dir: System.tmp_dir!() |> Path.join("kerf_sup_named_#{:rand.uniform(1_000_000)}"),
         docker_adapter: fn _args -> {"", 0} end,
         exec_timeout: 5_000
       ]

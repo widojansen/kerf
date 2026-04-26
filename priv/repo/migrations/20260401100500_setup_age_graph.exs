@@ -10,9 +10,9 @@ defmodule Kerf.Repo.Migrations.SetupAgeGraph do
     DO $$
     BEGIN
       IF NOT EXISTS (
-        SELECT 1 FROM ag_catalog.ag_graph WHERE name = 'exclaw_kg'
+        SELECT 1 FROM ag_catalog.ag_graph WHERE name = 'kerf_kg'
       ) THEN
-        PERFORM ag_catalog.create_graph('exclaw_kg');
+        PERFORM ag_catalog.create_graph('kerf_kg');
       END IF;
     END $$
     """)
@@ -29,9 +29,9 @@ defmodule Kerf.Repo.Migrations.SetupAgeGraph do
     DO $$
     BEGIN
       IF EXISTS (
-        SELECT 1 FROM ag_catalog.ag_graph WHERE name = 'exclaw_kg'
+        SELECT 1 FROM ag_catalog.ag_graph WHERE name = 'kerf_kg'
       ) THEN
-        PERFORM ag_catalog.drop_graph('exclaw_kg', true);
+        PERFORM ag_catalog.drop_graph('kerf_kg', true);
       END IF;
     END $$
     """)

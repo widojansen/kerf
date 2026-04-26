@@ -7,7 +7,7 @@ defmodule Kerf.Memory.SupervisorTest do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Kerf.Repo)
     Ecto.Adapters.SQL.Sandbox.mode(Kerf.Repo, {:shared, self()})
 
-    tmp_dir = Path.join(System.tmp_dir!(), "exclaw_sup_test_#{System.unique_integer([:positive])}")
+    tmp_dir = Path.join(System.tmp_dir!(), "kerf_sup_test_#{System.unique_integer([:positive])}")
     File.mkdir_p!(tmp_dir)
 
     on_exit(fn ->

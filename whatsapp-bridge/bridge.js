@@ -1,7 +1,7 @@
 /**
- * ExClaw WhatsApp Bridge
+ * Kerf WhatsApp Bridge
  *
- * Communicates with ExClaw (Elixir) via stdin/stdout JSON lines.
+ * Communicates with Kerf (Elixir) via stdin/stdout JSON lines.
  * Runs Baileys for WhatsApp Web multi-device connectivity.
  *
  * CRITICAL: stdout is the protocol channel. All logging goes to stderr via pino.
@@ -11,7 +11,7 @@
  *   Node -> Elixir: one JSON object per line on stdout
  *   Elixir -> Node: one JSON object per line on stdin
  *
- * Started by ExClaw.Channels.WhatsApp GenServer via Erlang Port.
+ * Started by Kerf.Channels.WhatsApp GenServer via Erlang Port.
  */
 
 import { createInterface } from 'readline';
@@ -30,8 +30,8 @@ import pino from 'pino';
 
 // --- Configuration ---
 
-const AUTH_DIR = process.env.EXCLAW_WA_AUTH_DIR || resolve('auth_info');
-const LOG_LEVEL = process.env.EXCLAW_WA_LOG_LEVEL || 'warn';
+const AUTH_DIR = process.env.KERF_WA_AUTH_DIR || resolve('auth_info');
+const LOG_LEVEL = process.env.KERF_WA_LOG_LEVEL || 'warn';
 
 // Logger writes to stderr (fd 2), never stdout
 const logger = pino({ level: LOG_LEVEL }, pino.destination(2));

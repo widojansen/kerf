@@ -206,7 +206,7 @@ defmodule Kerf.Telemetry.Logger do
         end)
 
       Ch.query!(pid, """
-      INSERT INTO exclaw_events (
+      INSERT INTO kerf_events (
         timestamp, event_type, group_id, session_id, latency_ms,
         model, input_tokens, output_tokens, response_type,
         tool_name, security_result, input_data, output_data,

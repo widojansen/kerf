@@ -3,8 +3,8 @@ defmodule Kerf.Dashboard.Endpoint do
 
   @session_options [
     store: :cookie,
-    key: "_exclaw_key",
-    signing_salt: "exclaw_salt"
+    key: "_kerf_key",
+    signing_salt: "kerf_salt"
   ]
 
   socket "/live", Phoenix.LiveView.Socket,

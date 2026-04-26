@@ -1,32 +1,32 @@
-# ExClaw Docker Compose — ExClaw service only.
+# Kerf Docker Compose — Kerf service only.
 # PostgreSQL, vLLM, Ollama, and SearXNG run as existing host services.
 #
 # Usage:
 #   docker compose up -d
-#   docker compose logs -f exclaw
-#   docker compose exec exclaw /app/docker-entrypoint.sh remote   # IEx shell
+#   docker compose logs -f kerf
+#   docker compose exec kerf /app/docker-entrypoint.sh remote   # IEx shell
 #
 # Build:
 #   docker compose build
-#   docker build -t exclaw-sandbox:latest container/              # sandbox image
+#   docker build -t kerf-sandbox:latest container/              # sandbox image
 
 services:
-  exclaw:
+  kerf:
     build:
       context: .
       dockerfile: Dockerfile
-    image: exclaw:latest
-    container_name: exclaw
+    image: kerf:latest
+    container_name: kerf
     network_mode: host
     restart: unless-stopped
     volumes:
       # Docker socket — required for Container.Manager sandbox spawning
       - /var/run/docker.sock:/var/run/docker.sock
       # Persistent data
-      - exclaw_data:/app/data
-      - exclaw_workspaces:/app/workspaces
-      - exclaw_telemetry:/app/telemetry_fallback
-      - exclaw_whatsapp_auth:/app/whatsapp_auth
+      - kerf_data:/app/data
+      - kerf_workspaces:/app/workspaces
+      - kerf_telemetry:/app/telemetry_fallback
+      - kerf_whatsapp_auth:/app/whatsapp_auth
     env_file:
       - .env
     environment:
@@ -34,12 +34,12 @@ services:
       DASHBOARD_IP: "0.0.0.0"
       DASHBOARD_PORT: "4000"
       # Data paths (match volume mounts)
-      EXCLAW_DATA_DIR: "/app/data"
-      EXCLAW_WORKSPACES_DIR: "/app/workspaces"
-      EXCLAW_TELEMETRY_DIR: "/app/telemetry_fallback"
+      KERF_DATA_DIR: "/app/data"
+      KERF_WORKSPACES_DIR: "/app/workspaces"
+      KERF_TELEMETRY_DIR: "/app/telemetry_fallback"
 
 volumes:
-  exclaw_data:
-  exclaw_workspaces:
-  exclaw_telemetry:
-  exclaw_whatsapp_auth:
+  kerf_data:
+  kerf_workspaces:
+  kerf_telemetry:
+  kerf_whatsapp_auth:

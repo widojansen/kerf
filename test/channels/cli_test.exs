@@ -66,7 +66,7 @@ defmodule Kerf.Channels.CLITest do
 
     # Ecto sandbox + Store for persistence tests
 
-    tmp_dir = Path.join(System.tmp_dir!(), "exclaw_cli_test_#{suffix}")
+    tmp_dir = Path.join(System.tmp_dir!(), "kerf_cli_test_#{suffix}")
     File.mkdir_p!(tmp_dir)
 
     {:ok, store_pid} =

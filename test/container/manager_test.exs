@@ -6,7 +6,7 @@ defmodule Kerf.Container.ManagerTest do
   # --- Test Helpers ---
 
   defp start_manager(opts \\ []) do
-    workspaces_dir = Keyword.get(opts, :workspaces_dir, System.tmp_dir!() |> Path.join("exclaw_test_#{:rand.uniform(1_000_000)}"))
+    workspaces_dir = Keyword.get(opts, :workspaces_dir, System.tmp_dir!() |> Path.join("kerf_test_#{:rand.uniform(1_000_000)}"))
     File.mkdir_p!(workspaces_dir)
 
     mock_adapter = Keyword.get(opts, :docker_adapter, &default_mock_adapter/1)
@@ -14,7 +14,7 @@ defmodule Kerf.Container.ManagerTest do
     manager_opts = [
       name: Keyword.get(opts, :name, nil),
       workspaces_dir: workspaces_dir,
-      image: "exclaw-sandbox:latest",
+      image: "kerf-sandbox:latest",
       docker_adapter: mock_adapter,
       exec_timeout: 5_000,
       max_output_size: 1024,
@@ -81,7 +81,7 @@ defmodule Kerf.Container.ManagerTest do
 
       {pid, _dir} = start_manager(docker_adapter: adapter)
       assert {:ok, container_name} = Manager.ensure_container(pid, "group1")
-      assert container_name =~ "exclaw-"
+      assert container_name =~ "kerf-"
       assert :counters.get(create_called, 1) == 1
     end
 

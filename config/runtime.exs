@@ -65,10 +65,10 @@ end
 
 # Default model for CLI and new Agent sessions.
 # Examples:
-#   EXCLAW_DEFAULT_MODEL=nemotron-cascade-2       (vLLM)
-#   EXCLAW_DEFAULT_MODEL=qwen3:8b                 (Ollama)
-#   EXCLAW_DEFAULT_MODEL=claude-sonnet-4-6         (Anthropic)
-if model = System.get_env("EXCLAW_DEFAULT_MODEL") do
+#   KERF_DEFAULT_MODEL=nemotron-cascade-2       (vLLM)
+#   KERF_DEFAULT_MODEL=qwen3:8b                 (Ollama)
+#   KERF_DEFAULT_MODEL=claude-sonnet-4-6         (Anthropic)
+if model = System.get_env("KERF_DEFAULT_MODEL") do
   config :kerf, Kerf.Channels.CLI, model: model
   config :kerf, Kerf.Channels.Telegram, model: model
   config :kerf, Kerf.Scheduler, model: model
@@ -169,15 +169,15 @@ if searxng_url = System.get_env("SEARXNG_URL") do
 end
 
 # Data directory overrides (for Docker volume mounts).
-if data_dir = System.get_env("EXCLAW_DATA_DIR") do
+if data_dir = System.get_env("KERF_DATA_DIR") do
   config :kerf, Kerf.Memory.Store, data_dir: data_dir
 end
 
-if workspaces_dir = System.get_env("EXCLAW_WORKSPACES_DIR") do
+if workspaces_dir = System.get_env("KERF_WORKSPACES_DIR") do
   config :kerf, Kerf.Container.Manager, workspaces_dir: workspaces_dir
 end
 
-if fallback_dir = System.get_env("EXCLAW_TELEMETRY_DIR") do
+if fallback_dir = System.get_env("KERF_TELEMETRY_DIR") do
   config :kerf, Kerf.Telemetry.Logger, fallback_dir: fallback_dir
 end
 

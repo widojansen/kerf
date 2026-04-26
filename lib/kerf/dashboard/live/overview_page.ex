@@ -24,8 +24,8 @@ defmodule Kerf.Dashboard.Live.OverviewPage do
         <p>No active sessions</p>
       <% else %>
         <.live_table
-          id="exclaw-sessions"
-          dom_id="exclaw-sessions"
+          id="kerf-sessions"
+          dom_id="kerf-sessions"
           page={@page}
           title="Sessions"
           row_fetcher={&fetch_sessions/2}

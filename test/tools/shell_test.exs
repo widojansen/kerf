@@ -16,12 +16,12 @@ defmodule Kerf.Tools.ShellTest do
       end
     end)
 
-    workspaces_dir = System.tmp_dir!() |> Path.join("exclaw_shell_#{:rand.uniform(1_000_000)}")
+    workspaces_dir = System.tmp_dir!() |> Path.join("kerf_shell_#{:rand.uniform(1_000_000)}")
     File.mkdir_p!(workspaces_dir)
 
     {:ok, pid} = Kerf.Container.Manager.start_link(
       workspaces_dir: workspaces_dir,
-      image: "exclaw-sandbox:latest",
+      image: "kerf-sandbox:latest",
       docker_adapter: adapter,
       exec_timeout: 5_000,
       max_output_size: 102_400,

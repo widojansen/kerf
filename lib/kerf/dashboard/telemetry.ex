@@ -29,11 +29,11 @@ defmodule Kerf.Dashboard.Telemetry do
       ),
 
       # Ecto Metrics
-      summary("exclaw.repo.query.total_time",
+      summary("kerf.repo.query.total_time",
         unit: {:native, :millisecond},
         description: "Total Ecto query time"
       ),
-      summary("exclaw.repo.query.queue_time",
+      summary("kerf.repo.query.queue_time",
         unit: {:native, :millisecond},
         description: "Time spent waiting for a database connection"
       )

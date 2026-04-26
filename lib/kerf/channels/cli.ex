@@ -163,7 +163,7 @@ defmodule Kerf.Channels.CLI do
           true ->
             case process_input(input, group_id, opts) do
               {:respond, text} ->
-                IO.puts("\nexclaw> #{text}\n")
+                IO.puts("\nkerf> #{text}\n")
                 persist_exchange(group_id, input, text, opts)
 
               {:error, reason} ->

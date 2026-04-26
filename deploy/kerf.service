@@ -1,18 +1,18 @@
-# ExClaw systemd service — bare-metal Elixir release on DGX Spark.
+# Kerf systemd service — bare-metal Elixir release on DGX Spark.
 #
 # Install:
-#   sudo cp deploy/exclaw.service /etc/systemd/system/
+#   sudo cp deploy/kerf.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
-#   sudo systemctl enable exclaw
+#   sudo systemctl enable kerf
 #
 # Usage:
-#   sudo systemctl start exclaw
-#   sudo systemctl stop exclaw
-#   journalctl -u exclaw -f
-#   /opt/exclaw/current/bin/exclaw remote   # attach IEx
+#   sudo systemctl start kerf
+#   sudo systemctl stop kerf
+#   journalctl -u kerf -f
+#   /opt/kerf/current/bin/kerf remote   # attach IEx
 
 [Unit]
-Description=ExClaw Personal AI Assistant
+Description=Kerf Personal AI Assistant
 After=network.target postgresql.service vllm.service
 Wants=postgresql.service vllm.service
 
@@ -21,13 +21,13 @@ Type=exec
 User=wido
 Group=wido
 
-WorkingDirectory=/opt/exclaw
-EnvironmentFile=/opt/exclaw/.env
+WorkingDirectory=/opt/kerf
+EnvironmentFile=/opt/kerf/.env
 Environment=MIX_ENV=prod
 Environment=LANG=en_US.UTF-8
 
 # PHX_SERVER=true is set by bin/server overlay.
-ExecStart=/opt/exclaw/current/bin/server
+ExecStart=/opt/kerf/current/bin/server
 
 # BEAM handles SIGTERM gracefully — give it time to drain.
 KillMode=mixed
@@ -55,7 +55,7 @@ RestrictSUIDSGID=true
 
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=exclaw
+SyslogIdentifier=kerf
 
 [Install]
 WantedBy=multi-user.target

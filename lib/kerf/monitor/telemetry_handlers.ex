@@ -11,7 +11,7 @@ defmodule Kerf.Monitor.TelemetryHandlers do
   alias Kerf.Monitor.TelemetryEvent
   alias Kerf.Repo
 
-  @handler_prefix "exclaw-monitor"
+  @handler_prefix "kerf-monitor"
 
   @events [
     # Process health (from ProcessHealth GenServer)

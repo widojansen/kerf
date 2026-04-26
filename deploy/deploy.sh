@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# ExClaw deployment — bare-metal Elixir release on DGX Spark.
+# Kerf deployment — bare-metal Elixir release on DGX Spark.
 #
 # Usage:
 #   ./deploy/deploy.sh              # build + migrate + swap + restart
@@ -8,7 +8,7 @@
 #   ./deploy/deploy.sh --rollback   # revert to previous release
 #
 # Directory layout on the Spark:
-#   /opt/exclaw/
+#   /opt/kerf/
 #     .env                           # environment variables
 #     current -> releases/20260403-143000   # symlink to active release
 #     releases/
@@ -22,7 +22,7 @@
 # Prerequisites:
 #   - Elixir 1.19+ / OTP 28+ (asdf)
 #   - PostgreSQL running
-#   - /opt/exclaw/.env populated
+#   - /opt/kerf/.env populated
 #   - User has sudo access for systemctl
 #
 set -euo pipefail
@@ -33,8 +33,8 @@ export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"
 # --- Configuration -------------------------------------------------------
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-DEPLOY_DIR="/opt/exclaw"
-SERVICE_NAME="exclaw"
+DEPLOY_DIR="/opt/kerf"
+SERVICE_NAME="kerf"
 MAX_RELEASES=5
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 
@@ -67,7 +67,7 @@ do_init() {
   fi
 
   # Install systemd service
-  sudo cp "$REPO_DIR/deploy/exclaw.service" /etc/systemd/system/
+  sudo cp "$REPO_DIR/deploy/kerf.service" /etc/systemd/system/
   sudo systemctl daemon-reload
   sudo systemctl enable "$SERVICE_NAME"
 
@@ -126,7 +126,7 @@ do_deploy() {
   mix release --overwrite
 
   # 3. Copy to versioned release directory
-  local release_src="_build/prod/rel/exclaw"
+  local release_src="_build/prod/rel/kerf"
   local release_dst="$DEPLOY_DIR/releases/$TIMESTAMP"
 
   log "Copying release to $release_dst..."
@@ -137,7 +137,7 @@ do_deploy() {
   #    Env vars scoped to the child process only (secrets stay out of deploy shell).
   log "Running migrations..."
   env MIX_ENV=prod $(grep -v '^\s*#' "$DEPLOY_DIR/.env" | grep -v '^\s*$' | xargs) \
-    "$release_dst/bin/exclaw" eval "ExClaw.Release.migrate()"
+    "$release_dst/bin/kerf" eval "Kerf.Release.migrate()"
 
   # 5. Atomic symlink swap
   log "Swapping symlink..."

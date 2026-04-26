@@ -10,7 +10,7 @@ defmodule Kerf.Memory.StoreTest do
     # Set up Ecto Sandbox for this test process
 
     # Use a unique temp dir for filesystem tests
-    tmp_dir = Path.join(System.tmp_dir!(), "exclaw_test_#{System.unique_integer([:positive])}")
+    tmp_dir = Path.join(System.tmp_dir!(), "kerf_test_#{System.unique_integer([:positive])}")
     File.mkdir_p!(tmp_dir)
 
     # Start Store with unique name and test data_dir
@@ -320,7 +320,7 @@ defmodule Kerf.Memory.StoreTest do
       # Use shared sandbox so async tasks can access the DB
       Ecto.Adapters.SQL.Sandbox.mode(Kerf.Repo, {:shared, self()})
 
-      tmp_dir = Path.join(System.tmp_dir!(), "exclaw_embed_test_#{System.unique_integer([:positive])}")
+      tmp_dir = Path.join(System.tmp_dir!(), "kerf_embed_test_#{System.unique_integer([:positive])}")
       File.mkdir_p!(tmp_dir)
 
       # Start a mock embedder that returns a deterministic 768-dim vector
@@ -421,7 +421,7 @@ defmodule Kerf.Memory.StoreTest do
     setup do
       Ecto.Adapters.SQL.Sandbox.mode(Kerf.Repo, {:shared, self()})
 
-      tmp_dir = Path.join(System.tmp_dir!(), "exclaw_search_test_#{System.unique_integer([:positive])}")
+      tmp_dir = Path.join(System.tmp_dir!(), "kerf_search_test_#{System.unique_integer([:positive])}")
       File.mkdir_p!(tmp_dir)
 
       # Embedder that returns different vectors based on input text hash
@@ -516,7 +516,7 @@ defmodule Kerf.Memory.StoreTest do
           end
         )
 
-      tmp_dir = Path.join(System.tmp_dir!(), "exclaw_broken_#{System.unique_integer([:positive])}")
+      tmp_dir = Path.join(System.tmp_dir!(), "kerf_broken_#{System.unique_integer([:positive])}")
       File.mkdir_p!(tmp_dir)
       store_name = :"store_broken_#{System.unique_integer([:positive])}"
 

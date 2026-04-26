@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Kerf.Cli do
   @moduledoc """
   Starts the Kerf CLI REPL.
 
-      mix exclaw.cli
+      mix kerf.cli
 
   Options are read from `config :kerf, Kerf.Channels.CLI`.
   """

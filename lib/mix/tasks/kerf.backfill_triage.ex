@@ -7,13 +7,13 @@ defmodule Mix.Tasks.Kerf.BackfillTriage do
   ## Usage
 
       # Preview what would be triaged
-      MIX_ENV=prod mix exclaw.backfill_triage --dry-run -n 20
+      MIX_ENV=prod mix kerf.backfill_triage --dry-run -n 20
 
       # Triage 10 emails (start small)
-      MIX_ENV=prod mix exclaw.backfill_triage -n 10
+      MIX_ENV=prod mix kerf.backfill_triage -n 10
 
       # Triage all untriaged
-      MIX_ENV=prod mix exclaw.backfill_triage -n 1000
+      MIX_ENV=prod mix kerf.backfill_triage -n 1000
   """
   use Mix.Task
 

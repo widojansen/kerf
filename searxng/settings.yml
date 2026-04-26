@@ -1,7 +1,7 @@
 server:
   bind_address: "0.0.0.0"
   port: 8080
-  secret_key: "exclaw-dev-only-key"
+  secret_key: "kerf-dev-only-key"
 
 search:
   formats:

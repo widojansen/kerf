@@ -6,8 +6,8 @@ defmodule Mix.Tasks.Kerf.SyncSenderRules do
 
   ## Usage
 
-      MIX_ENV=prod mix exclaw.sync_sender_rules
-      MIX_ENV=prod mix exclaw.sync_sender_rules --dry-run
+      MIX_ENV=prod mix kerf.sync_sender_rules
+      MIX_ENV=prod mix kerf.sync_sender_rules --dry-run
   """
   use Mix.Task
 

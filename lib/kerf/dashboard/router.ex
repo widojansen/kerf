@@ -22,12 +22,12 @@ defmodule Kerf.Dashboard.Router do
     live_dashboard "/dashboard",
       metrics: Kerf.Dashboard.Telemetry,
       additional_pages: [
-        exclaw_overview: Kerf.Dashboard.Live.OverviewPage,
-        exclaw_memory: Kerf.Dashboard.Live.MemoryPage,
-        exclaw_security: Kerf.Dashboard.Live.SecurityPage,
-        exclaw_llm: Kerf.Dashboard.Live.LLMPage,
-        exclaw_system: Kerf.Dashboard.Live.SystemPage,
-        exclaw_scheduler: Kerf.Dashboard.Live.SchedulerPage
+        kerf_overview: Kerf.Dashboard.Live.OverviewPage,
+        kerf_memory: Kerf.Dashboard.Live.MemoryPage,
+        kerf_security: Kerf.Dashboard.Live.SecurityPage,
+        kerf_llm: Kerf.Dashboard.Live.LLMPage,
+        kerf_system: Kerf.Dashboard.Live.SystemPage,
+        kerf_scheduler: Kerf.Dashboard.Live.SchedulerPage
       ]
   end
 end

@@ -12,7 +12,7 @@ defmodule Kerf.CredentialVault.Backend.LocalEncrypted do
   alias Kerf.Repo
   import Ecto.Query
 
-  @aad "exclaw_credential_vault_v1"
+  @aad "kerf_credential_vault_v1"
 
   # --- Public API ---
 

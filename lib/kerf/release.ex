@@ -4,8 +4,8 @@ defmodule Kerf.Release do
 
   Usage from release binary:
 
-      bin/exclaw eval "Kerf.Release.migrate()"
-      bin/exclaw eval "Kerf.Release.rollback(Kerf.Repo, 20260219175156)"
+      bin/kerf eval "Kerf.Release.migrate()"
+      bin/kerf eval "Kerf.Release.rollback(Kerf.Repo, 20260219175156)"
   """
 
   @app :kerf

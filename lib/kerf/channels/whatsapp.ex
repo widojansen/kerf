@@ -457,7 +457,7 @@ defmodule Kerf.Channels.WhatsApp do
           :use_stdio,
           {:line, 16_384},
           {:cd, Path.expand(state.config.bridge_dir)},
-          {:env, [{~c"EXCLAW_WA_AUTH_DIR", String.to_charlist(abs_auth_dir)}]}
+          {:env, [{~c"KERF_WA_AUTH_DIR", String.to_charlist(abs_auth_dir)}]}
         ]
       )
     rescue

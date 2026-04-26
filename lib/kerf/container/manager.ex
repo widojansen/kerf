@@ -52,7 +52,7 @@ defmodule Kerf.Container.Manager do
 
     image =
       Keyword.get(opts, :image) ||
-        Keyword.get(config, :image, "exclaw-sandbox:latest")
+        Keyword.get(config, :image, "kerf-sandbox:latest")
 
     docker_adapter =
       Keyword.get(opts, :docker_adapter) ||
@@ -164,7 +164,7 @@ defmodule Kerf.Container.Manager do
     workspace_path = Path.join(state.workspaces_dir, safe_id)
     File.mkdir_p!(workspace_path)
 
-    container_name = "exclaw-#{safe_id}"
+    container_name = "kerf-#{safe_id}"
 
     create_args = build_create_args(state, container_name, workspace_path)
 

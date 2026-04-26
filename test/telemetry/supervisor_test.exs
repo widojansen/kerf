@@ -5,7 +5,7 @@ defmodule Kerf.Telemetry.SupervisorTest do
 
   describe "supervisor" do
     test "starts successfully" do
-      fallback_dir = Path.join(System.tmp_dir!(), "exclaw_sup_test_#{System.unique_integer([:positive])}")
+      fallback_dir = Path.join(System.tmp_dir!(), "kerf_sup_test_#{System.unique_integer([:positive])}")
       File.mkdir_p!(fallback_dir)
 
       name = :"telem_sup_#{System.unique_integer([:positive])}"
@@ -30,7 +30,7 @@ defmodule Kerf.Telemetry.SupervisorTest do
     end
 
     test "Logger is a child of the supervisor" do
-      fallback_dir = Path.join(System.tmp_dir!(), "exclaw_sup_child_#{System.unique_integer([:positive])}")
+      fallback_dir = Path.join(System.tmp_dir!(), "kerf_sup_child_#{System.unique_integer([:positive])}")
       File.mkdir_p!(fallback_dir)
 
       name = :"telem_sup2_#{System.unique_integer([:positive])}"
@@ -55,7 +55,7 @@ defmodule Kerf.Telemetry.SupervisorTest do
     end
 
     test "Logger restarts on crash" do
-      fallback_dir = Path.join(System.tmp_dir!(), "exclaw_sup_restart_#{System.unique_integer([:positive])}")
+      fallback_dir = Path.join(System.tmp_dir!(), "kerf_sup_restart_#{System.unique_integer([:positive])}")
       File.mkdir_p!(fallback_dir)
 
       name = :"telem_sup3_#{System.unique_integer([:positive])}"

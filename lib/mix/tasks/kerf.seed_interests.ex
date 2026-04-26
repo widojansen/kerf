@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Kerf.SeedInterests do
 
   ## Usage
 
-      mix exclaw.seed_interests
+      mix kerf.seed_interests
   """
   use Mix.Task
 

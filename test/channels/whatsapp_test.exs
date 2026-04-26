@@ -65,7 +65,7 @@ defmodule Kerf.Channels.WhatsAppTest do
     {:ok, _} = Kerf.Agent.Supervisor.start_link(name: sup_name)
 
 
-    tmp_dir = Path.join(System.tmp_dir!(), "exclaw_wa_test_#{suffix}")
+    tmp_dir = Path.join(System.tmp_dir!(), "kerf_wa_test_#{suffix}")
     File.mkdir_p!(tmp_dir)
 
     {:ok, store_pid} =
