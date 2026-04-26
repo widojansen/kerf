@@ -1,7 +1,7 @@
 import Config
 
 config :kerf, Kerf.Repo,
-  database: "exclaw_test",
+  database: "kerf_test",
   hostname: "localhost",
   port: 5432,
   pool: Ecto.Adapters.SQL.Sandbox

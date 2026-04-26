@@ -1,7 +1,7 @@
 import Config
 
 config :kerf, Kerf.Repo,
-  database: "exclaw_dev",
+  database: "kerf_dev",
   hostname: "localhost",
   port: 5432,
   show_sensitive_data_on_connection_error: true,

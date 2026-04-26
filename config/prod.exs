@@ -1,7 +1,7 @@
 import Config
 
 config :kerf, Kerf.Repo,
-  database: "exclaw_prod",
+  database: "kerf_prod",
   hostname: "localhost",
   port: 5432,
   pool_size: 10
