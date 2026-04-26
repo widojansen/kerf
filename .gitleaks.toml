@@ -1,0 +1,10 @@
+title = "Kerf gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures in credential vault tests use plausible-looking placeholder strings (e.g. \"secret-api-key-123\", \"anthropic-api-key-123\") that the entropy-based generic-api-key rule flags. These are not real credentials."
+paths = [
+  '''^test/credential_vault/.*\.exs$''',
+]
