@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.CreateEmailSenders do
+defmodule Kerf.Repo.Migrations.CreateEmailSenders do
   use Ecto.Migration
 
   def change do

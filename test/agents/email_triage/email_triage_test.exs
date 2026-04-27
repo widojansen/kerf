@@ -1,8 +1,8 @@
-defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
-  use ExClaw.DataCase
+defmodule Kerf.Agents.EmailTriage.EmailTriageTest do
+  use Kerf.DataCase
 
-  alias ExClaw.Agents.EmailTriage.EmailTriage
-  alias ExClaw.KnowledgeBase.{Document, Chunk, EmailSender, Interest}
+  alias Kerf.Agents.EmailTriage.EmailTriage
+  alias Kerf.KnowledgeBase.{Document, Chunk, EmailSender, Interest}
 
   @fake_embedding List.duplicate(0.1, 1024)
 
@@ -84,7 +84,7 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
       Keyword.merge(
         [
           name: name,
-          repo: ExClaw.Repo,
+          repo: Kerf.Repo,
           classifier_fn: classifier_fn,
           telegram_fn: telegram_fn,
           graph_enabled: false,
@@ -172,7 +172,7 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
 
       feedback =
         Repo.one(
-          from(f in ExClaw.KnowledgeBase.Feedback,
+          from(f in Kerf.KnowledgeBase.Feedback,
             where: f.document_id == ^ctx.doc.id and f.feedback_type == "triage"
           )
         )
@@ -194,7 +194,7 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
 
       feedback =
         Repo.one(
-          from(f in ExClaw.KnowledgeBase.Feedback,
+          from(f in Kerf.KnowledgeBase.Feedback,
             where: f.document_id == ^ctx.doc.id and f.feedback_type == "triage"
           )
         )
@@ -219,11 +219,11 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
 
       assert_receive {:gmail_modify, "msg_triage_1", opts}
       labels = Keyword.get(opts, :add, [])
-      assert "ExClaw/Business" in labels
-      refute "ExClaw/Triaged" in labels
+      assert "Kerf/Business" in labels
+      refute "Kerf/Triaged" in labels
     end
 
-    test "maps newsletter category to ExClaw/Newsletter label", ctx do
+    test "maps newsletter category to Kerf/Newsletter label", ctx do
       test_pid = self()
 
       gmail_fn = fn _token, msg_id, opts ->
@@ -241,7 +241,7 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
 
       assert_receive {:gmail_modify, "msg_triage_1", opts}
       labels = Keyword.get(opts, :add, [])
-      assert "ExClaw/Newsletter" in labels
+      assert "Kerf/Newsletter" in labels
     end
 
     test "fast classifier label overrides default mapping", ctx do
@@ -268,7 +268,7 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
 
       assert_receive {:gmail_modify, "msg_triage_1", opts}
       labels = Keyword.get(opts, :add, [])
-      assert "ExClaw/Business" in labels
+      assert "Kerf/Business" in labels
     end
   end
 
@@ -278,7 +278,7 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
 
       # Add classification override for the sender
       import Ecto.Query
-      sender = Repo.one!(from s in ExClaw.KnowledgeBase.EmailSender, where: s.email == "john@example.com")
+      sender = Repo.one!(from s in Kerf.KnowledgeBase.EmailSender, where: s.email == "john@example.com")
       sender
       |> Ecto.Changeset.change(%{classification_override: "business", priority_override: 5})
       |> Repo.update!()
@@ -308,7 +308,7 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
 
       # Remove classification_override from sender so fast classifier won't match
       import Ecto.Query
-      sender = Repo.one!(from s in ExClaw.KnowledgeBase.EmailSender, where: s.email == "john@example.com")
+      sender = Repo.one!(from s in Kerf.KnowledgeBase.EmailSender, where: s.email == "john@example.com")
       sender |> Ecto.Changeset.change(%{classification_override: nil}) |> Repo.update!()
 
       ctx = start_agent(ctx, classifier_fn: classifier_fn)
@@ -344,7 +344,7 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
 
       assert_receive {:gmail_modify, "msg_triage_1", opts}
       assert "UNREAD" in Keyword.get(opts, :remove, [])
-      assert "ExClaw/Newsletter" in Keyword.get(opts, :add, [])
+      assert "Kerf/Newsletter" in Keyword.get(opts, :add, [])
     end
 
     test "keeps high-priority personal emails unread", ctx do
@@ -371,7 +371,7 @@ defmodule ExClaw.Agents.EmailTriage.EmailTriageTest do
 
       assert_receive {:gmail_modify, "msg_triage_1", opts}
       refute "UNREAD" in Keyword.get(opts, :remove, [])
-      assert "ExClaw/Personal" in Keyword.get(opts, :add, [])
+      assert "Kerf/Personal" in Keyword.get(opts, :add, [])
     end
 
     test "does not crash when gmail_fn is not set", ctx do

@@ -1,7 +1,7 @@
-defmodule ExClaw.Workflow.ApprovalGate.CallbackHandlerTest do
-  use ExClaw.DataCase, async: false
+defmodule Kerf.Workflow.ApprovalGate.CallbackHandlerTest do
+  use Kerf.DataCase, async: false
 
-  alias ExClaw.Workflow.ApprovalGate.{CallbackHandler, Manager}
+  alias Kerf.Workflow.ApprovalGate.{CallbackHandler, Manager}
 
   setup do
     telegram_client = fn _method, _url, _body ->

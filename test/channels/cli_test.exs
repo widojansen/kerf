@@ -1,9 +1,9 @@
-defmodule ExClaw.Channels.CLITest do
-  use ExClaw.DataCase
+defmodule Kerf.Channels.CLITest do
+  use Kerf.DataCase
 
-  alias ExClaw.Channels.CLI
-  alias ExClaw.LLM.{Provider, RateLimiter}
-  alias ExClaw.Memory.Store
+  alias Kerf.Channels.CLI
+  alias Kerf.LLM.{Provider, RateLimiter}
+  alias Kerf.Memory.Store
 
   # --- Anthropic response helpers (same shape as SessionTest) ---
 
@@ -62,18 +62,18 @@ defmodule ExClaw.Channels.CLITest do
       )
 
     {:ok, _} = Registry.start_link(keys: :unique, name: registry_name)
-    {:ok, _} = ExClaw.Agent.Supervisor.start_link(name: sup_name)
+    {:ok, _} = Kerf.Agent.Supervisor.start_link(name: sup_name)
 
     # Ecto sandbox + Store for persistence tests
 
-    tmp_dir = Path.join(System.tmp_dir!(), "exclaw_cli_test_#{suffix}")
+    tmp_dir = Path.join(System.tmp_dir!(), "kerf_cli_test_#{suffix}")
     File.mkdir_p!(tmp_dir)
 
     {:ok, store_pid} =
       Store.start_link(
         name: store_name,
         data_dir: tmp_dir,
-        repo: ExClaw.Repo
+        repo: Kerf.Repo
       )
 
     allow_repo(store_pid)
@@ -169,7 +169,7 @@ defmodule ExClaw.Channels.CLITest do
 
       prompt = CLI.build_system_prompt(infra.group_id, store: infra.store)
 
-      config_prompt = Application.get_env(:exclaw, ExClaw.Channels.CLI)[:base_prompt]
+      config_prompt = Application.get_env(:kerf, Kerf.Channels.CLI)[:base_prompt]
       assert prompt == config_prompt
     end
   end
@@ -208,7 +208,7 @@ defmodule ExClaw.Channels.CLITest do
         )
 
       {:ok, _} = Registry.start_link(keys: :unique, name: registry_name)
-      {:ok, _} = ExClaw.Agent.Supervisor.start_link(name: sup_name)
+      {:ok, _} = Kerf.Agent.Supervisor.start_link(name: sup_name)
 
       assert {:error, reason} =
                CLI.process_input("hello", "cli_err_#{suffix}",

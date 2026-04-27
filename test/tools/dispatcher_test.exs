@@ -1,9 +1,9 @@
-defmodule ExClaw.Tools.DispatcherTest do
+defmodule Kerf.Tools.DispatcherTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Tools.Dispatcher
-  alias ExClaw.Tools.Registry, as: ToolRegistry
-  alias ExClaw.Tools.Registrations
+  alias Kerf.Tools.Dispatcher
+  alias Kerf.Tools.Registry, as: ToolRegistry
+  alias Kerf.Tools.Registrations
 
   defp start_registry do
     name = :"disp_reg_#{System.unique_integer([:positive])}"
@@ -12,7 +12,7 @@ defmodule ExClaw.Tools.DispatcherTest do
   end
 
   defp start_mock_manager(registry) do
-    workspaces_dir = System.tmp_dir!() |> Path.join("exclaw_disp_#{:rand.uniform(1_000_000)}")
+    workspaces_dir = System.tmp_dir!() |> Path.join("kerf_disp_#{:rand.uniform(1_000_000)}")
     File.mkdir_p!(workspaces_dir)
 
     adapter = fn args ->
@@ -27,9 +27,9 @@ defmodule ExClaw.Tools.DispatcherTest do
       end
     end
 
-    {:ok, pid} = ExClaw.Container.Manager.start_link(
+    {:ok, pid} = Kerf.Container.Manager.start_link(
       workspaces_dir: workspaces_dir,
-      image: "exclaw-sandbox:latest",
+      image: "kerf-sandbox:latest",
       docker_adapter: adapter,
       exec_timeout: 5_000,
       max_output_size: 102_400,

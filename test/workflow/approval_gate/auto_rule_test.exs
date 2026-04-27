@@ -1,19 +1,19 @@
-defmodule ExClaw.Workflow.ApprovalGate.AutoRuleTest do
-  use ExClaw.DataCase, async: true
+defmodule Kerf.Workflow.ApprovalGate.AutoRuleTest do
+  use Kerf.DataCase, async: true
 
-  alias ExClaw.Workflow.ApprovalGate.AutoRule
+  alias Kerf.Workflow.ApprovalGate.AutoRule
 
   describe "create/1" do
     test "creates a rule with valid attributes" do
       attrs = %{
-        agent_module: "Elixir.ExClaw.Agents.EmailTriage",
+        agent_module: "Elixir.Kerf.Agents.EmailTriage",
         action: "add_priority_sender",
         context_pattern: %{domain: "example.com"},
         decision: "approve"
       }
 
       assert {:ok, rule} = AutoRule.create(attrs)
-      assert rule.agent_module == "Elixir.ExClaw.Agents.EmailTriage"
+      assert rule.agent_module == "Elixir.Kerf.Agents.EmailTriage"
       assert rule.action == "add_priority_sender"
       assert rule.context_pattern == %{domain: "example.com"}
       assert rule.decision == "approve"
@@ -30,7 +30,7 @@ defmodule ExClaw.Workflow.ApprovalGate.AutoRuleTest do
 
     test "defaults decision to approve" do
       attrs = %{
-        agent_module: "Elixir.ExClaw.Agents.EmailTriage",
+        agent_module: "Elixir.Kerf.Agents.EmailTriage",
         action: "label_email"
       }
 
@@ -40,7 +40,7 @@ defmodule ExClaw.Workflow.ApprovalGate.AutoRuleTest do
 
     test "defaults context_pattern to empty map" do
       attrs = %{
-        agent_module: "Elixir.ExClaw.Agents.EmailTriage",
+        agent_module: "Elixir.Kerf.Agents.EmailTriage",
         action: "label_email"
       }
 
@@ -93,7 +93,7 @@ defmodule ExClaw.Workflow.ApprovalGate.AutoRuleTest do
       {:ok, rule} = AutoRule.create(valid_attrs())
 
       request = %{
-        agent: ExClaw.Agents.EmailTriage,
+        agent: Kerf.Agents.EmailTriage,
         action: "add_priority_sender",
         context: %{sender: "john@example.com"}
       }
@@ -109,7 +109,7 @@ defmodule ExClaw.Workflow.ApprovalGate.AutoRuleTest do
         )
 
       request = %{
-        agent: ExClaw.Agents.EmailTriage,
+        agent: Kerf.Agents.EmailTriage,
         action: "add_priority_sender",
         context: %{domain: "example.com", sender: "john@example.com"}
       }
@@ -125,7 +125,7 @@ defmodule ExClaw.Workflow.ApprovalGate.AutoRuleTest do
         )
 
       request = %{
-        agent: ExClaw.Agents.EmailTriage,
+        agent: Kerf.Agents.EmailTriage,
         action: "add_priority_sender",
         context: %{domain: "example.com"}
       }
@@ -140,7 +140,7 @@ defmodule ExClaw.Workflow.ApprovalGate.AutoRuleTest do
         )
 
       request = %{
-        agent: ExClaw.Agents.EmailTriage,
+        agent: Kerf.Agents.EmailTriage,
         action: "add_priority_sender",
         context: %{domain: "example.com"}
       }
@@ -151,10 +151,10 @@ defmodule ExClaw.Workflow.ApprovalGate.AutoRuleTest do
     test "disabled rules are skipped" do
       {:ok, rule} = AutoRule.create(valid_attrs())
       # Disable the rule
-      rule |> Ecto.Changeset.change(enabled: false) |> ExClaw.Repo.update!()
+      rule |> Ecto.Changeset.change(enabled: false) |> Kerf.Repo.update!()
 
       request = %{
-        agent: ExClaw.Agents.EmailTriage,
+        agent: Kerf.Agents.EmailTriage,
         action: "add_priority_sender",
         context: %{}
       }
@@ -167,7 +167,7 @@ defmodule ExClaw.Workflow.ApprovalGate.AutoRuleTest do
       assert rule.times_matched == 0
 
       request = %{
-        agent: ExClaw.Agents.EmailTriage,
+        agent: Kerf.Agents.EmailTriage,
         action: "add_priority_sender",
         context: %{}
       }
@@ -181,7 +181,7 @@ defmodule ExClaw.Workflow.ApprovalGate.AutoRuleTest do
 
     test "returns :no_match when no rules exist" do
       request = %{
-        agent: ExClaw.Agents.SomeAgent,
+        agent: Kerf.Agents.SomeAgent,
         action: "nonexistent_action",
         context: %{}
       }
@@ -193,7 +193,7 @@ defmodule ExClaw.Workflow.ApprovalGate.AutoRuleTest do
       {:ok, rule} = AutoRule.create(valid_attrs(context_pattern: %{}))
 
       request = %{
-        agent: ExClaw.Agents.EmailTriage,
+        agent: Kerf.Agents.EmailTriage,
         action: "add_priority_sender",
         context: %{anything: "goes", here: true}
       }
@@ -205,7 +205,7 @@ defmodule ExClaw.Workflow.ApprovalGate.AutoRuleTest do
 
   defp valid_attrs(overrides \\ []) do
     Enum.into(overrides, %{
-      agent_module: "Elixir.ExClaw.Agents.EmailTriage",
+      agent_module: "Elixir.Kerf.Agents.EmailTriage",
       action: "add_priority_sender",
       context_pattern: %{},
       decision: "approve"

@@ -1,17 +1,17 @@
-defmodule ExClaw.Telemetry.SupervisorTest do
+defmodule Kerf.Telemetry.SupervisorTest do
   use ExUnit.Case, async: true
 
   @moduletag :telemetry
 
   describe "supervisor" do
     test "starts successfully" do
-      fallback_dir = Path.join(System.tmp_dir!(), "exclaw_sup_test_#{System.unique_integer([:positive])}")
+      fallback_dir = Path.join(System.tmp_dir!(), "kerf_sup_test_#{System.unique_integer([:positive])}")
       File.mkdir_p!(fallback_dir)
 
       name = :"telem_sup_#{System.unique_integer([:positive])}"
       logger_name = :"telem_sup_logger_#{System.unique_integer([:positive])}"
 
-      {:ok, pid} = ExClaw.Telemetry.Supervisor.start_link(
+      {:ok, pid} = Kerf.Telemetry.Supervisor.start_link(
         name: name,
         logger_name: logger_name,
         logger_opts: [
@@ -30,13 +30,13 @@ defmodule ExClaw.Telemetry.SupervisorTest do
     end
 
     test "Logger is a child of the supervisor" do
-      fallback_dir = Path.join(System.tmp_dir!(), "exclaw_sup_child_#{System.unique_integer([:positive])}")
+      fallback_dir = Path.join(System.tmp_dir!(), "kerf_sup_child_#{System.unique_integer([:positive])}")
       File.mkdir_p!(fallback_dir)
 
       name = :"telem_sup2_#{System.unique_integer([:positive])}"
       logger_name = :"telem_sup2_logger_#{System.unique_integer([:positive])}"
 
-      {:ok, sup_pid} = ExClaw.Telemetry.Supervisor.start_link(
+      {:ok, sup_pid} = Kerf.Telemetry.Supervisor.start_link(
         name: name,
         logger_name: logger_name,
         logger_opts: [
@@ -55,13 +55,13 @@ defmodule ExClaw.Telemetry.SupervisorTest do
     end
 
     test "Logger restarts on crash" do
-      fallback_dir = Path.join(System.tmp_dir!(), "exclaw_sup_restart_#{System.unique_integer([:positive])}")
+      fallback_dir = Path.join(System.tmp_dir!(), "kerf_sup_restart_#{System.unique_integer([:positive])}")
       File.mkdir_p!(fallback_dir)
 
       name = :"telem_sup3_#{System.unique_integer([:positive])}"
       logger_name = :"telem_sup3_logger_#{System.unique_integer([:positive])}"
 
-      {:ok, _sup_pid} = ExClaw.Telemetry.Supervisor.start_link(
+      {:ok, _sup_pid} = Kerf.Telemetry.Supervisor.start_link(
         name: name,
         logger_name: logger_name,
         logger_opts: [

@@ -1,8 +1,8 @@
-defmodule ExClaw.Scheduler.SchedulerTest do
-  use ExClaw.DataCase
+defmodule Kerf.Scheduler.SchedulerTest do
+  use Kerf.DataCase
 
-  alias ExClaw.Scheduler.Scheduler
-  alias ExClaw.Scheduler.ScheduledTask
+  alias Kerf.Scheduler.Scheduler
+  alias Kerf.Scheduler.ScheduledTask
 
   setup do
 
@@ -38,7 +38,7 @@ defmodule ExClaw.Scheduler.SchedulerTest do
     rate_limiter_name = :"rate_limiter_#{suffix}"
 
     {:ok, rl_pid} =
-      ExClaw.LLM.RateLimiter.start_link(
+      Kerf.LLM.RateLimiter.start_link(
         name: rate_limiter_name,
         max_requests_per_minute: 1000,
         max_tokens_per_minute: 1_000_000
@@ -51,7 +51,7 @@ defmodule ExClaw.Scheduler.SchedulerTest do
     end
 
     {:ok, prov_pid} =
-      ExClaw.LLM.Provider.start_link(
+      Kerf.LLM.Provider.start_link(
         name: provider_name,
         api_key: "test-key",
         base_url: "https://api.anthropic.com/v1",
@@ -66,7 +66,7 @@ defmodule ExClaw.Scheduler.SchedulerTest do
     {:ok, sched_pid} =
       Scheduler.start_link(
         name: scheduler_name,
-        repo: ExClaw.Repo,
+        repo: Kerf.Repo,
         agent_sup: agent_sup_name,
         registry: registry_name,
         task_runner: task_runner_name,
@@ -226,7 +226,7 @@ defmodule ExClaw.Scheduler.SchedulerTest do
         })
 
       # Allow any task processes to use our sandbox connection
-      Ecto.Adapters.SQL.Sandbox.mode(ExClaw.Repo, {:shared, self()})
+      Ecto.Adapters.SQL.Sandbox.mode(Kerf.Repo, {:shared, self()})
 
       assert :ok = Scheduler.fire_now(scheduler, task.id)
 
@@ -251,7 +251,7 @@ defmodule ExClaw.Scheduler.SchedulerTest do
           schedule_value: ""
         })
 
-      Ecto.Adapters.SQL.Sandbox.mode(ExClaw.Repo, {:shared, self()})
+      Ecto.Adapters.SQL.Sandbox.mode(Kerf.Repo, {:shared, self()})
 
       :ok = Scheduler.fire_now(scheduler, task.id)
       Process.sleep(500)
@@ -269,7 +269,7 @@ defmodule ExClaw.Scheduler.SchedulerTest do
           schedule_value: "60000"
         })
 
-      Ecto.Adapters.SQL.Sandbox.mode(ExClaw.Repo, {:shared, self()})
+      Ecto.Adapters.SQL.Sandbox.mode(Kerf.Repo, {:shared, self()})
 
       :ok = Scheduler.fire_now(scheduler, task.id)
       Process.sleep(500)

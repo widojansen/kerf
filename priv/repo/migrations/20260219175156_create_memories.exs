@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.CreateMemories do
+defmodule Kerf.Repo.Migrations.CreateMemories do
   use Ecto.Migration
 
   def change do

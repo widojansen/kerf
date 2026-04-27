@@ -1,13 +1,13 @@
-defmodule ExClaw.Container.SupervisorTest do
+defmodule Kerf.Container.SupervisorTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Container.Supervisor, as: ContainerSup
+  alias Kerf.Container.Supervisor, as: ContainerSup
 
   test "starts successfully" do
     opts = [
       name: :"container_sup_test_#{:rand.uniform(1_000_000)}",
       manager_opts: [
-        workspaces_dir: System.tmp_dir!() |> Path.join("exclaw_sup_test_#{:rand.uniform(1_000_000)}"),
+        workspaces_dir: System.tmp_dir!() |> Path.join("kerf_sup_test_#{:rand.uniform(1_000_000)}"),
         docker_adapter: fn _args -> {"", 0} end,
         exec_timeout: 5_000
       ]
@@ -25,7 +25,7 @@ defmodule ExClaw.Container.SupervisorTest do
       name: :"container_sup_child_#{:rand.uniform(1_000_000)}",
       manager_opts: [
         name: manager_name,
-        workspaces_dir: System.tmp_dir!() |> Path.join("exclaw_sup_child_#{:rand.uniform(1_000_000)}"),
+        workspaces_dir: System.tmp_dir!() |> Path.join("kerf_sup_child_#{:rand.uniform(1_000_000)}"),
         docker_adapter: fn _args -> {"", 0} end,
         exec_timeout: 5_000
       ]
@@ -48,7 +48,7 @@ defmodule ExClaw.Container.SupervisorTest do
       name: :"container_sup_named_#{:rand.uniform(1_000_000)}",
       manager_opts: [
         name: manager_name,
-        workspaces_dir: System.tmp_dir!() |> Path.join("exclaw_sup_named_#{:rand.uniform(1_000_000)}"),
+        workspaces_dir: System.tmp_dir!() |> Path.join("kerf_sup_named_#{:rand.uniform(1_000_000)}"),
         docker_adapter: fn _args -> {"", 0} end,
         exec_timeout: 5_000
       ]
@@ -56,7 +56,7 @@ defmodule ExClaw.Container.SupervisorTest do
 
     {:ok, _pid} = ContainerSup.start_link(opts)
 
-    assert {:ok, []} = ExClaw.Container.Manager.list_containers(manager_name)
+    assert {:ok, []} = Kerf.Container.Manager.list_containers(manager_name)
 
     Supervisor.stop(opts[:name])
   end

@@ -1,7 +1,7 @@
-defmodule ExClaw.Tools.WebFetchTest do
+defmodule Kerf.Tools.WebFetchTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Tools.WebFetch
+  alias Kerf.Tools.WebFetch
 
   # --- URL validation ---
 

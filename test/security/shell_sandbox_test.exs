@@ -1,7 +1,7 @@
-defmodule ExClaw.Security.ShellSandboxTest do
+defmodule Kerf.Security.ShellSandboxTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Security.ShellSandbox
+  alias Kerf.Security.ShellSandbox
 
   describe "check/2 allows safe commands" do
     test "allows ls" do

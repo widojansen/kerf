@@ -18,8 +18,8 @@ llm_backend = System.get_env("LLM_BACKEND")
 if llm_backend == "vllm" do
   vllm_url = System.get_env("VLLM_URL", "http://localhost:8000")
 
-  config :exclaw, ExClaw.LLM.VLLMProvider,
-    name: ExClaw.LLM.VLLMProvider,
+  config :kerf, Kerf.LLM.VLLMProvider,
+    name: Kerf.LLM.VLLMProvider,
     base_url: vllm_url,
     default_model: System.get_env("VLLM_MODEL", "nemotron-cascade-2"),
     default_max_tokens: 8192
@@ -28,8 +28,8 @@ end
 if llm_backend == "ollama" do
   ollama_url = System.get_env("OLLAMA_URL", "http://localhost:11434")
 
-  config :exclaw, ExClaw.LLM.OllamaProvider,
-    name: ExClaw.LLM.OllamaProvider,
+  config :kerf, Kerf.LLM.OllamaProvider,
+    name: Kerf.LLM.OllamaProvider,
     base_url: ollama_url,
     default_model: System.get_env("OLLAMA_MODEL", "qwen3:8b"),
     default_max_tokens: 8192
@@ -53,25 +53,25 @@ end
 #     --hf-overrides '{"architectures": ["BgeM3EmbeddingModel"]}'
 #   Then set EMBEDDING_URL=http://localhost:8001
 if embedding_url = System.get_env("EMBEDDING_URL") do
-  config :exclaw, ExClaw.Memory.Embedder,
+  config :kerf, Kerf.Memory.Embedder,
     base_url: embedding_url,
     model: System.get_env("EMBEDDING_MODEL", "bge-m3")
 end
 
 # Anthropic API key -- only needed for claude-* models.
 if api_key = System.get_env("ANTHROPIC_API_KEY") do
-  config :exclaw, ExClaw.LLM.Provider, api_key: api_key
+  config :kerf, Kerf.LLM.Provider, api_key: api_key
 end
 
 # Default model for CLI and new Agent sessions.
 # Examples:
-#   EXCLAW_DEFAULT_MODEL=nemotron-cascade-2       (vLLM)
-#   EXCLAW_DEFAULT_MODEL=qwen3:8b                 (Ollama)
-#   EXCLAW_DEFAULT_MODEL=claude-sonnet-4-6         (Anthropic)
-if model = System.get_env("EXCLAW_DEFAULT_MODEL") do
-  config :exclaw, ExClaw.Channels.CLI, model: model
-  config :exclaw, ExClaw.Channels.Telegram, model: model
-  config :exclaw, ExClaw.Scheduler, model: model
+#   KERF_DEFAULT_MODEL=nemotron-cascade-2       (vLLM)
+#   KERF_DEFAULT_MODEL=qwen3:8b                 (Ollama)
+#   KERF_DEFAULT_MODEL=claude-sonnet-4-6         (Anthropic)
+if model = System.get_env("KERF_DEFAULT_MODEL") do
+  config :kerf, Kerf.Channels.CLI, model: model
+  config :kerf, Kerf.Channels.Telegram, model: model
+  config :kerf, Kerf.Scheduler, model: model
 end
 
 
@@ -85,7 +85,7 @@ if telegram_token = System.get_env("TELEGRAM_BOT_TOKEN") do
       ids -> ids |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.map(&String.to_integer/1)
     end
 
-  config :exclaw, ExClaw.Channels.Telegram,
+  config :kerf, Kerf.Channels.Telegram,
     enabled: true,
     token: telegram_token,
     allow_from: allow_from,
@@ -96,10 +96,10 @@ end
 # Dashboard secret key base (required in prod).
 # Generate with: mix phx.gen.secret
 if secret = System.get_env("SECRET_KEY_BASE") do
-  config :exclaw, ExClaw.Dashboard.Endpoint, secret_key_base: secret
+  config :kerf, Kerf.Dashboard.Endpoint, secret_key_base: secret
 
   # Credential Vault — uses SECRET_KEY_BASE for encryption at rest.
-  config :exclaw, ExClaw.CredentialVault,
+  config :kerf, Kerf.CredentialVault,
     enabled: true,
     encryption_key_base: secret
 end
@@ -117,7 +117,7 @@ approval_chat_id =
   end
 
 if approval_chat_id do
-  config :exclaw, ExClaw.Workflow.ApprovalGate,
+  config :kerf, Kerf.Workflow.ApprovalGate,
     enabled: true,
     default_timeout_ms: 300_000,
     default_chat_id: approval_chat_id
@@ -131,7 +131,7 @@ end
 # Database — DATABASE_URL takes precedence, otherwise individual DB_* vars.
 if config_env() == :prod do
   if database_url = System.get_env("DATABASE_URL") do
-    config :exclaw, ExClaw.Repo,
+    config :kerf, Kerf.Repo,
       url: database_url,
       pool_size: String.to_integer(System.get_env("POOL_SIZE", "10"))
   else
@@ -146,7 +146,7 @@ if config_env() == :prod do
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
     if db_overrides != [] do
-      config :exclaw, ExClaw.Repo, db_overrides
+      config :kerf, Kerf.Repo, db_overrides
     end
   end
 end
@@ -160,25 +160,25 @@ if dashboard_ip = System.get_env("DASHBOARD_IP") do
     |> List.to_tuple()
 
   dashboard_port = String.to_integer(System.get_env("DASHBOARD_PORT", "4000"))
-  config :exclaw, ExClaw.Dashboard.Endpoint, http: [ip: parsed_ip, port: dashboard_port]
+  config :kerf, Kerf.Dashboard.Endpoint, http: [ip: parsed_ip, port: dashboard_port]
 end
 
 # SearXNG URL override.
 if searxng_url = System.get_env("SEARXNG_URL") do
-  config :exclaw, ExClaw.Tools.WebSearch, searxng_url: searxng_url
+  config :kerf, Kerf.Tools.WebSearch, searxng_url: searxng_url
 end
 
 # Data directory overrides (for Docker volume mounts).
-if data_dir = System.get_env("EXCLAW_DATA_DIR") do
-  config :exclaw, ExClaw.Memory.Store, data_dir: data_dir
+if data_dir = System.get_env("KERF_DATA_DIR") do
+  config :kerf, Kerf.Memory.Store, data_dir: data_dir
 end
 
-if workspaces_dir = System.get_env("EXCLAW_WORKSPACES_DIR") do
-  config :exclaw, ExClaw.Container.Manager, workspaces_dir: workspaces_dir
+if workspaces_dir = System.get_env("KERF_WORKSPACES_DIR") do
+  config :kerf, Kerf.Container.Manager, workspaces_dir: workspaces_dir
 end
 
-if fallback_dir = System.get_env("EXCLAW_TELEMETRY_DIR") do
-  config :exclaw, ExClaw.Telemetry.Logger, fallback_dir: fallback_dir
+if fallback_dir = System.get_env("KERF_TELEMETRY_DIR") do
+  config :kerf, Kerf.Telemetry.Logger, fallback_dir: fallback_dir
 end
 
 # ---------------------------------------------------------------------------
@@ -190,7 +190,7 @@ end
 kb_embedding_url = System.get_env("KB_EMBEDDING_URL") || System.get_env("EMBEDDING_URL")
 
 if kb_embedding_url do
-  config :exclaw, ExClaw.KnowledgeBase.Embedder,
+  config :kerf, Kerf.KnowledgeBase.Embedder,
     url: kb_embedding_url,
     model: System.get_env("KB_EMBEDDING_MODEL", "nomic-ai/nomic-embed-text-v1")
 end
@@ -198,13 +198,13 @@ end
 # Email Ingestor — polls Gmail for new emails.
 # Requires Credential Vault with a "gmail_oauth" credential.
 if System.get_env("EMAIL_TRIAGE_ENABLED") == "true" do
-  config :exclaw, ExClaw.Ingestors.Email.EmailIngestor,
+  config :kerf, Kerf.Ingestors.Email.EmailIngestor,
     enabled: true,
     poll_interval_ms: String.to_integer(System.get_env("EMAIL_POLL_INTERVAL_MS", "300000")),
     max_per_batch: 50,
     credential_name: System.get_env("GMAIL_CREDENTIAL_NAME", "gmail_oauth")
 
-  config :exclaw, ExClaw.Agents.EmailTriage,
+  config :kerf, Kerf.Agents.EmailTriage,
     enabled: true,
     interest_threshold: 0.5,
     high_priority_threshold: 4,
@@ -223,11 +223,11 @@ alert_chat_id =
     end
 
 if alert_chat_id do
-  config :exclaw, ExClaw.Monitor.Alerting,
+  config :kerf, Kerf.Monitor.Alerting,
     telegram_chat_id: alert_chat_id
 end
 
 # Phoenix server — start endpoint in release mode.
 if System.get_env("PHX_SERVER") do
-  config :exclaw, ExClaw.Dashboard.Endpoint, server: true
+  config :kerf, Kerf.Dashboard.Endpoint, server: true
 end

@@ -1,7 +1,7 @@
-defmodule ExClaw.Tools.RegistryTest do
+defmodule Kerf.Tools.RegistryTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Tools.Registry, as: ToolRegistry
+  alias Kerf.Tools.Registry, as: ToolRegistry
 
   defp start_registry(_context \\ %{}) do
     name = :"tool_reg_#{System.unique_integer([:positive])}"
@@ -19,7 +19,7 @@ defmodule ExClaw.Tools.RegistryTest do
           "properties" => %{"input" => %{"type" => "string"}},
           "required" => ["input"]
         },
-        module: ExClaw.Tools.Shell,
+        module: Kerf.Tools.Shell,
         function: :execute
       },
       overrides
@@ -85,7 +85,7 @@ defmodule ExClaw.Tools.RegistryTest do
 
       assert {:ok, tool} = ToolRegistry.get_tool(reg, "test_tool")
       assert tool.name == "test_tool"
-      assert tool.module == ExClaw.Tools.Shell
+      assert tool.module == Kerf.Tools.Shell
       assert tool.function == :execute
     end
 

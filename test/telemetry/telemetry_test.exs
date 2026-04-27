@@ -1,13 +1,13 @@
-defmodule ExClaw.TelemetryTest do
+defmodule Kerf.TelemetryTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Telemetry
-  alias ExClaw.Telemetry.Logger
+  alias Kerf.Telemetry
+  alias Kerf.Telemetry.Logger
 
   @moduletag :telemetry
 
   setup do
-    fallback_dir = Path.join(System.tmp_dir!(), "exclaw_telem_api_#{System.unique_integer([:positive])}")
+    fallback_dir = Path.join(System.tmp_dir!(), "kerf_telem_api_#{System.unique_integer([:positive])}")
     File.mkdir_p!(fallback_dir)
 
     name = :"telem_api_#{System.unique_integer([:positive])}"

@@ -1,7 +1,7 @@
-defmodule ExClaw.StructuredOutput.SchemaRegistryTest do
+defmodule Kerf.StructuredOutput.SchemaRegistryTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.StructuredOutput.SchemaRegistry
+  alias Kerf.StructuredOutput.SchemaRegistry
 
   defp start_registry(_context \\ %{}) do
     name = :"schema_reg_#{System.unique_integer([:positive])}"

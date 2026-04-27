@@ -1,8 +1,8 @@
-defmodule ExClaw.Agents.EmailTriage.FeedbackHandlerTest do
-  use ExClaw.DataCase
+defmodule Kerf.Agents.EmailTriage.FeedbackHandlerTest do
+  use Kerf.DataCase
 
-  alias ExClaw.Agents.EmailTriage.FeedbackHandler
-  alias ExClaw.KnowledgeBase.{Document, EmailSender, Feedback}
+  alias Kerf.Agents.EmailTriage.FeedbackHandler
+  alias Kerf.KnowledgeBase.{Document, EmailSender, Feedback}
 
   setup do
     {:ok, doc} =

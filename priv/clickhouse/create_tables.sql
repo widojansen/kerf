@@ -1,12 +1,12 @@
--- ExClaw telemetry events table for ClickHouse
+-- Kerf telemetry events table for ClickHouse
 -- Run against your ClickHouse instance:
 --   clickhouse-client --multiquery < priv/clickhouse/create_tables.sql
 
-CREATE DATABASE IF NOT EXISTS exclaw_dev;
+CREATE DATABASE IF NOT EXISTS kerf_dev;
 
-USE exclaw_dev;
+USE kerf_dev;
 
-CREATE TABLE IF NOT EXISTS exclaw_events (
+CREATE TABLE IF NOT EXISTS kerf_events (
     timestamp            DateTime64(3),
     event_type           LowCardinality(String),
     group_id             String,

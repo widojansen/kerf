@@ -1,8 +1,8 @@
-defmodule ExClaw.Agents.EmailTriage.FastClassifier.CacheTest do
-  use ExClaw.DataCase
+defmodule Kerf.Agents.EmailTriage.FastClassifier.CacheTest do
+  use Kerf.DataCase
 
-  alias ExClaw.Agents.EmailTriage.FastClassifier.Cache
-  alias ExClaw.KnowledgeBase.EmailSender
+  alias Kerf.Agents.EmailTriage.FastClassifier.Cache
+  alias Kerf.KnowledgeBase.EmailSender
 
   setup do
     # Insert test rules
@@ -39,7 +39,7 @@ defmodule ExClaw.Agents.EmailTriage.FastClassifier.CacheTest do
 
     name = :"cache_#{System.unique_integer([:positive])}"
     test_pid = self()
-    {:ok, pid} = Cache.start_link(name: name, repo: ExClaw.Repo, caller: test_pid)
+    {:ok, pid} = Cache.start_link(name: name, repo: Kerf.Repo, caller: test_pid)
     allow_repo(pid)
 
     %{cache: name, cache_pid: pid}

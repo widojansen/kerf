@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.CreateCredentialVaultPolicies do
+defmodule Kerf.Repo.Migrations.CreateCredentialVaultPolicies do
   use Ecto.Migration
 
   def change do

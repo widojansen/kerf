@@ -1,7 +1,7 @@
-defmodule ExClaw.Memory.EmbedderTest do
+defmodule Kerf.Memory.EmbedderTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Memory.Embedder
+  alias Kerf.Memory.Embedder
 
   defp start_embedder(adapter) do
     suffix = System.unique_integer([:positive])

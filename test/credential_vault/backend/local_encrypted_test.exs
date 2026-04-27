@@ -1,14 +1,14 @@
-defmodule ExClaw.CredentialVault.Backend.LocalEncryptedTest do
-  use ExClaw.DataCase, async: false
+defmodule Kerf.CredentialVault.Backend.LocalEncryptedTest do
+  use Kerf.DataCase, async: false
 
-  alias ExClaw.CredentialVault.Backend.LocalEncrypted
-  alias ExClaw.CredentialVault.Credential
+  alias Kerf.CredentialVault.Backend.LocalEncrypted
+  alias Kerf.CredentialVault.Credential
 
   @encryption_key :crypto.hash(:sha256, "test-secret-key-base-for-credential-vault")
 
   setup do
     # Clean up any leftover credentials from previous test runs
-    ExClaw.Repo.delete_all(Credential)
+    Kerf.Repo.delete_all(Credential)
     :ok
   end
 
@@ -36,7 +36,7 @@ defmodule ExClaw.CredentialVault.Backend.LocalEncryptedTest do
       assert credential.scopes == ["gmail.readonly", "gmail.labels"]
 
       # The raw encrypted_data column should NOT contain the plaintext secret
-      raw = ExClaw.Repo.get!(Credential, credential.id)
+      raw = Kerf.Repo.get!(Credential, credential.id)
       refute String.contains?(raw.encrypted_data, "ya29.access-token")
       refute String.contains?(raw.encrypted_data, "google-client-secret")
     end

@@ -1,17 +1,17 @@
-# Import Gmail OAuth tokens from gog CLI into the ExClaw Credential Vault.
+# Import Gmail OAuth tokens from gog CLI into the Kerf Credential Vault.
 #
 # Prerequisites:
 #   1. Export token: gog auth tokens export alice@gmail.com --out /tmp/gmail_token.json
 #   2. Credentials file: ~/.config/gogcli/credentials.json
 #
-# Run (while ExClaw is running):
+# Run (while Kerf is running):
 #   MIX_ENV=prod mix run priv/scripts/import_gmail_oauth.exs
 #
-# Run (standalone, ExClaw not running):
+# Run (standalone, Kerf not running):
 #   MIX_ENV=prod mix run --no-start -e '
 #     Application.ensure_all_started(:postgrex)
 #     Application.ensure_all_started(:ecto)
-#     {:ok, _} = ExClaw.Repo.start_link(Application.get_env(:exclaw, ExClaw.Repo))
+#     {:ok, _} = Kerf.Repo.start_link(Application.get_env(:kerf, Kerf.Repo))
 #   ' priv/scripts/import_gmail_oauth.exs
 
 token_path = System.get_env("GMAIL_TOKEN_PATH", "/tmp/gmail_token.json")
@@ -38,12 +38,12 @@ IO.puts("Scopes: #{length(vault_data["scopes"])} scopes")
 IO.puts("Refresh token: #{String.slice(vault_data["refresh_token"], 0..20)}...")
 
 # Store in Credential Vault
-# If ExClaw is running, use the GenServer. Otherwise, use the backend directly.
-case Process.whereis(ExClaw.CredentialVault) do
+# If Kerf is running, use the GenServer. Otherwise, use the backend directly.
+case Process.whereis(Kerf.CredentialVault) do
   nil ->
     IO.puts("\nCredentialVault not running — using backend directly.")
 
-    encryption_key_base = Application.get_env(:exclaw, ExClaw.CredentialVault, [])[:encryption_key_base]
+    encryption_key_base = Application.get_env(:kerf, Kerf.CredentialVault, [])[:encryption_key_base]
 
     if is_nil(encryption_key_base) do
       IO.puts("ERROR: SECRET_KEY_BASE not set. Export it first.")
@@ -52,7 +52,7 @@ case Process.whereis(ExClaw.CredentialVault) do
 
     encryption_key = :crypto.hash(:sha256, encryption_key_base)
 
-    case ExClaw.CredentialVault.Backend.LocalEncrypted.store(
+    case Kerf.CredentialVault.Backend.LocalEncrypted.store(
            "gmail_oauth",
            :oauth2,
            vault_data,
@@ -70,7 +70,7 @@ case Process.whereis(ExClaw.CredentialVault) do
   _pid ->
     IO.puts("\nCredentialVault running — using GenServer.")
 
-    case ExClaw.CredentialVault.store(
+    case Kerf.CredentialVault.store(
            "gmail_oauth",
            :oauth2,
            vault_data,

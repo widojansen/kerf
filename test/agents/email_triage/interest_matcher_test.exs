@@ -1,7 +1,7 @@
-defmodule ExClaw.Agents.EmailTriage.InterestMatcherTest do
+defmodule Kerf.Agents.EmailTriage.InterestMatcherTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Agents.EmailTriage.InterestMatcher
+  alias Kerf.Agents.EmailTriage.InterestMatcher
 
   # Helper: create a normalized vector pointing mostly in one direction
   defp make_vector(dominant_index, dims \\ 1024) do

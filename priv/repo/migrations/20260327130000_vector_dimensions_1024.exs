@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.VectorDimensions1024 do
+defmodule Kerf.Repo.Migrations.VectorDimensions1024 do
   use Ecto.Migration
 
   def up do

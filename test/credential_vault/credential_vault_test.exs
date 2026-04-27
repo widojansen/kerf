@@ -1,13 +1,13 @@
-defmodule ExClaw.CredentialVaultTest do
-  use ExClaw.DataCase, async: false
+defmodule Kerf.CredentialVaultTest do
+  use Kerf.DataCase, async: false
 
-  alias ExClaw.CredentialVault
-  alias ExClaw.CredentialVault.Credential
+  alias Kerf.CredentialVault
+  alias Kerf.CredentialVault.Credential
 
   @vault_name :test_credential_vault
 
   setup do
-    ExClaw.Repo.delete_all(Credential)
+    Kerf.Repo.delete_all(Credential)
 
     encryption_key = :crypto.hash(:sha256, "test-vault-secret")
 

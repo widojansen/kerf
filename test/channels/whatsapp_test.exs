@@ -1,10 +1,10 @@
-defmodule ExClaw.Channels.WhatsAppTest do
-  use ExClaw.DataCase
+defmodule Kerf.Channels.WhatsAppTest do
+  use Kerf.DataCase
 
-  alias ExClaw.Channels.WhatsApp
-  alias ExClaw.LLM.{Provider, RateLimiter}
-  alias ExClaw.Memory.Store
-  alias ExClaw.Tools.Registry, as: ToolRegistry
+  alias Kerf.Channels.WhatsApp
+  alias Kerf.LLM.{Provider, RateLimiter}
+  alias Kerf.Memory.Store
+  alias Kerf.Tools.Registry, as: ToolRegistry
 
   # --- Anthropic response helpers (same shape as CLITest) ---
 
@@ -62,17 +62,17 @@ defmodule ExClaw.Channels.WhatsAppTest do
       )
 
     {:ok, _} = Registry.start_link(keys: :unique, name: registry_name)
-    {:ok, _} = ExClaw.Agent.Supervisor.start_link(name: sup_name)
+    {:ok, _} = Kerf.Agent.Supervisor.start_link(name: sup_name)
 
 
-    tmp_dir = Path.join(System.tmp_dir!(), "exclaw_wa_test_#{suffix}")
+    tmp_dir = Path.join(System.tmp_dir!(), "kerf_wa_test_#{suffix}")
     File.mkdir_p!(tmp_dir)
 
     {:ok, store_pid} =
       Store.start_link(
         name: store_name,
         data_dir: tmp_dir,
-        repo: ExClaw.Repo
+        repo: Kerf.Repo
       )
 
     allow_repo(store_pid)

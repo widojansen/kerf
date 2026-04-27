@@ -1,11 +1,11 @@
 import Ecto.Query
 
 # Check what source_metadata actually contains
-doc = from(d in ExClaw.KnowledgeBase.Document,
+doc = from(d in Kerf.KnowledgeBase.Document,
   where: d.source_type == "email",
   order_by: [desc: d.inserted_at],
   limit: 1)
-|> ExClaw.Repo.one()
+|> Kerf.Repo.one()
 
 IO.puts("--- Sample document source_metadata keys ---")
 if doc do
@@ -18,7 +18,7 @@ else
 end
 
 IO.puts("\n--- EmailIngestor config check ---")
-config = Application.get_all_env(:exclaw)
+config = Application.get_all_env(:kerf)
   |> Enum.filter(fn {k, _} -> 
     k_str = Atom.to_string(k)
     String.contains?(k_str, "Ingestor") or String.contains?(k_str, "EmailTriage") or String.contains?(k_str, "Gmail")

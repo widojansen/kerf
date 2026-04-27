@@ -1,7 +1,7 @@
-defmodule ExClaw.Workflow.ApprovalGate.TelegramRendererTest do
+defmodule Kerf.Workflow.ApprovalGate.TelegramRendererTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Workflow.ApprovalGate.TelegramRenderer
+  alias Kerf.Workflow.ApprovalGate.TelegramRenderer
 
   describe "render_approval_message/1" do
     test "includes agent name, description, and context in text" do
@@ -179,7 +179,7 @@ defmodule ExClaw.Workflow.ApprovalGate.TelegramRendererTest do
     Map.merge(
       %{
         request_id: "req_test_001",
-        agent: ExClaw.Agents.EmailTriage,
+        agent: Kerf.Agents.EmailTriage,
         action: "add_priority_sender",
         description: "Add john@example.com to priority?",
         context: %{sender: "john@example.com", domain: "example.com"},

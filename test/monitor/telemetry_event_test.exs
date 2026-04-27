@@ -1,7 +1,7 @@
-defmodule ExClaw.Monitor.TelemetryEventTest do
-  use ExClaw.DataCase, async: true
+defmodule Kerf.Monitor.TelemetryEventTest do
+  use Kerf.DataCase, async: true
 
-  alias ExClaw.Monitor.TelemetryEvent
+  alias Kerf.Monitor.TelemetryEvent
 
   defp errors_on(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
@@ -49,18 +49,18 @@ defmodule ExClaw.Monitor.TelemetryEventTest do
       attrs = %{
         event_name: "monitor.process_down",
         measurements: %{"queue_len" => 150},
-        metadata: %{"name" => "ExClaw.ModelRouter", "threshold" => 100}
+        metadata: %{"name" => "Kerf.ModelRouter", "threshold" => 100}
       }
 
       assert {:ok, event} =
                %TelemetryEvent{}
                |> TelemetryEvent.changeset(attrs)
-               |> ExClaw.Repo.insert()
+               |> Kerf.Repo.insert()
 
       assert event.id
       assert event.event_name == "monitor.process_down"
       assert event.measurements == %{"queue_len" => 150}
-      assert event.metadata == %{"name" => "ExClaw.ModelRouter", "threshold" => 100}
+      assert event.metadata == %{"name" => "Kerf.ModelRouter", "threshold" => 100}
       assert event.inserted_at
     end
 
@@ -68,14 +68,14 @@ defmodule ExClaw.Monitor.TelemetryEventTest do
       for name <- ["llm.call.stop", "llm.call.stop", "monitor.health_check"] do
         %TelemetryEvent{}
         |> TelemetryEvent.changeset(%{event_name: name})
-        |> ExClaw.Repo.insert!()
+        |> Kerf.Repo.insert!()
       end
 
       import Ecto.Query
 
       count =
         from(e in TelemetryEvent, where: e.event_name == "llm.call.stop")
-        |> ExClaw.Repo.aggregate(:count)
+        |> Kerf.Repo.aggregate(:count)
 
       assert count == 2
     end

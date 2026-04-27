@@ -1,8 +1,8 @@
-defmodule ExClaw.Agents.EmailTriage.FastClassifierTest do
-  use ExClaw.DataCase
+defmodule Kerf.Agents.EmailTriage.FastClassifierTest do
+  use Kerf.DataCase
 
-  alias ExClaw.Agents.EmailTriage.FastClassifier
-  alias ExClaw.KnowledgeBase.EmailSender
+  alias Kerf.Agents.EmailTriage.FastClassifier
+  alias Kerf.KnowledgeBase.EmailSender
 
   setup do
     # Insert senders with classification overrides

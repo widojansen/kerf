@@ -1,13 +1,13 @@
-defmodule ExClaw.Agents.EmailTriage.IntegrationTest do
+defmodule Kerf.Agents.EmailTriage.IntegrationTest do
   @moduledoc """
   Integration test for the full email triage lifecycle:
   Gmail poll → ingest → triage → Telegram output → feedback → learning.
   """
-  use ExClaw.DataCase
+  use Kerf.DataCase
 
-  alias ExClaw.Ingestors.Email.EmailIngestor
-  alias ExClaw.Agents.EmailTriage.{EmailTriage, FeedbackHandler}
-  alias ExClaw.KnowledgeBase.{Document, EmailSender, Interest, Feedback}
+  alias Kerf.Ingestors.Email.EmailIngestor
+  alias Kerf.Agents.EmailTriage.{EmailTriage, FeedbackHandler}
+  alias Kerf.KnowledgeBase.{Document, EmailSender, Interest, Feedback}
 
   @fake_embedding List.duplicate(0.1, 1024)
 
@@ -49,7 +49,7 @@ defmodule ExClaw.Agents.EmailTriage.IntegrationTest do
     {:ok, ingestor_pid} =
       EmailIngestor.start_link(
         name: ingestor_name,
-        repo: ExClaw.Repo,
+        repo: Kerf.Repo,
         gmail_client: fn _token, _opts -> {:ok, [@sample_email], "60001"} end,
         embedder: fn _texts, _opts -> {:ok, [@fake_embedding]} end,
         poll_interval_ms: :infinity,
@@ -73,7 +73,7 @@ defmodule ExClaw.Agents.EmailTriage.IntegrationTest do
     {:ok, triage_pid} =
       EmailTriage.start_link(
         name: triage_name,
-        repo: ExClaw.Repo,
+        repo: Kerf.Repo,
         classifier_fn: fn email, _opts ->
           {:ok, %{
             category: "business",
@@ -136,7 +136,7 @@ defmodule ExClaw.Agents.EmailTriage.IntegrationTest do
     {:ok, ingestor_pid} =
       EmailIngestor.start_link(
         name: ingestor_name,
-        repo: ExClaw.Repo,
+        repo: Kerf.Repo,
         gmail_client: fn _token, _opts -> {:ok, [low_email], "70001"} end,
         embedder: fn _texts, _opts -> {:ok, [@fake_embedding]} end,
         poll_interval_ms: :infinity,
@@ -155,7 +155,7 @@ defmodule ExClaw.Agents.EmailTriage.IntegrationTest do
     {:ok, triage_pid} =
       EmailTriage.start_link(
         name: triage_name,
-        repo: ExClaw.Repo,
+        repo: Kerf.Repo,
         classifier_fn: fn _email, _opts ->
           {:ok, %{
             category: "newsletter",

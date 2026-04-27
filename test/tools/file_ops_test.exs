@@ -1,10 +1,10 @@
-defmodule ExClaw.Tools.FileOpsTest do
+defmodule Kerf.Tools.FileOpsTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Tools.FileOps
+  alias Kerf.Tools.FileOps
 
   setup do
-    workspaces_dir = System.tmp_dir!() |> Path.join("exclaw_fileops_#{:rand.uniform(1_000_000)}")
+    workspaces_dir = System.tmp_dir!() |> Path.join("kerf_fileops_#{:rand.uniform(1_000_000)}")
     File.mkdir_p!(workspaces_dir)
     group_dir = Path.join(workspaces_dir, "test_group")
     File.mkdir_p!(group_dir)

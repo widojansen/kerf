@@ -1,9 +1,9 @@
-defmodule ExClaw.Container.IntegrationTest do
+defmodule Kerf.Container.IntegrationTest do
   @moduledoc """
   Integration tests for Docker container sandboxing.
   Requires Docker to be installed and the sandbox image to be built:
 
-      docker build -t exclaw-sandbox:latest container/
+      docker build -t kerf-sandbox:latest container/
 
   Run with: mix test --include docker
   """
@@ -11,10 +11,10 @@ defmodule ExClaw.Container.IntegrationTest do
 
   @moduletag :docker
 
-  alias ExClaw.Container.Manager
-  alias ExClaw.Tools.{Shell, FileOps, Dispatcher}
+  alias Kerf.Container.Manager
+  alias Kerf.Tools.{Shell, FileOps, Dispatcher}
 
-  @image "exclaw-sandbox:latest"
+  @image "kerf-sandbox:latest"
 
   # Generate a unique suffix per test run to avoid container name conflicts
   defp unique_id, do: :rand.uniform(1_000_000) |> to_string()
@@ -28,7 +28,7 @@ defmodule ExClaw.Container.IntegrationTest do
       _ ->
         raise """
         Docker integration tests require the sandbox image.
-        Build it with: docker build -t exclaw-sandbox:latest container/
+        Build it with: docker build -t kerf-sandbox:latest container/
         """
     end
   end
@@ -70,7 +70,7 @@ defmodule ExClaw.Container.IntegrationTest do
       end
 
       # Belt-and-suspenders: force-remove any containers we created
-      case System.cmd("docker", ["ps", "-a", "--filter", "name=exclaw-", "--format", "{{.Names}}"],
+      case System.cmd("docker", ["ps", "-a", "--filter", "name=kerf-", "--format", "{{.Names}}"],
              stderr_to_stdout: true) do
         {output, 0} ->
           output
@@ -91,7 +91,7 @@ defmodule ExClaw.Container.IntegrationTest do
     test "creates and tracks a container", %{manager: manager} do
       group = "lifecycle_#{unique_id()}"
       assert {:ok, name} = Manager.ensure_container(manager, group)
-      assert name =~ "exclaw-"
+      assert name =~ "kerf-"
 
       {:ok, containers} = Manager.list_containers(manager)
       assert length(containers) == 1

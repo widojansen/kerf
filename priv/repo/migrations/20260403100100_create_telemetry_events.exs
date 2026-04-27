@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.CreateTelemetryEvents do
+defmodule Kerf.Repo.Migrations.CreateTelemetryEvents do
   use Ecto.Migration
 
   def change do

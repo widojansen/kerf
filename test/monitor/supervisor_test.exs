@@ -1,7 +1,7 @@
-defmodule ExClaw.Monitor.SupervisorTest do
-  use ExClaw.DataCase, async: false
+defmodule Kerf.Monitor.SupervisorTest do
+  use Kerf.DataCase, async: false
 
-  alias ExClaw.Monitor
+  alias Kerf.Monitor
 
   describe "start_link/1" do
     test "starts with rest_for_one strategy" do
@@ -35,9 +35,9 @@ defmodule ExClaw.Monitor.SupervisorTest do
       children = Supervisor.which_children(sup_pid)
       child_ids = Enum.map(children, fn {id, _, _, _} -> id end)
 
-      assert ExClaw.Monitor.ProcessHealth in child_ids
-      assert ExClaw.Monitor.TelemetryHandlers.Server in child_ids
-      assert ExClaw.Monitor.Alerting in child_ids
+      assert Kerf.Monitor.ProcessHealth in child_ids
+      assert Kerf.Monitor.TelemetryHandlers.Server in child_ids
+      assert Kerf.Monitor.Alerting in child_ids
     end
 
     test "ProcessHealth, TelemetryHandlers, and Alerting are all alive" do

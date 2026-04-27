@@ -1,8 +1,8 @@
-defmodule ExClaw.StructuredOutput.IntegrationTest do
+defmodule Kerf.StructuredOutput.IntegrationTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.StructuredOutput
-  alias ExClaw.StructuredOutput.SchemaRegistry
+  alias Kerf.StructuredOutput
+  alias Kerf.StructuredOutput.SchemaRegistry
 
   # --- Helpers ---
 

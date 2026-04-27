@@ -1,20 +1,20 @@
 import Ecto.Query
 
-triaged_ids = from(f in ExClaw.KnowledgeBase.Feedback, where: f.feedback_type == "triage", select: f.document_id)
-untriaged = from(d in ExClaw.KnowledgeBase.Document,
+triaged_ids = from(f in Kerf.KnowledgeBase.Feedback, where: f.feedback_type == "triage", select: f.document_id)
+untriaged = from(d in Kerf.KnowledgeBase.Document,
   where: d.source_type == "email" and d.id not in subquery(triaged_ids),
   select: %{sender: d.source_metadata["sender"], title: d.title})
-|> ExClaw.Repo.all()
+|> Kerf.Repo.all()
 
-patterns = from(s in ExClaw.KnowledgeBase.EmailSender,
+patterns = from(s in Kerf.KnowledgeBase.EmailSender,
   where: not is_nil(s.match_pattern),
   select: s.match_pattern)
-|> ExClaw.Repo.all()
+|> Kerf.Repo.all()
 
-known_emails = from(s in ExClaw.KnowledgeBase.EmailSender,
+known_emails = from(s in Kerf.KnowledgeBase.EmailSender,
   where: not is_nil(s.classification_override),
   select: s.email)
-|> ExClaw.Repo.all()
+|> Kerf.Repo.all()
 
 unmatched = Enum.filter(untriaged, fn %{sender: sender} ->
   sender = sender || ""

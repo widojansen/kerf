@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.CreateKbDocuments do
+defmodule Kerf.Repo.Migrations.CreateKbDocuments do
   use Ecto.Migration
 
   def change do

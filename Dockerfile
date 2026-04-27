@@ -1,6 +1,6 @@
-# ExClaw — Multi-stage Dockerfile for Elixir release
+# Kerf — Multi-stage Dockerfile for Elixir release
 #
-# Build:   docker build -t exclaw:latest .
+# Build:   docker build -t kerf:latest .
 # Run:     docker compose up -d
 #
 # The final image contains only the compiled release (BEAM bytecode + ERTS).
@@ -78,29 +78,29 @@ ENV MIX_ENV=prod
 WORKDIR /app
 
 # Non-root user with docker group access for Container.Manager
-RUN groupadd -r exclaw && useradd -r -g exclaw -d /app exclaw \
-  && chown exclaw:exclaw /app \
-  && usermod -aG docker exclaw 2>/dev/null || true
+RUN groupadd -r kerf && useradd -r -g kerf -d /app kerf \
+  && chown kerf:kerf /app \
+  && usermod -aG docker kerf 2>/dev/null || true
 
 # Persistent data directories
 RUN mkdir -p /app/data /app/workspaces /app/telemetry_fallback /app/whatsapp_auth \
-  && chown -R exclaw:exclaw /app
+  && chown -R kerf:kerf /app
 
 # Copy release from builder (no source code — only compiled BEAM + ERTS)
-COPY --from=builder --chown=exclaw:exclaw /app/_build/prod/rel/exclaw ./
+COPY --from=builder --chown=kerf:kerf /app/_build/prod/rel/kerf ./
 
 # Entrypoint script
-COPY --chown=exclaw:exclaw docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY --chown=kerf:kerf docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
-USER exclaw
+USER kerf
 
 # Docker-appropriate defaults (overridable via compose/env)
 ENV DASHBOARD_IP=0.0.0.0
 ENV DASHBOARD_PORT=4000
-ENV EXCLAW_DATA_DIR=/app/data
-ENV EXCLAW_WORKSPACES_DIR=/app/workspaces
-ENV EXCLAW_TELEMETRY_DIR=/app/telemetry_fallback
+ENV KERF_DATA_DIR=/app/data
+ENV KERF_WORKSPACES_DIR=/app/workspaces
+ENV KERF_TELEMETRY_DIR=/app/telemetry_fallback
 
 EXPOSE 4000
 

@@ -1,11 +1,11 @@
-defmodule ExClaw.Scheduler.SupervisorTest do
-  use ExClaw.DataCase
+defmodule Kerf.Scheduler.SupervisorTest do
+  use Kerf.DataCase
 
-  alias ExClaw.Scheduler.Supervisor, as: SchedulerSup
-  alias ExClaw.Scheduler.Scheduler
+  alias Kerf.Scheduler.Supervisor, as: SchedulerSup
+  alias Kerf.Scheduler.Scheduler
 
   setup do
-    Ecto.Adapters.SQL.Sandbox.mode(ExClaw.Repo, {:shared, self()})
+    Ecto.Adapters.SQL.Sandbox.mode(Kerf.Repo, {:shared, self()})
 
     suffix = System.unique_integer([:positive])
     sup_name = :"sched_sup_#{suffix}"
@@ -21,7 +21,7 @@ defmodule ExClaw.Scheduler.SupervisorTest do
       name: sup_name,
       scheduler_name: scheduler_name,
       task_runner_name: task_runner_name,
-      repo: ExClaw.Repo,
+      repo: Kerf.Repo,
       agent_sup: agent_sup_name,
       registry: registry_name,
       agent_opts: []

@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.CreateKbChunks do
+defmodule Kerf.Repo.Migrations.CreateKbChunks do
   use Ecto.Migration
 
   def change do

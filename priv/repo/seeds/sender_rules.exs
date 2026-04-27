@@ -1,5 +1,5 @@
-alias ExClaw.Repo
-alias ExClaw.KnowledgeBase.EmailSender
+alias Kerf.Repo
+alias Kerf.KnowledgeBase.EmailSender
 
 rules = [
   # === Priority senders (from incoming_mail.py) ===

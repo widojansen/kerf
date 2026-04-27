@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.CreateCredentialVaultLeaseLog do
+defmodule Kerf.Repo.Migrations.CreateCredentialVaultLeaseLog do
   use Ecto.Migration
 
   def change do

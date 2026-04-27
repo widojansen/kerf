@@ -1,22 +1,22 @@
-# ExClaw Docker Compose — ExClaw service only.
+# Kerf Docker Compose — Kerf service only.
 # PostgreSQL, vLLM, Ollama, and SearXNG run as existing host services.
 #
 # Usage:
 #   docker compose up -d
-#   docker compose logs -f exclaw
-#   docker compose exec exclaw /app/docker-entrypoint.sh remote   # IEx shell
+#   docker compose logs -f kerf
+#   docker compose exec kerf /app/docker-entrypoint.sh remote   # IEx shell
 #
 # Build:
 #   docker compose build
-#   docker build -t exclaw-sandbox:latest container/              # sandbox image
+#   docker build -t kerf-sandbox:latest container/              # sandbox image
 
 services:
-  exclaw:
+  kerf:
     build:
       context: .
       dockerfile: Dockerfile
-    image: exclaw:latest
-    container_name: exclaw
+    image: kerf:latest
+    container_name: kerf
     network_mode: host
     restart: unless-stopped
     volumes:
@@ -34,10 +34,12 @@ services:
       DASHBOARD_IP: "0.0.0.0"
       DASHBOARD_PORT: "4000"
       # Data paths (match volume mounts)
-      EXCLAW_DATA_DIR: "/app/data"
-      EXCLAW_WORKSPACES_DIR: "/app/workspaces"
-      EXCLAW_TELEMETRY_DIR: "/app/telemetry_fallback"
+      KERF_DATA_DIR: "/app/data"
+      KERF_WORKSPACES_DIR: "/app/workspaces"
+      KERF_TELEMETRY_DIR: "/app/telemetry_fallback"
 
+# Volume names refer to data at rest; rename only with a paired migration.
+# (Bridge not deployed on Spark yet, but consistency matters for when it is.)
 volumes:
   exclaw_data:
   exclaw_workspaces:

@@ -1,4 +1,4 @@
-defmodule ExClaw.LLM.SupervisorTest do
+defmodule Kerf.LLM.SupervisorTest do
   use ExUnit.Case
 
   describe "supervision tree" do
@@ -17,7 +17,7 @@ defmodule ExClaw.LLM.SupervisorTest do
       Process.exit(rl_pid, :kill)
       Process.sleep(50)
 
-      new_pid = Process.whereis(ExClaw.LLM.RateLimiter)
+      new_pid = Process.whereis(Kerf.LLM.RateLimiter)
       assert new_pid != nil
       assert new_pid != rl_pid
       assert Process.alive?(new_pid)
@@ -25,26 +25,26 @@ defmodule ExClaw.LLM.SupervisorTest do
   end
 
   defp ensure_supervisor_running do
-    case Process.whereis(ExClaw.LLM.Supervisor) do
+    case Process.whereis(Kerf.LLM.Supervisor) do
       nil ->
-        Application.put_env(:exclaw, ExClaw.LLM.RateLimiter, [
+        Application.put_env(:kerf, Kerf.LLM.RateLimiter, [
           max_requests_per_minute: 100,
           max_tokens_per_minute: 100_000
         ])
 
-        Application.put_env(:exclaw, ExClaw.LLM.Provider, [
+        Application.put_env(:kerf, Kerf.LLM.Provider, [
           api_key: "test-key-not-real",
           adapter: fn request ->
             {request, Req.Response.json(%{"error" => "test"})}
           end
         ])
 
-        start_supervised!(ExClaw.LLM.Supervisor)
+        start_supervised!(Kerf.LLM.Supervisor)
 
       _pid ->
         :ok
     end
 
-    {Process.whereis(ExClaw.LLM.RateLimiter), Process.whereis(ExClaw.LLM.Provider)}
+    {Process.whereis(Kerf.LLM.RateLimiter), Process.whereis(Kerf.LLM.Provider)}
   end
 end

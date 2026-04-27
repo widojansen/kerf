@@ -1,9 +1,9 @@
-# ExClaw Sandbox Container
+# Kerf Sandbox Container
 # Minimal Debian image with common development tools.
 # Runs as non-root user 1000 with read-only filesystem.
 #
-# Build: docker build -t exclaw-sandbox:latest container/
-# Usage: Managed by ExClaw.Container.Manager — not run directly.
+# Build: docker build -t kerf-sandbox:latest container/
+# Usage: Managed by Kerf.Container.Manager — not run directly.
 
 FROM debian:bookworm-slim
 

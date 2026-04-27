@@ -9,7 +9,7 @@ wait_for_pg() {
   echo "Waiting for PostgreSQL..."
 
   for i in $(seq 1 $retries); do
-    if /app/bin/exclaw eval "
+    if /app/bin/kerf eval "
       {:ok, _} = Application.ensure_all_started(:postgrex)
       opts = [
         hostname: System.get_env(\"DB_HOST\", \"localhost\"),
@@ -37,7 +37,7 @@ wait_for_pg() {
 # --- Run Migrations ---
 run_migrations() {
   echo "Running Ecto migrations..."
-  /app/bin/exclaw eval "ExClaw.Release.migrate()"
+  /app/bin/kerf eval "Kerf.Release.migrate()"
   echo "Migrations complete."
 }
 
@@ -46,8 +46,8 @@ case "${1:-start}" in
   start)
     wait_for_pg
     run_migrations
-    echo "Starting ExClaw..."
-    exec /app/bin/exclaw start
+    echo "Starting Kerf..."
+    exec /app/bin/kerf start
     ;;
   migrate)
     wait_for_pg
@@ -55,12 +55,12 @@ case "${1:-start}" in
     ;;
   eval)
     shift
-    exec /app/bin/exclaw eval "$@"
+    exec /app/bin/kerf eval "$@"
     ;;
   remote)
-    exec /app/bin/exclaw remote
+    exec /app/bin/kerf remote
     ;;
   *)
-    exec /app/bin/exclaw "$@"
+    exec /app/bin/kerf "$@"
     ;;
 esac

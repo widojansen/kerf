@@ -16,7 +16,7 @@
 Description=vLLM Nemotron-Cascade-2 NVFP4
 After=docker.service
 Requires=docker.service
-Before=exclaw.service
+Before=kerf.service
 
 [Service]
 Type=simple

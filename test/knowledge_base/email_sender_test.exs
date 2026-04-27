@@ -1,7 +1,7 @@
-defmodule ExClaw.KnowledgeBase.EmailSenderTest do
-  use ExClaw.DataCase
+defmodule Kerf.KnowledgeBase.EmailSenderTest do
+  use Kerf.DataCase
 
-  alias ExClaw.KnowledgeBase.EmailSender
+  alias Kerf.KnowledgeBase.EmailSender
 
   describe "changeset/2" do
     test "valid with email" do

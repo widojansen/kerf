@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.CreateKbInterests do
+defmodule Kerf.Repo.Migrations.CreateKbInterests do
   use Ecto.Migration
 
   def change do

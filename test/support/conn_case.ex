@@ -1,4 +1,4 @@
-defmodule ExClaw.ConnCase do
+defmodule Kerf.ConnCase do
   @moduledoc """
   Test case template for Phoenix controller and LiveView tests.
   The Dashboard Endpoint is started once in test_helper.exs.
@@ -11,7 +11,7 @@ defmodule ExClaw.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
       import Phoenix.LiveViewTest
-      @endpoint ExClaw.Dashboard.Endpoint
+      @endpoint Kerf.Dashboard.Endpoint
     end
   end
 

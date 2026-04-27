@@ -1,7 +1,7 @@
-defmodule ExClaw.Security.PromptGuardTest do
+defmodule Kerf.Security.PromptGuardTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.Security.PromptGuard
+  alias Kerf.Security.PromptGuard
 
   describe "check/1 allows normal input" do
     test "allows regular user messages" do

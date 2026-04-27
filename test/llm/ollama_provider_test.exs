@@ -1,7 +1,7 @@
-defmodule ExClaw.LLM.OllamaProviderTest do
+defmodule Kerf.LLM.OllamaProviderTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.LLM.OllamaProvider
+  alias Kerf.LLM.OllamaProvider
 
   defp start_provider(adapter) do
     suffix = System.unique_integer([:positive])
@@ -9,7 +9,7 @@ defmodule ExClaw.LLM.OllamaProviderTest do
     rl_name = :"ollama_rl_#{suffix}"
 
     {:ok, _} =
-      ExClaw.LLM.RateLimiter.start_link(
+      Kerf.LLM.RateLimiter.start_link(
         name: rl_name,
         max_requests_per_minute: 1000,
         max_tokens_per_minute: 1_000_000
@@ -119,7 +119,7 @@ defmodule ExClaw.LLM.OllamaProviderTest do
 
     test "respects rate limiter" do
       {:ok, rl} =
-        ExClaw.LLM.RateLimiter.start_link(
+        Kerf.LLM.RateLimiter.start_link(
           name: :"rl_zero_#{System.unique_integer([:positive])}",
           max_requests_per_minute: 0,
           max_tokens_per_minute: 0

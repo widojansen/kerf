@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.CreateApprovalGateAutoRules do
+defmodule Kerf.Repo.Migrations.CreateApprovalGateAutoRules do
   use Ecto.Migration
 
   def change do

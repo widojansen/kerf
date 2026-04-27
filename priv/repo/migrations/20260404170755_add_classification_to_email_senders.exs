@@ -1,4 +1,4 @@
-defmodule ExClaw.Repo.Migrations.AddClassificationToEmailSenders do
+defmodule Kerf.Repo.Migrations.AddClassificationToEmailSenders do
   use Ecto.Migration
 
   def change do

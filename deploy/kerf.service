@@ -1,0 +1,61 @@
+# Kerf systemd service — bare-metal Elixir release on DGX Spark.
+#
+# Install:
+#   sudo cp deploy/kerf.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable kerf
+#
+# Usage:
+#   sudo systemctl start kerf
+#   sudo systemctl stop kerf
+#   journalctl -u kerf -f
+#   /opt/kerf/current/bin/kerf remote   # attach IEx
+
+[Unit]
+Description=Kerf Personal AI Assistant
+After=network.target postgresql.service vllm.service
+Wants=postgresql.service vllm.service
+
+[Service]
+Type=exec
+User=wido
+Group=wido
+
+WorkingDirectory=/opt/kerf
+EnvironmentFile=/opt/kerf/.env
+Environment=MIX_ENV=prod
+Environment=LANG=en_US.UTF-8
+
+# PHX_SERVER=true is set by bin/server overlay.
+ExecStart=/opt/kerf/current/bin/server
+
+# BEAM handles SIGTERM gracefully — give it time to drain.
+KillMode=mixed
+TimeoutStopSec=30
+
+Restart=on-failure
+RestartSec=5
+
+# Docker socket access for Container.Manager sandbox spawning.
+SupplementaryGroups=docker
+
+LimitNOFILE=65536
+
+# Hardening — minimize attack surface.
+ProtectSystem=full
+NoNewPrivileges=true
+ProtectHome=true
+PrivateTmp=true
+ProtectControlGroups=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectHostname=true
+ProtectClock=true
+RestrictSUIDSGID=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kerf
+
+[Install]
+WantedBy=multi-user.target

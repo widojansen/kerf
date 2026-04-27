@@ -1,7 +1,7 @@
-defmodule ExClaw.StructuredOutput.JSONParserTest do
+defmodule Kerf.StructuredOutput.JSONParserTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.StructuredOutput.JSONParser
+  alias Kerf.StructuredOutput.JSONParser
 
   describe "parse/1" do
     test "parses raw JSON object" do

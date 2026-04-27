@@ -1,7 +1,7 @@
-defmodule ExClaw.KnowledgeBase.GraphTest do
-  use ExClaw.DataCase
+defmodule Kerf.KnowledgeBase.GraphTest do
+  use Kerf.DataCase
 
-  alias ExClaw.KnowledgeBase.Graph
+  alias Kerf.KnowledgeBase.Graph
 
   # AGE graph tests need the graph loaded
   # These tests exercise the Graph module's wrapping of AGE SQL queries

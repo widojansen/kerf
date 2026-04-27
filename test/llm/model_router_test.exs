@@ -1,7 +1,7 @@
-defmodule ExClaw.LLM.ModelRouterTest do
+defmodule Kerf.LLM.ModelRouterTest do
   use ExUnit.Case, async: true
 
-  alias ExClaw.LLM.ModelRouter
+  alias Kerf.LLM.ModelRouter
 
   defp make_anthropic_adapter(test_pid) do
     fn request ->
@@ -38,8 +38,8 @@ defmodule ExClaw.LLM.ModelRouterTest do
     suffix = System.unique_integer([:positive])
     rl = :erlang.list_to_atom('rl_a_' ++ :erlang.integer_to_list(suffix))
     b  = :erlang.list_to_atom('anth_' ++ :erlang.integer_to_list(suffix))
-    {:ok, _} = ExClaw.LLM.RateLimiter.start_link(name: rl, max_requests_per_minute: 1000, max_tokens_per_minute: 1_000_000)
-    {:ok, _} = ExClaw.LLM.Provider.start_link(name: b, api_key: "test", base_url: "https://api.anthropic.com/v1", adapter: adapter, rate_limiter: rl)
+    {:ok, _} = Kerf.LLM.RateLimiter.start_link(name: rl, max_requests_per_minute: 1000, max_tokens_per_minute: 1_000_000)
+    {:ok, _} = Kerf.LLM.Provider.start_link(name: b, api_key: "test", base_url: "https://api.anthropic.com/v1", adapter: adapter, rate_limiter: rl)
     b
   end
 
@@ -47,8 +47,8 @@ defmodule ExClaw.LLM.ModelRouterTest do
     suffix = System.unique_integer([:positive])
     rl = :erlang.list_to_atom('rl_o_' ++ :erlang.integer_to_list(suffix))
     b  = :erlang.list_to_atom('oll_' ++ :erlang.integer_to_list(suffix))
-    {:ok, _} = ExClaw.LLM.RateLimiter.start_link(name: rl, max_requests_per_minute: 1000, max_tokens_per_minute: 1_000_000)
-    {:ok, _} = ExClaw.LLM.OllamaProvider.start_link(name: b, base_url: "http://localhost:11434", adapter: adapter, rate_limiter: rl)
+    {:ok, _} = Kerf.LLM.RateLimiter.start_link(name: rl, max_requests_per_minute: 1000, max_tokens_per_minute: 1_000_000)
+    {:ok, _} = Kerf.LLM.OllamaProvider.start_link(name: b, base_url: "http://localhost:11434", adapter: adapter, rate_limiter: rl)
     b
   end
 

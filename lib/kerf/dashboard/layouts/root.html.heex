@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kerf Dashboard</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; background: #1a1a2e; color: #e0e0e0; }
+      .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+      header { background: #16213e; padding: 0.75rem 1rem; border-bottom: 2px solid #0f3460; }
+      header h1 { font-size: 1.2rem; color: #e94560; display: inline; }
+      header span { color: #666; font-size: 0.85rem; margin-left: 1rem; }
+      .tabs { display: flex; gap: 0; background: #16213e; border-bottom: 1px solid #0f3460; padding: 0 1rem; }
+      .tab { padding: 0.5rem 1rem; cursor: pointer; color: #888; border-bottom: 2px solid transparent; text-decoration: none; font-size: 0.85rem; }
+      .tab:hover { color: #e0e0e0; }
+      .tab.active { color: #e94560; border-bottom-color: #e94560; }
+      table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.85rem; }
+      th { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #0f3460; color: #888; font-weight: 600; }
+      td { padding: 0.4rem 0.6rem; border-bottom: 1px solid #1a1a3e; }
+      .card { background: #16213e; border: 1px solid #0f3460; border-radius: 4px; padding: 1rem; margin: 0.5rem 0; }
+      .card h3 { color: #e94560; font-size: 0.95rem; margin-bottom: 0.5rem; }
+      .stat { display: inline-block; margin-right: 2rem; }
+      .stat-value { font-size: 1.5rem; font-weight: bold; color: #e94560; }
+      .stat-label { font-size: 0.75rem; color: #888; }
+      .badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.75rem; }
+      .badge-green { background: #0a3a0a; color: #4caf50; }
+      .badge-yellow { background: #3a3a0a; color: #ffc107; }
+      .badge-red { background: #3a0a0a; color: #f44336; }
+      .badge-blue { background: #0a0a3a; color: #2196f3; }
+      pre { background: #0d0d1a; padding: 0.5rem; border-radius: 3px; overflow-x: auto; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; }
+      .empty { color: #555; text-align: center; padding: 2rem; font-style: italic; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Kerf</h1>
+      <span>Dashboard</span>
+    </header>
+    {@inner_content}
+  </body>
+</html>

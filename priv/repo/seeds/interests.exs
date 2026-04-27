@@ -1,8 +1,8 @@
 # Seeds for kb_interests table.
 # Run with: mix run priv/repo/seeds/interests.exs
 
-alias ExClaw.KnowledgeBase.Interest
-alias ExClaw.Repo
+alias Kerf.KnowledgeBase.Interest
+alias Kerf.Repo
 
 interests = [
   %{topic: "AI/ML", keywords: ["artificial intelligence", "machine learning", "LLM", "neural network", "deep learning", "transformer", "GPT", "Claude"]},
