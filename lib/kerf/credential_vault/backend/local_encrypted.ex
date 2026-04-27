@@ -12,7 +12,10 @@ defmodule Kerf.CredentialVault.Backend.LocalEncrypted do
   alias Kerf.Repo
   import Ecto.Query
 
-  @aad "kerf_credential_vault_v1"
+  # AAD must remain "exclaw_*" — vault rows on production are encrypted with this AAD, and
+  # changing it without a re-encryption migration would make them undecryptable. Treat as
+  # opaque-internal data identity, not code identity.
+  @aad "exclaw_credential_vault_v1"
 
   # --- Public API ---
 

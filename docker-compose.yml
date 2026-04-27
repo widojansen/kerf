@@ -23,10 +23,10 @@ services:
       # Docker socket — required for Container.Manager sandbox spawning
       - /var/run/docker.sock:/var/run/docker.sock
       # Persistent data
-      - kerf_data:/app/data
-      - kerf_workspaces:/app/workspaces
-      - kerf_telemetry:/app/telemetry_fallback
-      - kerf_whatsapp_auth:/app/whatsapp_auth
+      - exclaw_data:/app/data
+      - exclaw_workspaces:/app/workspaces
+      - exclaw_telemetry:/app/telemetry_fallback
+      - exclaw_whatsapp_auth:/app/whatsapp_auth
     env_file:
       - .env
     environment:
@@ -38,8 +38,10 @@ services:
       KERF_WORKSPACES_DIR: "/app/workspaces"
       KERF_TELEMETRY_DIR: "/app/telemetry_fallback"
 
+# Volume names refer to data at rest; rename only with a paired migration.
+# (Bridge not deployed on Spark yet, but consistency matters for when it is.)
 volumes:
-  kerf_data:
-  kerf_workspaces:
-  kerf_telemetry:
-  kerf_whatsapp_auth:
+  exclaw_data:
+  exclaw_workspaces:
+  exclaw_telemetry:
+  exclaw_whatsapp_auth:
