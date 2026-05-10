@@ -361,4 +361,32 @@ defmodule Kerf.StructuredOutputTest do
                )
     end
   end
+
+  describe "which_provider/1" do
+    test "claude models resolve to :anthropic" do
+      assert StructuredOutput.which_provider("claude-sonnet-4-6") == :anthropic
+      assert StructuredOutput.which_provider("claude-3-5-haiku") == :anthropic
+    end
+
+    test "nemotron models resolve to :vllm" do
+      assert StructuredOutput.which_provider("nemotron-cascade-2") == :vllm
+      assert StructuredOutput.which_provider("nemotron-4-340b") == :vllm
+    end
+
+    test "huggingface-style names with slash resolve to :vllm" do
+      assert StructuredOutput.which_provider("nvidia/Llama-3.1-Nemotron-70B-Instruct-HF") == :vllm
+      assert StructuredOutput.which_provider("meta-llama/Meta-Llama-3-8B") == :vllm
+    end
+
+    test "ollama tag-format models resolve to :ollama" do
+      assert StructuredOutput.which_provider("qwen3:8b") == :ollama
+      assert StructuredOutput.which_provider("llama3.2:latest") == :ollama
+      assert StructuredOutput.which_provider("bge-m3:latest") == :ollama
+    end
+
+    test "unknown models default to :anthropic" do
+      assert StructuredOutput.which_provider("some-random-model") == :anthropic
+      assert StructuredOutput.which_provider("") == :anthropic
+    end
+  end
 end

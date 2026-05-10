@@ -151,13 +151,34 @@ defmodule Kerf.StructuredOutput do
 
   # --- Provider detection ---
 
+  @doc """
+  Returns the provider type for the given model name.
+
+  Public wrapper around the internal detection logic, exposed
+  for testing and for callers that need to branch on provider.
+  """
+  @spec which_provider(String.t()) :: :anthropic | :vllm | :ollama
+  def which_provider(model), do: detect_provider(model)
+
   defp detect_provider(model) do
     cond do
-      String.starts_with?(model, "claude") -> :anthropic
-      String.starts_with?(model, "nvidia/") -> :vllm
-      String.contains?(model, "/") -> :vllm
+      anthropic_model?(model) -> :anthropic
+      vllm_model?(model) -> :vllm
+      ollama_model?(model) -> :ollama
       true -> :anthropic
     end
+  end
+
+  defp anthropic_model?(model), do: String.starts_with?(model, "claude")
+
+  defp vllm_model?(model) do
+    String.starts_with?(model, "nvidia/") or
+      String.starts_with?(model, "nemotron") or
+      String.contains?(model, "/")
+  end
+
+  defp ollama_model?(model) do
+    String.contains?(model, ":") and not String.contains?(model, "/")
   end
 
   # --- Error formatting ---
