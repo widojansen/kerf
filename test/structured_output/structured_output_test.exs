@@ -271,7 +271,7 @@ defmodule Kerf.StructuredOutputTest do
   end
 
   describe "complete/4 — provider detection" do
-    test "passes guided_json for vLLM-style models" do
+    test "passes response_format with json_schema for vLLM-style models" do
       reg = start_registry()
       :ok = SchemaRegistry.register(reg, :yes_no, yes_no_schema())
 
@@ -292,7 +292,16 @@ defmodule Kerf.StructuredOutputTest do
       )
 
       opts = Agent.get(call_opts, & &1)
-      assert opts[:guided_json] != nil
+
+      # vLLM 0.15.1 ignores guided_json; response_format is the supported parameter.
+      refute Keyword.has_key?(opts, :guided_json)
+
+      response_format = opts[:response_format]
+      assert response_format != nil
+      assert response_format["type"] == "json_schema"
+      assert is_map(response_format["json_schema"])
+      assert is_binary(response_format["json_schema"]["name"])
+      assert is_map(response_format["json_schema"]["schema"])
     end
 
     test "augments system prompt for non-vLLM providers" do
@@ -319,6 +328,7 @@ defmodule Kerf.StructuredOutputTest do
       opts = Agent.get(call_opts, & &1)
       assert opts[:system] =~ "JSON"
       refute Keyword.has_key?(opts, :guided_json)
+      refute Keyword.has_key?(opts, :response_format)
     end
   end
 

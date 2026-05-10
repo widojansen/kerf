@@ -30,7 +30,8 @@ defmodule Kerf.StructuredOutput do
 
     case SchemaRegistry.get(registry, schema_name) do
       {:ok, schema_def} ->
-        do_complete(schema_def, model, messages, opts)
+        opts_with_name = Keyword.put_new(opts, :schema_name, schema_name)
+        do_complete(schema_def, model, messages, opts_with_name)
 
       {:error, :not_found} ->
         {:error, :schema_not_found}
@@ -102,12 +103,21 @@ defmodule Kerf.StructuredOutput do
 
   defp build_provider_opts(schema_def, :vllm, opts, temperature, max_tokens) do
     system = build_system_prompt(schema_def, Keyword.get(opts, :system))
+    schema_name = Keyword.get(opts, :schema_name, "Response")
+
+    response_format = %{
+      "type" => "json_schema",
+      "json_schema" => %{
+        "name" => to_string(schema_name),
+        "schema" => schema_def.json_schema
+      }
+    }
 
     [
       system: system,
       temperature: temperature,
       max_tokens: max_tokens,
-      guided_json: schema_def.json_schema
+      response_format: response_format
     ]
   end
 
