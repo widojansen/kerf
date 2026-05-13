@@ -27,6 +27,11 @@ defmodule Kerf.Application do
         # BEAM VM metrics — emits [:vm, :memory], [:vm, :total_run_queue_lengths] etc.
         {:telemetry_poller, measurements: [:memory, :total_run_queue_lengths], period: 30_000},
 
+        # Oban — background job processing (Step 0c, Email Triage Enrichment spec).
+        # Started after Repo + Telemetry so Oban can query the DB and emit job events.
+        # Started before EmailTriage and any other job-enqueuing supervisor.
+        {Oban, Application.fetch_env!(:kerf, Oban)},
+
         # Phase 1: Security (built first via TDD)
         Kerf.Security.Supervisor,
 

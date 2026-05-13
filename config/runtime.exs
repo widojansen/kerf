@@ -227,6 +227,25 @@ if alert_chat_id do
     telegram_chat_id: alert_chat_id
 end
 
+# ---------------------------------------------------------------------------
+# Step 13: Email digest cron. Appended at runtime because DigestCron.expression!()
+# requires the project module to be loaded (config.exs is evaluated before
+# project compilation). Replaces the plugins list from config.exs — Elixir
+# Config does shallow merge on the list value, so Pruner is restated here.
+# ---------------------------------------------------------------------------
+if config_env() != :test do
+  config :kerf, Oban,
+    plugins: [
+      {Oban.Plugins.Pruner, max_age: 7 * 24 * 3600},
+      {Oban.Plugins.Cron,
+       crontab: [
+         {Kerf.Agents.EmailTriage.DigestCron.expression!(),
+          Kerf.Agents.EmailTriage.DigestWorker}
+       ],
+       timezone: "Europe/Amsterdam"}
+    ]
+end
+
 # Phoenix server — start endpoint in release mode.
 if System.get_env("PHX_SERVER") do
   config :kerf, Kerf.Dashboard.Endpoint, server: true
