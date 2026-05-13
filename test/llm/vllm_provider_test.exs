@@ -399,5 +399,68 @@ defmodule Kerf.LLM.VLLMProviderTest do
       assert body["guided_json"] == json_schema
       assert is_list(body["tools"])
     end
+
+    test "passes tool_choice through to the request body when provided" do
+      # Step 5.0a: VLLMProvider must forward :tool_choice the same way it
+      # already forwards :tools. Required by the Enricher's
+      # `tool_choice: {type: "function", function: %{name: "enrich_email"}}` call.
+      test_pid = self()
+
+      adapter = fn request ->
+        send(test_pid, {:request, request})
+        {request, Req.Response.json(openai_response("ok"))}
+      end
+
+      {name, _} = start_provider(adapter)
+
+      VLLMProvider.complete(
+        name,
+        "nvidia/Qwen3-32B-NVFP4",
+        [%{role: "user", content: "test"}],
+        tool_choice: %{type: "function", function: %{name: "enrich_email"}}
+      )
+
+      assert_receive {:request, req}
+      body = Jason.decode!(req.body)
+      assert body["tool_choice"] == %{
+               "type" => "function",
+               "function" => %{"name" => "enrich_email"}
+             }
+    end
+
+    test "strips <think>...</think> from tool-call arguments before decoding" do
+      # Step 5.0b: vLLM 0.15.1's step3 parser strips <think> from
+      # message.content but does NOT guarantee the same for
+      # tool_calls[].function.arguments. Defensive strip at the parsing
+      # boundary so Jason.decode never sees thinking markers embedded in the
+      # args string.
+      tool_calls = [
+        %{
+          "id" => "call_thinker",
+          "type" => "function",
+          "function" => %{
+            "name" => "enrich_email",
+            "arguments" =>
+              "<think>weighing options for urgency</think>{\"urgency\": \"high\"}"
+          }
+        }
+      ]
+
+      adapter = fn request ->
+        body = openai_tool_response(tool_calls)
+        {request, Req.Response.json(body)}
+      end
+
+      {name, _} = start_provider(adapter)
+
+      {:ok, result} =
+        VLLMProvider.complete(name, "nvidia/Qwen3-32B-NVFP4", [
+          %{role: "user", content: "?"}
+        ])
+
+      assert result.type == :tool_use
+      [call] = result.calls
+      assert call.input == %{"urgency" => "high"}
+    end
   end
 end

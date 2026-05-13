@@ -131,6 +131,9 @@ defmodule Kerf.LLM.VLLMProvider do
     body = add_if_present(body, opts, :guided_regex)
     body = add_if_present(body, opts, :response_format)
 
+    # Tool-call routing: forward tool_choice (e.g. {type: "function", function: %{name: ...}}).
+    body = add_if_present(body, opts, :tool_choice)
+
     Jason.encode!(body)
   end
 
@@ -285,8 +288,14 @@ defmodule Kerf.LLM.VLLMProvider do
             func = Map.get(tc, "function", %{})
             args_str = Map.get(func, "arguments", "{}")
 
+            # Defensive <think>-strip: vLLM 0.15.1's step3 parser strips
+            # <think> from message.content but does not guarantee the same
+            # for tool_calls[].function.arguments. Apply Kerf.LLM.Sanitize
+            # before Jason.decode so the parser never sees thinking markup.
+            cleaned_args_str = Kerf.LLM.Sanitize.strip_thinking(args_str)
+
             args =
-              case Jason.decode(args_str) do
+              case Jason.decode(cleaned_args_str) do
                 {:ok, parsed} -> parsed
                 {:error, _} -> %{}
               end
