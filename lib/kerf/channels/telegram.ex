@@ -40,6 +40,29 @@ defmodule Kerf.Channels.Telegram do
     GenServer.call(name, :status)
   end
 
+  @doc """
+  Send a Telegram message to a chat. Public sender seam introduced in Step 12.
+
+  Resolves the bot token internally via `Application.get_env(:kerf, __MODULE__, [])[:token]`
+  so callers don't need to pass it. `opts[:http_client]` injects a Req adapter for tests.
+
+  Returns `:ok | {:error, term()}`. Returns `{:error, :no_token}` when the
+  token is unconfigured — defensive for test envs and operator misconfig;
+  shouldn't happen in production.
+  """
+  @spec send_message(chat_id :: integer() | String.t(), text :: String.t(), opts :: keyword()) ::
+          :ok | {:error, term()}
+  def send_message(chat_id, text, opts \\ []) do
+    token = Application.get_env(:kerf, __MODULE__, [])[:token]
+
+    if token do
+      http_client = Keyword.get(opts, :http_client)
+      send_telegram_message(token, chat_id, text, http_client)
+    else
+      {:error, :no_token}
+    end
+  end
+
   # --- Pure functions (testable without GenServer) ---
 
   @doc "Derive an Kerf group_id from a Telegram update."

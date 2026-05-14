@@ -37,6 +37,9 @@ defmodule Kerf.MixProject do
       {:pgvector, "~> 0.3"},
       {:jason, "~> 1.4"},
       {:req, "~> 0.5"},
+      {:oban, "~> 2.22"},
+      {:file_system, "~> 1.1"},
+      {:tz, "~> 0.28"},
 
       # Web dashboard
       {:phoenix, "~> 1.7"},

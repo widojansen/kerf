@@ -7,7 +7,15 @@ defmodule Kerf.Agents.EmailTriage.EmailTriage do
   require Logger
 
   alias Kerf.KnowledgeBase.{Document, Chunk, EmailSender, Feedback, Interest}
-  alias Kerf.Agents.EmailTriage.{Classifier, FastClassifier, PriorityScorer, InterestMatcher, TelegramFormatter}
+  alias Kerf.Agents.EmailTriage.{
+    Classifier,
+    Enricher,
+    FastClassifier,
+    InterestMatcher,
+    PriorityScorer,
+    TelegramFormatter,
+    TriageRecord
+  }
 
   import Ecto.Query
 
@@ -114,10 +122,17 @@ defmodule Kerf.Agents.EmailTriage.EmailTriage do
           interest_matches: interest_matches
         }
 
-        classification_result =
+        {classification_result, sender_type} =
           case FastClassifier.classify(fast_email, repo: state.repo) do
-            {:ok, _} = fast -> fast
-            :no_match -> state.classifier_fn.(email, context: context)
+            {:ok, %{sender_type: st} = classification} ->
+              {{:ok, classification}, st}
+
+            {:no_match, %{sender_type: st}} ->
+              # Thread sender_type into the LLM fallback context per spec §4.2:
+              # even when the category cascade exhausts, sender_type is computed
+              # and must reach the downstream classifier.
+              context_with_sender = Map.put(context, :sender_type, st)
+              {state.classifier_fn.(email, context: context_with_sender), st}
           end
 
         case classification_result do
@@ -132,13 +147,19 @@ defmodule Kerf.Agents.EmailTriage.EmailTriage do
                 thread_has_priority_senders: false
               })
 
-            # 6. Map category to Gmail label
+            # 6. Step 10: TriageRecord write + Enricher enqueue inside a
+            # Repo.transaction. kb_feedback stays independent below per the
+            # audit-confirmed "tight transaction" shape (option A).
+            write_triage_record_and_enqueue(doc, classification, sender_type, repo)
+
+            # 7. Map category to Gmail label
             label = label_for_category(classification.category)
 
-            # 7. Mark read + label in Gmail (except high-priority personal)
+            # 8. Mark read + label in Gmail (except high-priority personal)
             apply_gmail_actions(doc, classification, final_priority, label, state)
 
-            # 8. Record triage feedback
+            # 9. Record triage feedback (kb_feedback dual write — independent
+            # of the TriageRecord transaction above)
             record_triage_feedback(repo, doc.id, %{
               category: classification.category,
               final_priority: final_priority,
@@ -256,6 +277,56 @@ defmodule Kerf.Agents.EmailTriage.EmailTriage do
   defp label_for_category("social"), do: "Kerf/Social"
   defp label_for_category("spam"), do: "Kerf/Spam"
   defp label_for_category(_), do: "Kerf/Triaged"
+
+  # Step 10: atomic TriageRecord write + Enricher enqueue.
+  # On transaction failure, log and continue — the caller-visible return shape
+  # (an entry in the results list) must be preserved per the Step 10 audit.
+  defp write_triage_record_and_enqueue(doc, classification, sender_type, repo) do
+    classify_attrs = %{
+      document_id: doc.id,
+      category: classification.category,
+      sender_type: sender_type,
+      classifier_source: classifier_source_str(classification),
+      confidence: Map.get(classification, :confidence)
+    }
+
+    result =
+      repo.transaction(fn ->
+        record =
+          (repo.get_by(TriageRecord, document_id: doc.id) || %TriageRecord{})
+          |> TriageRecord.classify_changeset(classify_attrs)
+          |> repo.insert_or_update!()
+
+        # unique: false — this call site is always operator-deliberate (live
+        # triage, manual re-triage, backfill). The worker-level dedup window
+        # protects against unintended retry loops elsewhere; explicit bypass
+        # here is the contract.
+        %{triage_record_id: record.id, enrichment_version: 1}
+        |> Enricher.new(unique: false)
+        |> Oban.insert!()
+
+        record
+      end)
+
+    case result do
+      {:ok, _record} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning(
+          "[EmailTriage] TriageRecord write failed for #{doc.id}: #{inspect(reason)}"
+        )
+
+        :error
+    end
+  end
+
+  defp classifier_source_str(classification) do
+    case Map.get(classification, :source, :llm) do
+      :fast_classifier -> "fast_classifier"
+      _ -> "llm_classifier"
+    end
+  end
 
   defp record_triage_feedback(repo, document_id, context) do
     decision = if Map.has_key?(context, :error), do: "unclassified", else: "classified"

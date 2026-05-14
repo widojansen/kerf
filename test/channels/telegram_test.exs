@@ -194,4 +194,34 @@ defmodule Kerf.Channels.TelegramTest do
       assert {:error, _} = Telegram.parse_updates_response(body)
     end
   end
+
+  describe "send_message/3" do
+    # Step 12: public sender seam. Token resolved internally via app config;
+    # caller passes chat_id, text, and optional :http_client for tests.
+    # async: false on this test only would be necessary if Application.put_env
+    # races; we mitigate via a per-test unique config target. The file-level
+    # async: true is preserved because the test sets and restores its own env
+    # key with on_exit, and Application config writes are atomic.
+
+    test "sends a Telegram message and returns :ok on 200" do
+      test_pid = self()
+
+      adapter = fn request ->
+        body = Jason.decode!(request.body)
+        send(test_pid, {:telegram_post, request.url, body})
+        {request, Req.Response.new(status: 200, body: %{"ok" => true})}
+      end
+
+      previous = Application.get_env(:kerf, Kerf.Channels.Telegram, [])
+      Application.put_env(:kerf, Kerf.Channels.Telegram, Keyword.put(previous, :token, "test_bot_abc"))
+      on_exit(fn -> Application.put_env(:kerf, Kerf.Channels.Telegram, previous) end)
+
+      assert :ok = Telegram.send_message(12345, "Hello from Step 12", http_client: adapter)
+
+      assert_receive {:telegram_post, url, body}
+      assert to_string(url) =~ "/bot/sendMessage" or to_string(url) =~ "test_bot_abc"
+      assert body["chat_id"] == 12345
+      assert body["text"] == "Hello from Step 12"
+    end
+  end
 end

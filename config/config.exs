@@ -1,5 +1,10 @@
 import Config
 
+# Time zone database — :tz provides full IANA zone data so Oban.Plugins.Cron
+# can resolve "Europe/Amsterdam" (DST included) at boot. Required by the
+# email-digest cron (Step 13).
+config :elixir, :time_zone_database, Tz.TimeZoneDatabase
+
 config :kerf, ecto_repos: [Kerf.Repo]
 
 config :kerf, Kerf.Repo,
@@ -110,5 +115,26 @@ config :kerf, Kerf.Monitor.ProcessHealth,
 
 config :kerf, Kerf.Monitor.Alerting,
   debounce_window_ms: 300_000
+
+# ---------------------------------------------------------------------------
+# Oban — background job processing.
+# Foundation for the email enrichment / routing workers (Email Triage
+# Enrichment spec, Step 0c). Static across envs; test.exs overrides with
+# `testing: :manual` so jobs don't auto-execute during the test suite.
+# ---------------------------------------------------------------------------
+config :kerf, Oban,
+  repo: Kerf.Repo,
+  queues: [
+    email_enrichment: 2,
+    email_routing: 4,
+    email_digest: 1
+  ],
+  plugins: [
+    {Oban.Plugins.Pruner, max_age: 7 * 24 * 3600}
+  ]
+
+# Oban.Plugins.Cron is appended in runtime.exs — its crontab calls
+# DigestCron.expression!() which references a project module not yet
+# available at config.exs evaluation time.
 
 import_config "#{config_env()}.exs"

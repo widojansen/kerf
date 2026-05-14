@@ -1,7 +1,10 @@
 defmodule Kerf.Agents.EmailTriage.EmailTriageTest do
   use Kerf.DataCase
+  use Oban.Testing, repo: Kerf.Repo
 
-  alias Kerf.Agents.EmailTriage.EmailTriage
+  import Ecto.Query
+
+  alias Kerf.Agents.EmailTriage.{EmailTriage, TriageRecord, Enricher}
   alias Kerf.KnowledgeBase.{Document, Chunk, EmailSender, Interest}
 
   @fake_embedding List.duplicate(0.1, 1024)
@@ -317,6 +320,34 @@ defmodule Kerf.Agents.EmailTriage.EmailTriageTest do
       assert_receive :llm_called, 1000
       assert result.classification.category == "personal"
     end
+
+    test "no-match path threads sender_type into the LLM fallback context", ctx do
+      # Sanity check for Step 3 caller update: when FastClassifier returns
+      # {:no_match, %{sender_type: <value>}}, the GenServer must destructure
+      # the tuple and pass sender_type into the LLM context. Today's john@example.com
+      # sender has is_priority: true + total_emails: 10 — so sender_type derivation
+      # should yield "known_routine" (no priority_override set in the fixture).
+      test_pid = self()
+
+      classifier_fn = fn _email, opts ->
+        context = Keyword.get(opts, :context, %{})
+        send(test_pid, {:context_received, context})
+        {:ok, %{category: "personal", priority: 3, action: "follow_up", confidence: 0.9, summary: "LLM classified."}}
+      end
+
+      # Ensure no classification_override so the FastClassifier category cascade
+      # exhausts and the :no_match path is taken.
+      import Ecto.Query
+      sender = Repo.one!(from s in Kerf.KnowledgeBase.EmailSender, where: s.email == "john@example.com")
+      sender |> Ecto.Changeset.change(%{classification_override: nil}) |> Repo.update!()
+
+      ctx = start_agent(ctx, classifier_fn: classifier_fn)
+      {:ok, _results} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      assert_receive {:context_received, context}, 1000
+      assert is_binary(context.sender_type)
+      assert context.sender_type in ~w(known_priority known_routine automated_system unknown_human)
+    end
   end
 
   describe "gmail actions after triage" do
@@ -394,6 +425,127 @@ defmodule Kerf.Agents.EmailTriage.EmailTriageTest do
 
       assert is_map(status)
       assert Map.has_key?(status, :documents_triaged)
+    end
+  end
+
+  describe "TriageRecord chaining (Step 10)" do
+    # Step 10 adds the TriageRecord write + Enricher Oban enqueue to the
+    # existing triage path. The new behavior is additive: existing return
+    # shape and kb_feedback dual-write are preserved.
+
+    test "successful triage inserts a TriageRecord with status 'classified' and Stage-1 fields populated", ctx do
+      ctx = start_agent(ctx)
+
+      assert {:ok, _results} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      record = Repo.one!(from t in TriageRecord, where: t.document_id == ^ctx.doc.id)
+
+      assert record.triage_status == "classified"
+      assert record.category == "business"
+      # FastClassifier derivation: john@example.com has total_emails: 10 and no
+      # priority_override → known_routine.
+      assert record.sender_type == "known_routine"
+      # Test setup uses the mock classifier_fn (LLM Classifier path) since
+      # the sender has no classification_override.
+      assert record.classifier_source == "llm_classifier"
+      assert record.confidence == 0.92
+      assert %DateTime{} = record.classified_at
+    end
+
+    test "enqueues an Enricher job with the inserted record's id as triage_record_id", ctx do
+      ctx = start_agent(ctx)
+
+      {:ok, _results} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      record = Repo.one!(from t in TriageRecord, where: t.document_id == ^ctx.doc.id)
+
+      assert_enqueued(
+        worker: Enricher,
+        args: %{"triage_record_id" => record.id}
+      )
+    end
+
+    test "re-triage of same document does an UPDATE (single row + updated_at advances)", ctx do
+      ctx = start_agent(ctx)
+
+      assert {:ok, _} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      # Force a measurable timestamp delta — postgres timestamp resolution is
+      # microsecond, but rapid back-to-back inserts can collide on Linux clocks.
+      Process.sleep(10)
+
+      assert {:ok, _} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      # Count: a single TriageRecord row exists for this document (no duplicate).
+      assert Repo.aggregate(TriageRecord, :count, :id) == 1
+
+      # UPDATE: updated_at is later than inserted_at.
+      record = Repo.one!(from t in TriageRecord, where: t.document_id == ^ctx.doc.id)
+      assert DateTime.compare(record.updated_at, record.inserted_at) == :gt
+    end
+
+    test "re-triage enqueues a second Enricher job (insert call site bypasses unique guard)", ctx do
+      ctx = start_agent(ctx)
+
+      {:ok, _} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+      {:ok, _} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      record = Repo.one!(from t in TriageRecord, where: t.document_id == ^ctx.doc.id)
+
+      # Re-triage is operator-initiated. The worker-level unique guard on
+      # Enricher is bypassed at EmailTriage's insert site (unique: false)
+      # so each triage produces a fresh Enricher job. Both jobs reference
+      # the same triage_record_id; the second job re-enriches the row that
+      # got reset to "classified" by the second insert_or_update.
+      jobs =
+        all_enqueued(worker: Enricher)
+        |> Enum.filter(fn job -> job.args["triage_record_id"] == record.id end)
+
+      assert length(jobs) == 2
+    end
+
+    test "classifier failure does NOT insert a TriageRecord and does NOT enqueue an Enricher", ctx do
+      classifier_fn = fn _email, _opts -> {:error, "LLM down"} end
+      ctx = start_agent(ctx, classifier_fn: classifier_fn)
+
+      assert {:ok, _} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      # No TriageRecord row inserted on failure.
+      assert Repo.aggregate(TriageRecord, :count, :id) == 0
+
+      # No Enricher job enqueued on failure.
+      refute_enqueued(worker: Enricher)
+    end
+
+    test "classifier failure still inserts a kb_feedback row with decision 'unclassified' (dual write preserved on failure)", ctx do
+      classifier_fn = fn _email, _opts -> {:error, "LLM down"} end
+      ctx = start_agent(ctx, classifier_fn: classifier_fn)
+
+      assert {:ok, _} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      feedback =
+        Repo.one!(
+          from f in Kerf.KnowledgeBase.Feedback,
+            where: f.document_id == ^ctx.doc.id and f.feedback_type == "triage"
+        )
+
+      assert feedback.decision == "unclassified"
+      assert feedback.context["error"] =~ "LLM down"
+    end
+
+    test "successful triage still inserts a kb_feedback row with decision 'classified' (dual write preserved on success)", ctx do
+      ctx = start_agent(ctx)
+
+      assert {:ok, _} = EmailTriage.triage(ctx.agent, [ctx.doc.id])
+
+      feedback =
+        Repo.one!(
+          from f in Kerf.KnowledgeBase.Feedback,
+            where: f.document_id == ^ctx.doc.id and f.feedback_type == "triage"
+        )
+
+      assert feedback.decision == "classified"
+      assert feedback.context["category"] == "business"
     end
   end
 end

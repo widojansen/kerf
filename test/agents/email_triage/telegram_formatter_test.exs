@@ -96,4 +96,119 @@ defmodule Kerf.Agents.EmailTriage.TelegramFormatterTest do
       end
     end
   end
+
+  describe "format_routing_ping/1 (Step 12)" do
+    # New formatter for the Router-triggered Telegram delivery path.
+    # Takes a flat map the Router builds at the call site
+    # (TriageRecord + Document + email_senders → projection).
+    # Uses the new vocabulary: urgency / topic / sender_type
+    # (vs format_high_priority/1's priority / interest_matches).
+
+    @ping_input %{
+      sender: "bob@example-firm.nl",
+      sender_name: "Bob",
+      subject: "Concept rapport - feedback nodig voor vrijdag",
+      urgency: "high",
+      summary: "Bob vraagt om feedback op concept overeenkomst voor vrijdag.",
+      topic: ["legal", "kerf"],
+      sender_type: "known_priority"
+    }
+
+    test "renders sender, subject, urgency, summary, topic in the message body" do
+      text = TelegramFormatter.format_routing_ping(@ping_input)
+
+      assert is_binary(text)
+      assert text =~ "Bob"
+      assert text =~ "bob@example-firm.nl"
+      assert text =~ "Concept rapport - feedback nodig voor vrijdag"
+      assert text =~ "high"
+      assert text =~ "Bob vraagt om feedback"
+      assert text =~ "legal"
+      assert text =~ "kerf"
+      # sender_type is humanized for display: known_priority → "Priority sender"
+      assert text =~ "Priority sender"
+    end
+
+    test "handles missing optional fields gracefully" do
+      # sender_name nil → fall back to email only (no "<email>" decoration);
+      # topic [] → omit the topic line entirely.
+      input = %{
+        sender: "anon@example.com",
+        sender_name: nil,
+        subject: "Untitled",
+        urgency: "low",
+        summary: "An email arrived.",
+        topic: [],
+        sender_type: "unknown_human"
+      }
+
+      text = TelegramFormatter.format_routing_ping(input)
+
+      assert is_binary(text)
+      assert text =~ "anon@example.com"
+      assert text =~ "Untitled"
+      assert text =~ "low"
+      assert text =~ "An email arrived."
+      # unknown_human → humanized as "New sender"
+      assert text =~ "New sender"
+      # No "Topic:" line in the output since topic is empty.
+      refute text =~ "Topic:"
+    end
+  end
+
+  describe "format_routing_digest/2 (Step 13)" do
+    # Compact format: groups items by category, lists up to 3 names per
+    # category with "+N more" overflow, references the future /digest_full
+    # Tina command (see deferred-work item L).
+
+    test "produces compact format with header, category groups, footer" do
+      items = [
+        %{name: "TechCrunch", category: "newsletter"},
+        %{name: "NewsletterCo", category: "newsletter"},
+        %{name: "Bob", category: "business"},
+        %{name: "Charlie", category: "business"},
+        %{name: "GitHub", category: "notification"}
+      ]
+
+      text = TelegramFormatter.format_routing_digest(items, since_label: "14h")
+
+      assert is_binary(text)
+      # Header references the total count and the since-label.
+      assert text =~ "📬"
+      assert text =~ "5"
+      assert text =~ "14h"
+      # Each category appears with its count.
+      assert text =~ ~r/newsletter.*\(2\)/i
+      assert text =~ ~r/business.*\(2\)/i
+      assert text =~ ~r/notification.*\(1\)/i
+      # All names appear (no truncation triggered at category counts ≤ 3).
+      assert text =~ "TechCrunch"
+      assert text =~ "NewsletterCo"
+      assert text =~ "Bob"
+      assert text =~ "Charlie"
+      assert text =~ "GitHub"
+      # Footer references the future Tina command (deferred-work item L).
+      assert text =~ "/digest_full"
+    end
+
+    test "category with more than 3 items shows '+N more' truncation" do
+      items =
+        for n <- 1..8,
+            do: %{name: "Sender#{n}", category: "newsletter"}
+
+      text = TelegramFormatter.format_routing_digest(items, since_label: "24h")
+
+      # Up to 3 names listed; remaining 5 collapsed to "+5 more".
+      assert text =~ "Sender1"
+      assert text =~ "Sender2"
+      assert text =~ "Sender3"
+      assert text =~ ~r/\+\s*5\s+more/
+      # Names beyond the truncation cap should NOT appear in the digest body.
+      refute text =~ "Sender8"
+    end
+
+    test "empty input list returns nil (signal to worker: skip the send)" do
+      assert TelegramFormatter.format_routing_digest([], since_label: "24h") == nil
+    end
+  end
 end

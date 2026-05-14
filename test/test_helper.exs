@@ -4,7 +4,12 @@
 # tests can run. Otherwise we exclude them.
 integration_excluded = is_nil(Process.whereis(Kerf.Dashboard.Endpoint))
 
-excluded = if integration_excluded, do: [:docker, :integration], else: [:docker]
+# :vllm tests require a real vLLM endpoint reachable at config'd VLLM_URL.
+# Run them explicitly via `mix test --only vllm` or `mix test --include vllm`.
+excluded =
+  if integration_excluded,
+    do: [:docker, :integration, :vllm],
+    else: [:docker, :vllm]
 
 ExUnit.start(exclude: excluded)
 

@@ -59,4 +59,8 @@ config :kerf, Kerf.Telemetry.Logger,
   enabled: false,
   ch_opts: nil
 
+# Oban: don't auto-execute jobs during tests. Tests enqueue and assert,
+# or drain explicitly via Oban.drain_queue/2 when execution is desired.
+config :kerf, Oban, testing: :manual
+
 config :logger, level: :warning

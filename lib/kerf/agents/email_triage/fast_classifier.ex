@@ -1,29 +1,68 @@
 defmodule Kerf.Agents.EmailTriage.FastClassifier do
   @moduledoc """
-  Deterministic pre-LLM classifier. Checks email_senders for known patterns
-  and classification overrides before falling through to LLM classification.
+  Deterministic pre-LLM classifier. Two concerns, computed independently per call:
 
-  Returns {:ok, classification_map} if a deterministic match is found,
-  or :no_match to signal the caller should use the LLM Classifier.
+    * **category cascade** (existing) — checks `email_senders` for known patterns
+      and Gmail category labels to assign a category. Returns `{:ok, classification}`
+      on match or `:no_match` on cascade exhaustion (internal sentinel).
+
+    * **sender_type derivation** (Step 3, Email Triage Enrichment spec §4.2) —
+      classifies the sender into one of four buckets, run on every call regardless
+      of category-cascade outcome. The four values:
+
+        - `known_priority`   — `email_senders` row with `priority_override IS NOT NULL`,
+                               matched by exact email
+        - `automated_system` — From-header local part starts with one of
+                               `@automated_prefixes` (noreply, mailer-daemon, …)
+        - `known_routine`    — `email_senders` row with `total_emails >= 3`,
+                               matched by exact email
+        - `unknown_human`    — none of the above
+
+  Public API:
+
+      classify(email, opts) ::
+        {:ok, classification_with_sender_type}
+        | {:no_match, %{sender_type: String.t()}}
+
+  `marketing_list` (a fifth sender_type from spec §2.2) is deferred until the
+  `List-Unsubscribe` header is surfaced into `kb_documents.source_metadata`.
   """
 
   alias Kerf.Agents.EmailTriage.FastClassifier.Cache
   alias Kerf.KnowledgeBase.EmailSender
   import Ecto.Query
 
+  @automated_prefixes ~w(
+    noreply
+    no-reply
+    donotreply
+    do-not-reply
+    mailer-daemon
+    bounce
+    bounces
+  )
+
+  @valid_sender_types ~w(known_priority known_routine automated_system unknown_human)
+
   @doc """
   Attempt deterministic classification of an email.
 
-  Checks in order:
-  1. Exact email match in email_senders with classification_override set
-  2. match_pattern substring match against from field
-  3. domain match against sender domain
-  4. Gmail category header mapping (CATEGORY_PROMOTIONS, etc.)
+  Category cascade (in order):
+    1. Exact email match in `email_senders` with classification_override set
+    2. `match_pattern` substring match against From field
+    3. Domain match against sender domain
+    4. Gmail category header mapping (CATEGORY_PROMOTIONS, etc.)
 
-  Uses ETS cache when a `:cache` option is provided, otherwise falls back
-  to direct Repo queries.
+  Independently, `sender_type` is derived per spec §4.2 cascade. `sender_type`
+  is returned in BOTH the `{:ok, classification}` and the `{:no_match, ...}` paths.
 
-  Returns {:ok, classification} or :no_match.
+  Uses the ETS cache for category-cascade lookups when `:cache` is provided.
+  The sender_type derivation always queries via `:repo` (uncached) — small
+  cost at our volume (~235 emails/day).
+
+  Returns:
+    * `{:ok, classification}` where `classification` includes `:sender_type`
+    * `{:no_match, %{sender_type: sender_type}}`
   """
   def classify(%{from: from} = email, opts \\ []) do
     cache = Keyword.get(opts, :cache)
@@ -31,15 +70,59 @@ defmodule Kerf.Agents.EmailTriage.FastClassifier do
     sender_email = extract_email(from)
     sender_domain = extract_domain(sender_email)
 
-    with :no_match <- match_by_email(cache, repo, sender_email),
-         :no_match <- match_by_pattern(cache, repo, from),
-         :no_match <- match_by_domain(cache, repo, sender_domain),
-         :no_match <- match_by_gmail_category(email) do
-      :no_match
+    sender_type = derive_sender_type(sender_email, repo)
+
+    category_result =
+      with :no_match <- match_by_email(cache, repo, sender_email),
+           :no_match <- match_by_pattern(cache, repo, from),
+           :no_match <- match_by_domain(cache, repo, sender_domain),
+           :no_match <- match_by_gmail_category(email) do
+        :no_match
+      end
+
+    case category_result do
+      {:ok, classification} -> {:ok, Map.put(classification, :sender_type, sender_type)}
+      :no_match -> {:no_match, %{sender_type: sender_type}}
     end
   end
 
-  # --- Match functions ---
+  # --- sender_type derivation (cascade) ---
+
+  defp derive_sender_type(sender_email, repo) do
+    cond do
+      derive_known_priority(sender_email, repo) -> "known_priority"
+      derive_automated_system(sender_email) -> "automated_system"
+      derive_known_routine(sender_email, repo) -> "known_routine"
+      true -> "unknown_human"
+    end
+  end
+
+  defp derive_known_priority(sender_email, repo) do
+    query =
+      from s in EmailSender,
+        where: s.email == ^sender_email and not is_nil(s.priority_override),
+        limit: 1
+
+    repo.one(query) != nil
+  end
+
+  defp derive_automated_system(sender_email) do
+    case String.split(sender_email, "@", parts: 2) do
+      [local, _domain] -> Enum.any?(@automated_prefixes, &String.starts_with?(local, &1))
+      _ -> false
+    end
+  end
+
+  defp derive_known_routine(sender_email, repo) do
+    query =
+      from s in EmailSender,
+        where: s.email == ^sender_email and s.total_emails >= 3,
+        limit: 1
+
+    repo.one(query) != nil
+  end
+
+  # --- category cascade (unchanged) ---
 
   defp match_by_email(cache, repo, email) do
     if cache do
@@ -150,7 +233,10 @@ defmodule Kerf.Agents.EmailTriage.FastClassifier do
   end
   defp match_by_gmail_category(_), do: :no_match
 
-  # --- Helpers ---
+  # --- helpers ---
+
+  @doc false
+  def valid_sender_types, do: @valid_sender_types
 
   defp build_classification(%EmailSender{} = sender) do
     %{
