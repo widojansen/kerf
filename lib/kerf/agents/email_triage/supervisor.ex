@@ -6,7 +6,7 @@ defmodule Kerf.Agents.EmailTriage.Supervisor do
   use Supervisor
 
   alias Kerf.Ingestors.Email.{GmailClient, EmailIngestor}
-  alias Kerf.Agents.EmailTriage.EmailTriage
+  alias Kerf.Agents.EmailTriage.{EmailTriage, RoutingConfig}
   alias Kerf.CredentialVault
 
   def start_link(opts) do
@@ -15,16 +15,45 @@ defmodule Kerf.Agents.EmailTriage.Supervisor do
 
   @impl true
   def init(_opts) do
+    Supervisor.init(child_specs(), strategy: :rest_for_one)
+  end
+
+  @doc """
+  Builds the production child spec list. Exposed for wiring tests.
+
+  Order matters (`:rest_for_one`): `RoutingConfig` first so that downstream
+  Router jobs (enqueued via the EmailIngestor → EmailTriage chain) can always
+  resolve it by its default registered name.
+  """
+  def child_specs do
     ingestor_config = Application.get_env(:kerf, EmailIngestor, [])
     triage_config = Application.get_env(:kerf, Kerf.Agents.EmailTriage, [])
     credential_name = Keyword.get(ingestor_config, :credential_name, "gmail_oauth")
 
-    children =
-      []
-      |> maybe_add_ingestor(ingestor_config, credential_name)
-      |> maybe_add_triage(triage_config, credential_name)
+    [routing_config_child_spec()]
+    |> maybe_add_ingestor(ingestor_config, credential_name)
+    |> maybe_add_triage(triage_config, credential_name)
+  end
 
-    Supervisor.init(children, strategy: :rest_for_one)
+  @doc """
+  Production child spec for `RoutingConfig`. Override paths via
+  `config :kerf, Kerf.Agents.EmailTriage.RoutingConfig, default_path:, override_path:`
+  (used in tests to redirect away from `/opt/kerf`).
+  """
+  def routing_config_child_spec do
+    config = Application.get_env(:kerf, RoutingConfig, [])
+
+    default_path =
+      Keyword.get(
+        config,
+        :default_path,
+        Application.app_dir(:kerf, "priv/email_routing.exs")
+      )
+
+    override_path = Keyword.get(config, :override_path, "/opt/kerf/email_routing.exs")
+
+    {RoutingConfig,
+     name: RoutingConfig, default_path: default_path, override_path: override_path}
   end
 
   defp maybe_add_ingestor(children, config, credential_name) do

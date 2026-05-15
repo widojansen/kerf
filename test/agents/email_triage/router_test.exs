@@ -435,6 +435,77 @@ defmodule Kerf.Agents.EmailTriage.RouterTest do
     end
   end
 
+  # ---------- supervisor wiring (production call shape) ----------
+
+  # Regression for production bug: Router jobs crashed with "no process" because
+  # Kerf.Agents.EmailTriage.RoutingConfig was missing from the EmailTriage
+  # supervisor's children list. Existing tests above all use isolated per-test
+  # RoutingConfig instances via :routing_config_name override, which masked the
+  # wiring gap. This test exercises the production call shape — `current/0` with
+  # no args resolves to the default-registered name.
+  describe "production wiring" do
+    setup do
+      tmp_dir =
+        Path.join(System.tmp_dir!(), "kerf_router_wiring_#{System.unique_integer([:positive])}")
+
+      File.mkdir_p!(tmp_dir)
+
+      # FileSystem watches the dirname of override_path. Point both paths into
+      # the tmp dir to avoid touching /opt/kerf during tests.
+      default_path = Path.join(tmp_dir, "default.exs")
+      override_path = Path.join(tmp_dir, "override.exs")
+
+      File.write!(
+        default_path,
+        ~s|%{version: "wiring-test-v1", rules: [%{name: "default_silent", match: %{}, action: :silent}]}|
+      )
+
+      previous = Application.get_env(:kerf, RoutingConfig, [])
+
+      Application.put_env(
+        :kerf,
+        RoutingConfig,
+        Keyword.merge(previous, default_path: default_path, override_path: override_path)
+      )
+
+      on_exit(fn ->
+        Application.put_env(:kerf, RoutingConfig, previous)
+        File.rm_rf(tmp_dir)
+      end)
+
+      :ok
+    end
+
+    test "EmailTriage.Supervisor child_specs/0 includes RoutingConfig with default registered name" do
+      specs = Kerf.Agents.EmailTriage.Supervisor.child_specs()
+
+      routing_spec =
+        Enum.find(specs, fn
+          {RoutingConfig, _opts} -> true
+          _ -> false
+        end)
+
+      assert routing_spec,
+             "Expected Kerf.Agents.EmailTriage.RoutingConfig in supervisor children; got: #{inspect(specs)}"
+
+      {_mod, opts} = routing_spec
+      assert Keyword.get(opts, :name) == RoutingConfig
+      assert Keyword.has_key?(opts, :default_path)
+      assert Keyword.has_key?(opts, :override_path)
+    end
+
+    test "RoutingConfig.current/0 (no args) returns loaded config under default registered name" do
+      spec = Kerf.Agents.EmailTriage.Supervisor.routing_config_child_spec()
+      start_supervised!(spec)
+
+      config = RoutingConfig.current()
+
+      assert %{version: "wiring-test-v1", rules: rules} = config
+      assert is_list(rules)
+      assert Enum.any?(rules, &(&1.name == "default_silent"))
+    end
+  end
+
   # ---------- helpers ----------
 
   defp errors_on(changeset) do
