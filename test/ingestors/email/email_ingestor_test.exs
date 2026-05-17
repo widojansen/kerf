@@ -1,6 +1,8 @@
 defmodule Kerf.Ingestors.Email.EmailIngestorTest do
   use Kerf.DataCase
 
+  import ExUnit.CaptureLog
+
   alias Kerf.Ingestors.Email.EmailIngestor
   alias Kerf.KnowledgeBase.{Document, Chunk, EmailSender}
 
@@ -286,6 +288,29 @@ defmodule Kerf.Ingestors.Email.EmailIngestorTest do
 
       # Only one :poll_started should arrive (second poll was skipped)
       refute_receive :poll_started, 300
+    end
+  end
+
+  describe "triage_fn failure visibility" do
+    test "exception in triage_fn is logged with stacktrace, EmailIngestor keeps running", ctx do
+      parent = self()
+
+      triage_fn = fn doc_ids ->
+        send(parent, {:triage_attempted, doc_ids})
+        raise "simulated triage failure"
+      end
+
+      ctx = start_ingestor(ctx, triage_fn: triage_fn)
+
+      log_output =
+        capture_log(fn ->
+          assert {:ok, 1} = EmailIngestor.sync_now(ctx.ingestor)
+        end)
+
+      assert_receive {:triage_attempted, _doc_ids}
+      assert log_output =~ "triage_fn failed"
+      assert log_output =~ "simulated triage failure"
+      assert Process.alive?(ctx.pid)
     end
   end
 end

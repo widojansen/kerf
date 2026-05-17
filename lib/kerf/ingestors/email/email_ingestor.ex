@@ -235,7 +235,26 @@ defmodule Kerf.Ingestors.Email.EmailIngestor do
       try do
         state.triage_fn.(Enum.reverse(doc_ids))
       rescue
-        _ -> :ok
+        e ->
+          require Logger
+
+          Logger.error(
+            "[EmailIngestor] triage_fn failed for #{length(doc_ids)} doc(s): " <>
+              Exception.format(:error, e, __STACKTRACE__)
+          )
+
+          :ok
+      catch
+        kind, value ->
+          require Logger
+
+          Logger.error(
+            "[EmailIngestor] triage_fn caught #{kind} for #{length(doc_ids)} doc(s): " <>
+              inspect(value, limit: 200) <>
+              " stacktrace=" <> Exception.format_stacktrace(__STACKTRACE__)
+          )
+
+          :ok
       end
     end
 
