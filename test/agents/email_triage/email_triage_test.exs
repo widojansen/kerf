@@ -3,9 +3,10 @@ defmodule Kerf.Agents.EmailTriage.EmailTriageTest do
   use Oban.Testing, repo: Kerf.Repo
 
   import Ecto.Query
+  import ExUnit.CaptureLog
 
   alias Kerf.Agents.EmailTriage.{EmailTriage, TriageRecord, Enricher}
-  alias Kerf.KnowledgeBase.{Document, Chunk, EmailSender, Interest}
+  alias Kerf.KnowledgeBase.{Document, Chunk, EmailSender, Feedback, Interest}
 
   @fake_embedding List.duplicate(0.1, 1024)
 
@@ -546,6 +547,82 @@ defmodule Kerf.Agents.EmailTriage.EmailTriageTest do
 
       assert feedback.decision == "classified"
       assert feedback.context["category"] == "business"
+    end
+  end
+
+  describe "batch isolation" do
+    # A non-UUID string is fed into a batch alongside valid UUIDs. The
+    # implementation today calls `repo.get(Document, doc_id)` first thing in
+    # triage_document/2, which raises Ecto.Query.CastError on a non-UUID
+    # binary_id. That exception propagates out of Enum.flat_map and crashes
+    # the GenServer, swallowing any work that the rest of the batch would
+    # have done. After the fix, the exception must be isolated to its doc
+    # and the rest of the batch must complete.
+
+    test "one document raising does not abort the rest of the batch", ctx do
+      Process.flag(:trap_exit, true)
+
+      {:ok, doc_c} =
+        Repo.insert(
+          Document.changeset(%Document{}, %{
+            source_type: "email",
+            source_id: "msg_triage_isolation_c",
+            title: "Third Email — must still be triaged",
+            raw_text: "Third email body for batch isolation test.",
+            source_metadata: %{
+              "sender" => "john@example.com",
+              "sender_name" => "John Doe",
+              "thread_id" => "thread_isolation_c",
+              "subject" => "Third Email — must still be triaged"
+            }
+          })
+        )
+
+      pathological_id = "not-a-uuid-this-raises"
+
+      ctx = start_agent(ctx)
+
+      result =
+        try do
+          EmailTriage.triage(ctx.agent, [ctx.doc.id, pathological_id, doc_c.id])
+        catch
+          :exit, reason -> {:exit, reason}
+        end
+
+      assert {:ok, results} = result
+      assert length(results) == 2
+
+      result_ids = results |> Enum.map(& &1.document_id) |> Enum.sort()
+      assert result_ids == Enum.sort([ctx.doc.id, doc_c.id])
+
+      assert Repo.exists?(
+               from f in Feedback,
+                 where: f.document_id == ^ctx.doc.id and f.feedback_type == "triage"
+             )
+
+      assert Repo.exists?(
+               from f in Feedback,
+                 where: f.document_id == ^doc_c.id and f.feedback_type == "triage"
+             )
+    end
+
+    test "raising in triage_document is logged with doc id and stacktrace", ctx do
+      Process.flag(:trap_exit, true)
+      pathological_id = "not-a-uuid-this-raises"
+      ctx = start_agent(ctx)
+
+      log_output =
+        capture_log(fn ->
+          try do
+            EmailTriage.triage(ctx.agent, [pathological_id])
+          catch
+            :exit, _ -> :ok
+          end
+        end)
+
+      assert log_output =~ "triage_document failed"
+      assert log_output =~ pathological_id
+      assert log_output =~ "stacktrace"
     end
   end
 end

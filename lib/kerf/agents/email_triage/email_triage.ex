@@ -57,7 +57,29 @@ defmodule Kerf.Agents.EmailTriage.EmailTriage do
   def handle_call({:triage, document_ids}, _from, state) do
     results =
       document_ids
-      |> Enum.flat_map(fn doc_id -> triage_document(doc_id, state) end)
+      |> Enum.flat_map(fn doc_id ->
+        try do
+          triage_document(doc_id, state)
+        rescue
+          e ->
+            Logger.warning(
+              "[EmailTriage] triage_document failed for #{inspect(doc_id)}: " <>
+                Exception.format(:error, e) <>
+                " stacktrace=" <> Exception.format_stacktrace(__STACKTRACE__)
+            )
+
+            []
+        catch
+          kind, value ->
+            Logger.warning(
+              "[EmailTriage] triage_document caught #{kind} for #{inspect(doc_id)}: " <>
+                inspect(value, limit: 200) <>
+                " stacktrace=" <> Exception.format_stacktrace(__STACKTRACE__)
+            )
+
+            []
+        end
+      end)
 
     new_state = %{state | documents_triaged: state.documents_triaged + length(results)}
 
