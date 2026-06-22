@@ -242,7 +242,7 @@ defmodule Kerf.Agents.EmailTriage.EnricherTest do
       assert reloaded.summary == dutch_summary
     end
 
-    test "50KB body is truncated to 2000 bytes; subject preserved separately" do
+    test "50KB body is cleaned and capped to BodyPrep's byte budget; subject preserved separately" do
       big_body = String.duplicate("x", 50_000)
 
       doc =
@@ -264,9 +264,11 @@ defmodule Kerf.Agents.EmailTriage.EnricherTest do
       assert :ok = perform_job(Enricher, %{"triage_record_id" => triage.id})
 
       assert_receive {:enrich_input, input}
-      # Worker is responsible for the truncation before handing to adapter.
-      # Cap is 2000 bytes (Step 5 design: String.slice(text, 0..1999)).
-      assert byte_size(input.body_text) <= 2000
+      # Worker delegates body prep to Kerf.Agents.EmailTriage.BodyPrep, which
+      # strips boilerplate and caps to a ~4000-byte budget (raised from the old
+      # 2000-byte positional slice). This body is pure "x" — no boilerplate to
+      # strip — so it caps exactly at the budget.
+      assert byte_size(input.body_text) == 4000
       assert input.subject == "Important Subject Line"
     end
   end

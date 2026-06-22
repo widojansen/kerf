@@ -9,7 +9,9 @@ defmodule Kerf.Agents.EmailTriage.Enricher do
        * "enriched"       → no-op success (idempotent)
        * "unclassifiable" → no-op success (terminal state)
        * "pending"        → {:error, :unexpected_status} (caller bug)
-    3. Build adapter input from Document + TriageRecord (truncate body to 2000 bytes)
+    3. Build adapter input from Document + TriageRecord (clean + budget the body
+       via `Kerf.Agents.EmailTriage.BodyPrep`: strip newsletter boilerplate, then
+       cap to BodyPrep's byte budget)
     4. Call `Kerf.LLM.Enrich.enrich/2` (or test-injected enrich_fn)
     5. Persist enrichment + record taxonomy proposals inside Repo.transaction
     6. Return :ok or {:error, reason} for Oban to handle retry/dead-letter
@@ -26,10 +28,8 @@ defmodule Kerf.Agents.EmailTriage.Enricher do
   require Logger
 
   alias Kerf.Repo
-  alias Kerf.Agents.EmailTriage.{Router, TriageRecord, Taxonomy}
+  alias Kerf.Agents.EmailTriage.{BodyPrep, Router, TriageRecord, Taxonomy}
   alias Kerf.KnowledgeBase.Document
-
-  @body_max_bytes 2000
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
@@ -129,9 +129,11 @@ defmodule Kerf.Agents.EmailTriage.Enricher do
 
   # ---------- input construction ----------
 
-  defp build_input(doc, record) do
+  @doc false
+  # Public only as a testability seam (pure: reads struct fields, no Repo).
+  def build_input(doc, record) do
     subject = doc.title || doc.source_metadata["subject"] || ""
-    body_text = truncate_body(doc.raw_text)
+    body_text = BodyPrep.prepare(doc.raw_text)
 
     %{
       from: %{
@@ -143,19 +145,6 @@ defmodule Kerf.Agents.EmailTriage.Enricher do
       sender_type: record.sender_type,
       source_metadata: doc.source_metadata
     }
-  end
-
-  # Truncate raw_text to @body_max_bytes characters. Empty/nil bodies pass
-  # through unchanged so the adapter's synthetic-body fallback engages.
-  defp truncate_body(nil), do: nil
-  defp truncate_body(""), do: ""
-
-  defp truncate_body(text) when is_binary(text) do
-    if byte_size(text) <= @body_max_bytes do
-      text
-    else
-      String.slice(text, 0, @body_max_bytes)
-    end
   end
 
   # Adapter is configurable via Application env for test injection.
