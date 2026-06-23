@@ -10,9 +10,10 @@ defmodule Kerf.Agents.EmailTriage.Router do
     3. Read `RoutingConfig.current/1` ONCE at the top — snapshot pinned for the
        full job. Mid-job reloads affect only subsequent jobs.
     4. Walk rules in order; first match wins
-    5. On no-match (catch-all `default_silent` removed from config), log a
-       warning and record `rule_name: "no_match_fallback", action_taken: :silent`
-       — fail safe, not crash
+    5. On no-match — the active config's catch-all is `default_digest` (match
+       `%{}`), so this only happens if that rule is removed — log a warning and
+       record `rule_name: "no_match_fallback", action_taken: :silent`: the live
+       fallback for unmatched records is silent — fail safe, not crash
     6. Insert a `RoutingDecision` row with the active config version
 
   Telegram delivery is out of scope here; Step 12 wires that. The Router's
