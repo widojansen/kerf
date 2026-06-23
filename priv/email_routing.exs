@@ -1,46 +1,69 @@
 %{
-  version: "2026-05-11.1",
+  version: "2026-06-22.1",
   rules: [
-    # Ping for anything urgent from a priority sender.
+    # Silence spam FIRST — before any ping rule — so a spam "invoice" (a scam
+    # with action: "pay") can never trip invoice_to_pay below.
     %{
-      name: "priority_high_urgency",
-      match: %{sender_type: "known_priority", urgency: "high"},
+      name: "spam_silent",
+      match: %{category: "spam"},
+      action: :silent
+    },
+
+    # Private messages to the user.
+    %{
+      name: "personal_ping",
+      match: %{category: "personal"},
       action: :telegram_ping
     },
 
-    # Ping on security category regardless of sender.
+    # Bills needing payment, any category (spam already excluded above).
     %{
-      name: "security_alerts",
-      match: %{category: "security"},
+      name: "invoice_to_pay",
+      match: %{action: "pay"},
       action: :telegram_ping
     },
 
-    # Ping when a priority sender expects a reply (any urgency).
+    # Business invoices / receipts / financial mail.
     %{
-      name: "priority_reply_needed",
-      match: %{sender_type: "known_priority", action: "reply_needed"},
+      name: "business_financial",
+      match: %{category: "business", topic: {:contains, "financial"}},
       action: :telegram_ping
     },
 
-    # Ping for anything tagged kerf — keeps platform work visible.
+    # Invoices / receipts that arrive classified as transactional.
     %{
-      name: "kerf_topic_anything",
-      match: %{topic: {:contains, "kerf"}},
+      name: "transactional_financial",
+      match: %{category: "transactional", topic: {:contains, "financial"}},
       action: :telegram_ping
     },
 
-    # Batch medium-urgency business mail into a daily digest.
+    # Business awaiting a reply from the user.
+    %{
+      name: "business_reply_needed",
+      match: %{category: "business", action: "reply_needed"},
+      action: :telegram_ping
+    },
+
+    # Time-sensitive business (e.g. the Datadog production alert).
+    %{
+      name: "business_high",
+      match: %{category: "business", urgency: "high"},
+      action: :telegram_ping
+    },
+
+    # Moderately time-sensitive business.
     %{
       name: "business_medium",
       match: %{category: "business", urgency: "medium"},
-      action: :telegram_digest
+      action: :telegram_ping
     },
 
-    # Catch-all: silence everything not matched above.
+    # Catch-all: everything else (newsletters, marketing, social, non-financial
+    # transactional, low-urgency/cold business) is batched into the digest.
     %{
-      name: "default_silent",
+      name: "default_digest",
       match: %{},
-      action: :silent
+      action: :telegram_digest
     }
   ]
 }
