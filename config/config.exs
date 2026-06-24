@@ -127,7 +127,8 @@ config :kerf, Oban,
   queues: [
     email_enrichment: 2,
     email_routing: 4,
-    email_digest: 1
+    email_digest: 1,
+    monitoring: 1
   ],
   plugins: [
     {Oban.Plugins.Pruner, max_age: 7 * 24 * 3600}

@@ -227,6 +227,13 @@ if alert_chat_id do
     telegram_chat_id: alert_chat_id
 end
 
+# izi2connect health-monitor Telegram alert chat (Spec 3/4). Tenant config —
+# separate bot/chat from Tina. Read at call time by TelegramClient. The Spec-3
+# worker is log-only; this is wired now so the Spec-4 send flip is config-only.
+if izi2connect_chat_id = System.get_env("IZI2CONNECT_TELEGRAM_CHAT_ID") do
+  config :kerf, Kerf.ServiceHealth.TelegramClient, chat_id: izi2connect_chat_id
+end
+
 # ---------------------------------------------------------------------------
 # Step 13: Email digest cron. Appended at runtime because DigestCron.expression!()
 # requires the project module to be loaded (config.exs is evaluated before
@@ -240,7 +247,9 @@ if config_env() != :test do
       {Oban.Plugins.Cron,
        crontab: [
          {Kerf.Agents.EmailTriage.DigestCron.expression!(),
-          Kerf.Agents.EmailTriage.DigestWorker}
+          Kerf.Agents.EmailTriage.DigestWorker},
+         # Spec 3: izi2connect health monitor, every 5 minutes (matches Python cron).
+         {"*/5 * * * *", Kerf.ServiceHealth.MonitorWorker}
        ],
        timezone: "Europe/Amsterdam"}
     ]
