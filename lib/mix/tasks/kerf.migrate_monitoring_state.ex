@@ -26,15 +26,37 @@ defmodule Mix.Tasks.Kerf.MigrateMonitoringState do
 
   Idempotent: re-running with the same `state.json` produces the same row (keyed
   on the unique `target`). Prints the BEFORE and AFTER rows.
-
-  RED SKELETON: bodies raise; GREEN implements.
   """
   use Mix.Task
 
+  alias Kerf.Repo
+  alias Kerf.ServiceHealth.State
+
+  @target "izi2connect"
+
   @impl Mix.Task
   @spec run([String.t()]) :: :ok
-  def run(_argv) do
-    raise "not implemented: MigrateMonitoringState.run/1"
+  def run(argv) do
+    {_opts, args, _} = OptionParser.parse(argv, strict: [])
+
+    path =
+      case args do
+        [path | _] -> path
+        [] -> Mix.raise("usage: mix kerf.migrate_monitoring_state <path/to/state.json>")
+      end
+
+    Mix.Task.run("app.start")
+
+    case migrate(path) do
+      {:ok, %{before: before_row, after: after_row}} ->
+        Mix.shell().info("Conversion: last_alert_time via round(value * 1_000_000) µs (NOT truncated).")
+        Mix.shell().info("BEFORE: #{describe(before_row)}")
+        Mix.shell().info("AFTER:  #{describe(after_row)}")
+        :ok
+
+      {:error, reason} ->
+        Mix.raise("migration failed: #{inspect(reason)}")
+    end
   end
 
   @doc """
@@ -42,8 +64,24 @@ defmodule Mix.Tasks.Kerf.MigrateMonitoringState do
   Returns `{:ok, %{before: row | nil, after: row}}` or `{:error, reason}`.
   """
   @spec migrate(Path.t()) :: {:ok, map()} | {:error, term()}
-  def migrate(_path) do
-    raise "not implemented: MigrateMonitoringState.migrate/1"
+  def migrate(path) do
+    with {:ok, raw} <- File.read(path),
+         {:ok, json} <- Jason.decode(raw) do
+      attrs = %{
+        target: @target,
+        last_alert_status: Map.get(json, "last_alert_status"),
+        last_alert_time: epoch_to_datetime(Map.get(json, "last_alert_time")),
+        consecutive_healthy: Map.get(json, "consecutive_healthy", 0),
+        consecutive_failures: Map.get(json, "consecutive_failures", 0)
+      }
+
+      before_row = Repo.get_by(State, target: @target)
+
+      case upsert(before_row, attrs) do
+        {:ok, row} -> {:ok, %{before: before_row, after: row}}
+        {:error, changeset} -> {:error, {:invalid_state, changeset}}
+      end
+    end
   end
 
   @doc """
@@ -51,7 +89,30 @@ defmodule Mix.Tasks.Kerf.MigrateMonitoringState do
   sub-second precision via `round(value * 1_000_000)`. `nil`/`0`/`0.0` -> `nil`.
   """
   @spec epoch_to_datetime(number() | nil) :: DateTime.t() | nil
-  def epoch_to_datetime(_value) do
-    raise "not implemented: MigrateMonitoringState.epoch_to_datetime/1"
+  def epoch_to_datetime(nil), do: nil
+  def epoch_to_datetime(value) when is_number(value) and value == 0, do: nil
+
+  def epoch_to_datetime(value) when is_number(value) do
+    micros = round(value * 1_000_000)
+    {:ok, dt} = DateTime.from_unix(micros, :microsecond)
+    dt
+  end
+
+  # --- internal ---
+
+  # Keyed on the unique target: update the existing row, or insert if none yet.
+  defp upsert(nil, attrs), do: %State{} |> State.changeset(attrs) |> Repo.insert()
+  defp upsert(%State{} = row, attrs), do: row |> State.changeset(attrs) |> Repo.update()
+
+  defp describe(nil), do: "(none)"
+
+  defp describe(%State{} = row) do
+    inspect(%{
+      target: row.target,
+      last_alert_status: row.last_alert_status,
+      last_alert_time: row.last_alert_time,
+      consecutive_healthy: row.consecutive_healthy,
+      consecutive_failures: row.consecutive_failures
+    })
   end
 end
