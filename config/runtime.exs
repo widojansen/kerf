@@ -234,6 +234,11 @@ if izi2connect_chat_id = System.get_env("IZI2CONNECT_TELEGRAM_CHAT_ID") do
   config :kerf, Kerf.ServiceHealth.TelegramClient, chat_id: izi2connect_chat_id
 end
 
+# Live-send gate (Spec 4 cutover). Default OFF — the worker is log-only until this
+# flips to "true", at which point it ALSO delivers alerts via TelegramClient.
+config :kerf, Kerf.ServiceHealth.MonitorWorker,
+  live_send: System.get_env("IZI2CONNECT_LIVE_SEND") == "true"
+
 # ---------------------------------------------------------------------------
 # Step 13: Email digest cron. Appended at runtime because DigestCron.expression!()
 # requires the project module to be loaded (config.exs is evaluated before

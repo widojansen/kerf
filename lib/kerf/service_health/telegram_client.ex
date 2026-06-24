@@ -11,41 +11,49 @@ defmodule Kerf.ServiceHealth.TelegramClient do
   HTTP client and vault fetch are injectable via `opts` (function-injection
   convention) so tests run without network or a real token/chat.
 
-  Built and fully tested this spec but NOT called by `MonitorWorker` — Spec 3 is
-  log-only; the live send is the Spec 4 flip.
+  `MonitorWorker` calls this only when its `live_send` flag is on (default off);
+  by default the worker is log-only (Spec 3) and this client is exercised only by
+  its own tests. The Spec-4 cutover flips `live_send` to enable real delivery.
 
-  RED SKELETON: body raises; GREEN implements.
+  If `chat_id` is unset (`nil`), `send_message/2` fails fast with
+  `{:error, :missing_chat_id}` before fetching a token or issuing any request.
   """
 
   @vault_key "izimotive/izi2connect_telegram_token"
 
   @spec send_message(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def send_message(message, opts \\ []) do
-    http_client = Keyword.get(opts, :http_client, &default_http_client/5)
-    vault_fetch = Keyword.get(opts, :vault_fetch, &default_vault_fetch/1)
+    # Fail fast on a missing chat_id — don't fetch a token or POST for a doomed send.
+    case Application.get_env(:kerf, __MODULE__, [])[:chat_id] do
+      nil ->
+        {:error, :missing_chat_id}
 
-    case vault_fetch.(@vault_key) do
-      {:ok, token} ->
-        url = "https://api.telegram.org/bot#{token}/sendMessage"
-        chat_id = Application.get_env(:kerf, __MODULE__, [])[:chat_id]
-        body = Jason.encode!(%{chat_id: chat_id, text: message})
-        headers = [{"content-type", "application/json; charset=utf-8"}]
+      chat_id ->
+        http_client = Keyword.get(opts, :http_client, &default_http_client/5)
+        vault_fetch = Keyword.get(opts, :vault_fetch, &default_vault_fetch/1)
 
-        case http_client.(:post, url, body, headers, []) do
-          {:ok, %{status: 200, body: resp_body}} ->
-            if telegram_ok?(resp_body),
-              do: {:ok, resp_body},
-              else: {:error, {:telegram, resp_body}}
+        case vault_fetch.(@vault_key) do
+          {:ok, token} ->
+            url = "https://api.telegram.org/bot#{token}/sendMessage"
+            body = Jason.encode!(%{chat_id: chat_id, text: message})
+            headers = [{"content-type", "application/json; charset=utf-8"}]
 
-          {:ok, %{status: status, body: resp_body}} ->
-            {:error, {:http_status, status, resp_body}}
+            case http_client.(:post, url, body, headers, []) do
+              {:ok, %{status: 200, body: resp_body}} ->
+                if telegram_ok?(resp_body),
+                  do: {:ok, resp_body},
+                  else: {:error, {:telegram, resp_body}}
+
+              {:ok, %{status: status, body: resp_body}} ->
+                {:error, {:http_status, status, resp_body}}
+
+              {:error, reason} ->
+                {:error, reason}
+            end
 
           {:error, reason} ->
-            {:error, reason}
+            {:error, {:vault, reason}}
         end
-
-      {:error, reason} ->
-        {:error, {:vault, reason}}
     end
   end
 
