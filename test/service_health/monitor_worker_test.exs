@@ -185,4 +185,16 @@ defmodule Kerf.ServiceHealth.MonitorWorkerTest do
       assert load_state().consecutive_healthy == 2
     end
   end
+
+  describe "perform/1 — self-timestamp (Spec 4 Phase 2 log-diff)" do
+    test "9. a [monitoring] line carries ts=<the injected now in ISO8601 UTC>" do
+      set_state!(%{last_alert_status: "healthy"})
+      put_worker_config(fetch_fn: fn -> {:ok, ctx(%{"status" => "critical"})} end)
+
+      # An alert poll logs at :warning (captured under test.exs's :warning threshold).
+      log = capture_log(fn -> assert :ok = perform_job(MonitorWorker, %{}) end)
+
+      assert log =~ "ts=#{DateTime.to_iso8601(@now)}"
+    end
+  end
 end

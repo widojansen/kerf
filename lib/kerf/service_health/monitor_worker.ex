@@ -65,12 +65,12 @@ defmodule Kerf.ServiceHealth.MonitorWorker do
     {next, signals} = AlertState.advance(state, {:error, reason}, nil, now)
 
     if signals.unreachable_alert do
-      log_alert("error", "-", :unreachable, @unreachable_payload, next)
+      log_alert("error", "-", :unreachable, @unreachable_payload, now)
       maybe_send(@unreachable_payload, cfg)
     else
       Logger.info(
-        "[monitoring] target=#{@target} fetch=error status=- alert=false " <>
-          "consecutive_failures=#{next.consecutive_failures}",
+        "[monitoring] target=#{@target} ts=#{DateTime.to_iso8601(now)} fetch=error status=- " <>
+          "alert=false consecutive_failures=#{next.consecutive_failures}",
         monitoring: true
       )
     end
@@ -87,12 +87,12 @@ defmodule Kerf.ServiceHealth.MonitorWorker do
     if alert? do
       summary = SummaryBuilder.build(context, reason, summary_opts(cfg))
       payload = "#{emoji(reason)} #{summary}"
-      log_alert("ok", context.status, reason, payload, next)
+      log_alert("ok", context.status, reason, payload, now)
       maybe_send(payload, cfg)
     else
       Logger.info(
-        "[monitoring] target=#{@target} fetch=ok status=#{context.status} " <>
-          "alert=false reason=#{reason}",
+        "[monitoring] target=#{@target} ts=#{DateTime.to_iso8601(now)} fetch=ok " <>
+          "status=#{context.status} alert=false reason=#{reason}",
         monitoring: true
       )
     end
@@ -128,10 +128,10 @@ defmodule Kerf.ServiceHealth.MonitorWorker do
   # Alert + unreachable payloads are alert-worthy -> :warning (surfaces above the
   # routine :info polls and above the test/prod info threshold). Routine no-alert
   # and below-threshold-failure lines stay at :info.
-  defp log_alert(fetch, status, reason, payload, _next) do
+  defp log_alert(fetch, status, reason, payload, now) do
     Logger.warning(
-      "[monitoring] target=#{@target} fetch=#{fetch} status=#{status} " <>
-        "alert=true reason=#{reason} payload=#{inspect(payload)}",
+      "[monitoring] target=#{@target} ts=#{DateTime.to_iso8601(now)} fetch=#{fetch} " <>
+        "status=#{status} alert=true reason=#{reason} payload=#{inspect(payload)}",
       monitoring: true
     )
   end
