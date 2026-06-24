@@ -9,7 +9,17 @@ defmodule Kerf.ServiceHealth.Client do
   defaults resolved from `Application.get_env(:kerf, __MODULE__)`, so the zero-arg
   `fetch_health_context/0` form routes through the same code path. See
   `docs/specs/SPEC_01_HEALTH_CLIENT.md`.
+
+  ## Synchronous and blocking
+
+  `fetch_health_context/1` is synchronous: it runs in the caller's process and
+  blocks until the request succeeds or retries are exhausted — worst case roughly
+  `max_attempts × timeout` plus the inter-attempt delays (~90s at the defaults:
+  3 × 30s + 2 × 200ms). Callers that must not block (e.g. a GenServer answering
+  other messages) should run it off their own process.
   """
+
+  require Logger
 
   alias Kerf.ServiceHealth.Context
 
@@ -109,6 +119,12 @@ defmodule Kerf.ServiceHealth.Client do
       if retry_delay > 0, do: Process.sleep(retry_delay)
       request_with_retry(http_client, api_key, timeout, max_attempts, retry_delay, attempt + 1)
     else
+      # A monitoring component must not give up silently.
+      Logger.warning(
+        "[ServiceHealth.Client] retries exhausted after #{max_attempts} attempts, " <>
+          "giving up: #{inspect(tagged_error)}"
+      )
+
       {:error, tagged_error}
     end
   end
@@ -177,7 +193,9 @@ defmodule Kerf.ServiceHealth.Client do
   end
 
   defp extract_secret(data) when is_map(data) do
-    data["key"] || data["token"] || data[:key] || data[:token]
+    # decrypted_data is Jason.decode! output (string keys), so atom-key lookups
+    # would be dead code — removed.
+    data["key"] || data["token"]
   end
 
   defp extract_secret(_), do: nil

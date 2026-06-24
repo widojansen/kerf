@@ -2,6 +2,8 @@ defmodule Kerf.ServiceHealth.ClientTest do
   # async: false — test 10 mutates Application env to exercise the default-resolution path.
   use ExUnit.Case, async: false
 
+  import ExUnit.CaptureLog
+
   alias Kerf.ServiceHealth.Client
   alias Kerf.ServiceHealth.Context
 
@@ -204,6 +206,29 @@ defmodule Kerf.ServiceHealth.ClientTest do
                Client.fetch_telegram_token(vault_fetch: vault_fetch)
 
       assert_received {:vault_called, @telegram_credential}
+    end
+  end
+
+  describe "retry exhaustion — observability (Spec 2 hardening, 2b)" do
+    test "20. exhausting retries on repeated 5xx emits a warning log signal" do
+      http_client = fn _method, _url, _body, _headers, _opts ->
+        {:ok, %{status: 503, body: "unavailable"}}
+      end
+
+      log =
+        capture_log(fn ->
+          assert {:error, _} =
+                   Client.fetch_health_context(
+                     http_client: http_client,
+                     vault_fetch: ok_vault(),
+                     retry_delay: 0,
+                     max_attempts: 3
+                   )
+        end)
+
+      # A monitoring component must not give up silently after exhausting retries.
+      assert log =~ "ServiceHealth"
+      assert log =~ ~r/retr|exhaust|giving up/i
     end
   end
 end
