@@ -34,7 +34,29 @@ defmodule Kerf.ServiceHealth.AlertDecision do
   @spec should_alert(Context.t(), state(), DateTime.t()) :: {boolean(), reason()}
   def should_alert(context, state, now \\ DateTime.utc_now())
 
-  def should_alert(_context, _state, _now) do
-    raise "not implemented: AlertDecision.should_alert/3"
+  def should_alert(%Context{} = context, state, now) do
+    cond do
+      context.status == "critical" ->
+        {true, :critical}
+
+      context.status == "warning" and (context.is_anomalous or context.anomalies != []) ->
+        {true, :anomaly}
+
+      context.status == "warning" and context.alerts != [] and
+          stale?(Map.get(state, :last_alert_time), now) ->
+        {true, :warning}
+
+      context.status == "healthy" and
+          Map.get(state, :last_alert_status) in [:critical, :anomaly, :warning] ->
+        {true, :recovered}
+
+      true ->
+        {false, :healthy}
+    end
   end
+
+  # nil last_alert_time short-circuits to "stale" (fire) before any diff —
+  # matches Python's `state.get("last_alert_time", 0)` always-stale default.
+  defp stale?(nil, _now), do: true
+  defp stale?(%DateTime{} = last_alert_time, now), do: DateTime.diff(now, last_alert_time, :second) > 1800
 end

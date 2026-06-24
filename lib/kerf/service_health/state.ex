@@ -34,20 +34,32 @@ defmodule Kerf.ServiceHealth.State do
     timestamps()
   end
 
+  @known_statuses ~w(critical anomaly warning recovered healthy)
+
   @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
-  def changeset(_state, _attrs) do
-    raise "not implemented: State.changeset/2"
+  def changeset(state, attrs) do
+    state
+    |> cast(attrs, [
+      :target,
+      :last_alert_status,
+      :last_alert_time,
+      :consecutive_healthy,
+      :consecutive_failures
+    ])
+    |> validate_required([:target])
+    |> validate_number(:consecutive_healthy, greater_than_or_equal_to: 0)
+    |> validate_number(:consecutive_failures, greater_than_or_equal_to: 0)
+    |> validate_inclusion(:last_alert_status, @known_statuses)
+    |> unique_constraint(:target)
   end
 
-  @doc "Schema boundary: decision reason atom -> stored string."
+  @doc "Schema boundary: decision reason atom -> stored string. `nil` passes through."
   @spec status_to_string(atom() | nil) :: String.t() | nil
-  def status_to_string(_status) do
-    raise "not implemented: State.status_to_string/1"
-  end
+  def status_to_string(nil), do: nil
+  def status_to_string(status) when is_atom(status), do: Atom.to_string(status)
 
-  @doc "Schema boundary: stored string -> decision reason atom."
+  @doc "Schema boundary: stored string -> decision reason atom. `nil` passes through."
   @spec status_to_atom(String.t() | nil) :: atom() | nil
-  def status_to_atom(_value) do
-    raise "not implemented: State.status_to_atom/1"
-  end
+  def status_to_atom(nil), do: nil
+  def status_to_atom(value) when is_binary(value), do: String.to_existing_atom(value)
 end

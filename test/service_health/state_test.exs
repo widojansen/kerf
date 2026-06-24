@@ -75,7 +75,7 @@ defmodule Kerf.ServiceHealth.StateTest do
       {:ok, inserted} =
         %State{}
         |> State.changeset(%{
-          target: "izi2connect",
+          target: "roundtrip-test",
           last_alert_status: State.status_to_string(:critical)
         })
         |> Repo.insert()

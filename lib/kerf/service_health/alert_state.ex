@@ -41,7 +41,55 @@ defmodule Kerf.ServiceHealth.AlertState do
   @spec advance(t(), fetch_outcome(), decision() | nil, DateTime.t()) :: {t(), signals()}
   def advance(prior, outcome, decision, now \\ DateTime.utc_now())
 
-  def advance(_prior, _outcome, _decision, _now) do
-    raise "not implemented: AlertState.advance/4"
+  # Failure path — decision is ignored. Increment failures; once >= 3, signal
+  # unreachable EVERY poll (no latch) and stamp last_alert_time. last_alert_status
+  # is intentionally left untouched (the preserved asymmetry).
+  def advance(prior, {:error, _reason}, _decision, now) do
+    failures = prior.consecutive_failures + 1
+    unreachable? = failures >= 3
+
+    next =
+      prior
+      |> Map.put(:consecutive_failures, failures)
+      |> stamp_unreachable_time(unreachable?, now)
+
+    {next, %{unreachable_alert: unreachable?}}
+  end
+
+  # Success path — failures reset to 0, then fold in the alert decision.
+  def advance(prior, {:ok, %Context{} = context}, decision, now) do
+    next =
+      prior
+      |> Map.put(:consecutive_failures, 0)
+      |> apply_decision(context, decision, now)
+
+    {next, %{unreachable_alert: false}}
+  end
+
+  defp stamp_unreachable_time(state, true, now), do: Map.put(state, :last_alert_time, now)
+  defp stamp_unreachable_time(state, false, _now), do: state
+
+  # An alert fired: record its reason + time.
+  defp apply_decision(state, _context, {true, reason}, now) do
+    state
+    |> Map.put(:last_alert_status, reason)
+    |> Map.put(:last_alert_time, now)
+  end
+
+  # No alert: only a healthy poll bumps telemetry and resets a stale status.
+  defp apply_decision(state, %Context{status: "healthy"}, {false, _reason}, _now) do
+    state
+    |> Map.update(:consecutive_healthy, 1, &(&1 + 1))
+    |> reset_last_alert_status()
+  end
+
+  defp apply_decision(state, _context, {false, _reason}, _now), do: state
+
+  defp reset_last_alert_status(state) do
+    if state.last_alert_status in [nil, :healthy, :recovered] do
+      state
+    else
+      Map.put(state, :last_alert_status, :healthy)
+    end
   end
 end
