@@ -157,7 +157,7 @@ defmodule Kerf.Agents.EmailTriage.TelegramFormatter do
 
     #{groups_text}
 
-    Reply /digest_full for details.
+    Reply /digest_full for details. (Feature not yet implemented.)
     """
     |> String.trim()
   end
