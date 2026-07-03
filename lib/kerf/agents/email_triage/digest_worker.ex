@@ -81,28 +81,66 @@ defmodule Kerf.Agents.EmailTriage.DigestWorker do
   end
 
   defp project_items(rows) do
+    # Bulk-load triage + document in two queries (was N+1 per row — SPEC B gate).
+    triage_ids = Enum.map(rows, & &1.email_triage_id)
+
+    triages =
+      from(t in TriageRecord, where: t.id in ^triage_ids)
+      |> Repo.all()
+      |> Map.new(&{&1.id, &1})
+
+    doc_ids = triages |> Map.values() |> Enum.map(& &1.document_id)
+
+    docs =
+      from(d in Document, where: d.id in ^doc_ids)
+      |> Repo.all()
+      |> Map.new(&{&1.id, &1})
+
     Enum.map(rows, fn dec ->
-      triage = Repo.get!(TriageRecord, dec.email_triage_id)
-      doc = Repo.get!(Document, triage.document_id)
-      project_one(triage, doc)
+      triage = Map.fetch!(triages, dec.email_triage_id)
+      doc = Map.fetch!(docs, triage.document_id)
+      project_row(dec, triage, doc)
     end)
   end
 
   @doc """
-  SPEC B — RED skeleton. Project a single `%RoutingDecision{}` to a digest item.
+  Project a single `%RoutingDecision{}` to a digest item (SPEC B).
 
-  For `category == "transactional"` GREEN will produce
-  `%{category: "transactional", sender:, subject:, timestamp:}` (sender
-  name-preferred, subject title-fallback, timestamp = `decision.inserted_at`);
-  every other category keeps the unchanged `%{name:, category:}` shape.
-
-  Raises until GREEN — present only so the RED suite compiles.
+  For `category == "transactional"` the item carries per-email fields for inline
+  itemisation — `%{category: "transactional", sender:, subject:, timestamp:}`
+  (sender name-preferred, subject → `title` fallback, timestamp =
+  `decision.inserted_at`). Every other category keeps the count-only
+  `%{name:, category:}` shape.
   """
-  def project_item(_decision) do
-    raise "Kerf.Agents.EmailTriage.DigestWorker.project_item/1 not implemented (RED — SPEC B)"
+  def project_item(%RoutingDecision{} = decision) do
+    triage = Repo.get!(TriageRecord, decision.email_triage_id)
+    doc = Repo.get!(Document, triage.document_id)
+    project_row(decision, triage, doc)
   end
 
-  defp project_one(triage, doc) do
+  defp project_row(decision, triage, doc) do
+    case triage.category do
+      "transactional" -> transactional_item(decision, doc)
+      _ -> count_item(triage, doc)
+    end
+  end
+
+  # Transactional: per-email record for inline itemisation. Sender/subject come
+  # straight from source_metadata (no email_senders lookup); timestamp is the
+  # decision's insert time (UTC), converted to display tz by the renderer.
+  defp transactional_item(decision, doc) do
+    meta = doc.source_metadata || %{}
+
+    %{
+      category: "transactional",
+      sender: meta["sender_name"] || meta["sender"] || "(unknown)",
+      subject: meta["subject"] || doc.title || "(no subject)",
+      timestamp: decision.inserted_at
+    }
+  end
+
+  # Non-transactional: unchanged count-only projection (name via email_senders).
+  defp count_item(triage, doc) do
     sender_email = (doc.source_metadata || %{})["sender"] || ""
 
     name =
