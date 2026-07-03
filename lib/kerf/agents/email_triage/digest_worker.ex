@@ -88,6 +88,20 @@ defmodule Kerf.Agents.EmailTriage.DigestWorker do
     end)
   end
 
+  @doc """
+  SPEC B — RED skeleton. Project a single `%RoutingDecision{}` to a digest item.
+
+  For `category == "transactional"` GREEN will produce
+  `%{category: "transactional", sender:, subject:, timestamp:}` (sender
+  name-preferred, subject title-fallback, timestamp = `decision.inserted_at`);
+  every other category keeps the unchanged `%{name:, category:}` shape.
+
+  Raises until GREEN — present only so the RED suite compiles.
+  """
+  def project_item(_decision) do
+    raise "Kerf.Agents.EmailTriage.DigestWorker.project_item/1 not implemented (RED — SPEC B)"
+  end
+
   defp project_one(triage, doc) do
     sender_email = (doc.source_metadata || %{})["sender"] || ""
 

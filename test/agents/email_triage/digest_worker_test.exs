@@ -190,6 +190,84 @@ defmodule Kerf.Agents.EmailTriage.DigestWorkerTest do
     end
   end
 
+  # ---------- SPEC B: transactional projection (RED) ----------
+
+  describe "project_item/1 — transactional itemisation projection (SPEC B)" do
+    test "(a) transactional decision carries sender (name-preferred), subject, timestamp" do
+      doc =
+        insert_email_doc!("txn_a", %{
+          title: "Subject txn_a",
+          source_metadata: %{
+            "subject" => "Factuur 2026-07 beschikbaar",
+            "sender_name" => "mijndomein.nl",
+            "sender" => "billing@mijndomein.nl"
+          }
+        })
+
+      triage = insert_enriched_triage!(doc, "transactional")
+      decision = insert_digest_decision!(triage)
+
+      item = DigestWorker.project_item(decision)
+
+      assert item.category == "transactional"
+      # sender is name-preferred: source_metadata["sender_name"] wins
+      assert item.sender == "mijndomein.nl"
+      assert item.subject == "Factuur 2026-07 beschikbaar"
+      assert %DateTime{} = item.timestamp
+      assert DateTime.compare(item.timestamp, decision.inserted_at) == :eq
+    end
+
+    test "(b) subject falls back to title when source_metadata['subject'] absent" do
+      doc =
+        insert_email_doc!("txn_b", %{
+          title: "Fallback Subject From Title",
+          source_metadata: %{
+            "sender_name" => "bol.com",
+            "sender" => "noreply@bol.com"
+          }
+        })
+
+      triage = insert_enriched_triage!(doc, "transactional")
+      decision = insert_digest_decision!(triage)
+
+      item = DigestWorker.project_item(decision)
+
+      assert item.subject == "Fallback Subject From Title"
+    end
+
+    test "(c) sender falls back to source_metadata['sender'] when sender_name absent" do
+      doc =
+        insert_email_doc!("txn_c", %{
+          title: "Subject txn_c",
+          source_metadata: %{
+            "subject" => "Je bestelling is verzonden",
+            "sender" => "raw-address@shipping.example.com"
+          }
+        })
+
+      triage = insert_enriched_triage!(doc, "transactional")
+      decision = insert_digest_decision!(triage)
+
+      item = DigestWorker.project_item(decision)
+
+      assert item.sender == "raw-address@shipping.example.com"
+    end
+
+    test "(d) non-transactional decision keeps the unchanged %{name, category} shape" do
+      doc = insert_email_doc!("nl_d")
+      triage = insert_enriched_triage!(doc, "newsletter")
+      decision = insert_digest_decision!(triage)
+
+      item = DigestWorker.project_item(decision)
+
+      assert item.category == "newsletter"
+      assert Map.has_key?(item, :name)
+      # non-transactional projection must NOT be bloated with per-email fields
+      refute Map.has_key?(item, :subject)
+      refute Map.has_key?(item, :timestamp)
+    end
+  end
+
   describe "perform/1 idempotency" do
     test "two cron ticks on the same data: second tick is :empty (no duplicate digest)" do
       doc = insert_email_doc!("idem")
