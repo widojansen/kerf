@@ -31,26 +31,23 @@ defmodule Mix.Tasks.Kerf.BackfillTriage do
     limit = Keyword.get(opts, :limit, 10)
     dry_run = Keyword.get(opts, :dry_run, false)
 
-    alias Kerf.KnowledgeBase.{Document, Feedback}
-    alias Kerf.Agents.EmailTriage.EmailTriage
+    alias Kerf.KnowledgeBase.Document
+    alias Kerf.Agents.EmailTriage.{EmailTriage, OrphanQuery}
 
-    triaged_ids = from(f in Feedback, where: f.feedback_type == "triage", select: f.document_id)
+    # Orphans = email docs with NO email_triage row (anti-join on
+    # email_triage.document_id). Replaces the old "no kb_feedback triage row"
+    # selection, which skipped the classification-error orphans (they DO carry a
+    # kb_feedback breadcrumb but no triage row) — the exact rows recovery needs.
+    orphan_ids = OrphanQuery.orphan_document_ids(limit)
 
     untriaged =
       from(d in Document,
-        where: d.source_type == "email" and d.id not in subquery(triaged_ids),
-        order_by: [desc: d.inserted_at],
-        limit: ^limit
+        where: d.id in ^orphan_ids,
+        order_by: [desc: d.inserted_at, desc: d.id]
       )
       |> Kerf.Repo.all()
 
-    total_untriaged =
-      from(d in Document,
-        where: d.source_type == "email" and d.id not in subquery(triaged_ids)
-      )
-      |> Kerf.Repo.aggregate(:count)
-
-    IO.puts("Found #{total_untriaged} untriaged emails (processing #{min(limit, total_untriaged)})")
+    IO.puts("Found #{length(untriaged)} orphaned email doc(s) with no email_triage row (limit #{limit})")
 
     if dry_run do
       for doc <- untriaged do

@@ -12,12 +12,28 @@ defmodule Kerf.Agents.EmailTriage.OrphanQuery do
   anti-join is on `email_triage.document_id`, not `kb_feedback`.
   """
 
+  import Ecto.Query
+
+  alias Kerf.Repo
+  alias Kerf.KnowledgeBase.Document
+  alias Kerf.Agents.EmailTriage.TriageRecord
+
   @doc """
   Return up to `limit` orphaned email-document ids, newest-first.
 
-  Raises until GREEN — present only so the RED suite compiles.
+  Anti-join: email `kb_documents` LEFT JOIN `email_triage` on `document_id`,
+  keeping rows where the triage side `IS NULL`. Ordered `inserted_at DESC` with
+  an `id DESC` tiebreaker so ties (same-timestamp rows) are stable under `limit`.
   """
-  def orphan_document_ids(_limit) do
-    raise "Kerf.Agents.EmailTriage.OrphanQuery.orphan_document_ids/1 not implemented (RED — SPEC C Part 1)"
+  def orphan_document_ids(limit) do
+    from(d in Document,
+      left_join: t in TriageRecord,
+      on: t.document_id == d.id,
+      where: d.source_type == "email" and is_nil(t.id),
+      order_by: [desc: d.inserted_at, desc: d.id],
+      limit: ^limit,
+      select: d.id
+    )
+    |> Repo.all()
   end
 end
