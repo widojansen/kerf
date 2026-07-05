@@ -350,6 +350,20 @@ defmodule Kerf.Agents.EmailTriage.EmailTriage do
     end
   end
 
+  @doc """
+  SPEC C Part 3 — RED skeleton. Upsert-replace the triage-type `kb_feedback` for
+  a document: clear prior `feedback_type = "triage"` rows for `document_id`, then
+  insert the new record (decision derived from `context`, as `record_triage_feedback/3`
+  does). Result: exactly one triage feedback row per doc; a successful retry
+  overwrites a prior error breadcrumb. The clear is scoped to triage feedback of
+  that one document — other feedback types and other documents are untouched.
+
+  Raises until GREEN — present only so the RED suite compiles.
+  """
+  def upsert_triage_feedback(_repo, _document_id, _context) do
+    raise "Kerf.Agents.EmailTriage.EmailTriage.upsert_triage_feedback/3 not implemented (RED — SPEC C Part 3)"
+  end
+
   defp record_triage_feedback(repo, document_id, context) do
     decision = if Map.has_key?(context, :error), do: "unclassified", else: "classified"
 
