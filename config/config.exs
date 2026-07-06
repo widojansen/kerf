@@ -5,6 +5,10 @@ import Config
 # email-digest cron (Step 13).
 config :elixir, :time_zone_database, Tz.TimeZoneDatabase
 
+config :kerf, :digest,
+       display_tz: "Europe/Amsterdam",
+       transactional_inline_cap: 40
+
 config :kerf, ecto_repos: [Kerf.Repo]
 
 config :kerf, Kerf.Repo,
