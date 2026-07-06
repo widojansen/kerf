@@ -136,7 +136,17 @@ Render (`telegram_formatter.ex`):
   (absence is information). A **fully empty** digest stays nil/skipped — no "none"-only message.
 - **Over-limit guard (replaces silent slice-to-4096):** if the assembled string would exceed the
   Telegram limit despite the cap, drop further transactional lines and end with `  … +M more`;
-  never cut mid-line, never silently truncate the tail of the message.
+  never cut mid-line, never silently truncate the tail of the message. Implemented in
+  `assemble_digest/5`: render at the cap, then decrement the shown count until the whole message
+  fits `@telegram_limit`.
+- **Footer on overflow (RESOLVED 2026-07-02, as shipped in GREEN):** §2's "the `+M more` note
+  alone is the honest signal until item L exists" was ambiguous between *overflow-only* and
+  *always*. Resolution: the `/digest_full` footer is present normally, and **dropped only when the
+  transactional list overflows**, so the message ends on `… +M more`. Rationale: a message that
+  both says `+M more` *and* advertises `/digest_full` — a command that doesn't exist yet (item L)
+  — would be doubly misleading. This matches RED case (k) (`+M more` is the last line on
+  overflow). If the footer should ever be *always* shown, that is a spec change: amend this bullet
+  **and** case (k) together in a RED commit — never a GREEN-phase test edit.
 
 ---
 
