@@ -378,7 +378,7 @@ defmodule Kerf.Workflow.ApprovalGate.Manager do
     "ag_" <> Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
   end
 
-  defp default_telegram_client(method, url, body) do
+  defp default_telegram_client(_method, url, body) do
     Req.post(url, json: body)
   end
 end
