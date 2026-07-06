@@ -41,9 +41,18 @@ defmodule Kerf.Agents.EmailTriage.Router do
   defp handle_record(%TriageRecord{triage_status: "enriched"} = record) do
     config = current_config()
     {rule_name, action_atom} = pick_rule(record, config.rules)
+    action_atom = apply_notify_guard(action_atom, record)
     insert_decision!(record.id, rule_name, action_atom, config.version)
     deliver(action_atom, record)
   end
+
+  # Cycle 2 seam (SPEC C Router addendum). GREEN loads the Document, reads
+  # source_metadata labels/date, and overrides `action_atom` to `:silent` when
+  # `NotifyGuard.notify?/2` returns false (self-sent or stale mail), using an
+  # injectable `now_fn` clock. RED stub: pass-through — no gating, so existing
+  # delivery behaviour is unchanged and the new silencing tests fail
+  # feature-missing.
+  defp apply_notify_guard(action_atom, _record), do: action_atom
 
   # Classified / pending / unclassifiable: not yet enriched, no decision.
   defp handle_record(%TriageRecord{}), do: :ok
