@@ -128,6 +128,7 @@ config :kerf, Oban,
     email_enrichment: 2,
     email_routing: 4,
     email_digest: 1,
+    email_reconcile: 1,
     monitoring: 1
   ],
   plugins: [

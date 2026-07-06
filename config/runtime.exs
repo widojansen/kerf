@@ -254,7 +254,10 @@ if config_env() != :test do
          {Kerf.Agents.EmailTriage.DigestCron.expression!(),
           Kerf.Agents.EmailTriage.DigestWorker},
          # Spec 3: izi2connect health monitor, every 5 minutes (matches Python cron).
-         {"*/5 * * * *", Kerf.ServiceHealth.MonitorWorker}
+         {"*/5 * * * *", Kerf.ServiceHealth.MonitorWorker},
+         # SPEC C Part 2: orphan reconciler, every 10 minutes (aligns with the
+         # ~10 min grace window; recovers email docs left without a triage row).
+         {"*/10 * * * *", Kerf.Agents.EmailTriage.Reconciler}
        ],
        timezone: "Europe/Amsterdam"}
     ]
