@@ -350,23 +350,46 @@ defmodule Kerf.Agents.EmailTriage.EmailTriage do
     end
   end
 
-  defp record_triage_feedback(repo, document_id, context) do
+  @doc """
+  Upsert-replace the triage-type `kb_feedback` for a document (SPEC C Part 3).
+
+  Clears prior `feedback_type = "triage"` rows for `document_id`, then inserts the
+  new record (decision derived from `context`). Result: exactly one triage
+  feedback row per doc; a successful retry overwrites a prior error breadcrumb.
+
+  Delete + insert run inside `repo.transaction/1` so a crash between them can't
+  leave zero rows. The clear is scoped to triage feedback of that one document —
+  other feedback types and other documents are untouched.
+  """
+  def upsert_triage_feedback(repo, document_id, context) do
     decision = if Map.has_key?(context, :error), do: "unclassified", else: "classified"
 
-    try do
+    attrs = %{
+      document_id: document_id,
+      feedback_type: "triage",
+      decision: decision,
+      context: Map.new(context, fn {k, v} -> {to_string(k), v} end),
+      source: "system"
+    }
+
+    repo.transaction(fn ->
+      repo.delete_all(
+        from(f in Feedback,
+          where: f.document_id == ^document_id and f.feedback_type == "triage"
+        )
+      )
+
       %Feedback{}
-      |> Feedback.changeset(%{
-        document_id: document_id,
-        feedback_type: "triage",
-        decision: decision,
-        context: Map.new(context, fn {k, v} -> {to_string(k), v} end),
-        source: "system"
-      })
+      |> Feedback.changeset(attrs)
       |> repo.insert!()
-    rescue
-      e ->
-        Logger.warning("[EmailTriage] Failed to record feedback for #{document_id}: #{inspect(e)}")
-    end
+    end)
+  end
+
+  defp record_triage_feedback(repo, document_id, context) do
+    upsert_triage_feedback(repo, document_id, context)
+  rescue
+    e ->
+      Logger.warning("[EmailTriage] Failed to record feedback for #{document_id}: #{inspect(e)}")
   end
 
   defp default_classifier(email, opts) do
