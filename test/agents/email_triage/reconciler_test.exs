@@ -7,6 +7,7 @@ defmodule Kerf.Agents.EmailTriage.ReconcilerTest do
   use Oban.Testing, repo: Kerf.Repo
 
   import Ecto.Query
+  import ExUnit.CaptureLog
 
   alias Kerf.Agents.EmailTriage.{
     Reconciler,
@@ -199,6 +200,48 @@ defmodule Kerf.Agents.EmailTriage.ReconcilerTest do
 
       # unique includes :discarded → no new enqueued ReconcileDoc for this doc.
       assert reconcile_docs_enqueued_for(doc.id) == []
+    end
+  end
+
+  # ---------- enqueue observability (hardening) ----------
+
+  describe "enqueue observability" do
+    test "(o) a failed enqueue is logged as a warning, not silently swallowed" do
+      # Force the enqueue insert to fail; the reconciler must surface it, not
+      # swallow it (the silent-drop class this spec exists to kill).
+      set_reconciler_config(limit: 20, grace_seconds: 600, insert_fn: fn _job -> {:error, :boom} end)
+
+      doc = insert_orphan!(@old)
+
+      log = capture_log(fn -> assert :ok = perform_job(Reconciler, %{}) end)
+
+      assert log =~ "failed to enqueue"
+      assert log =~ doc.id
+    end
+
+    test "(p) emits a per-doc telemetry event on enqueue (the reconcile metric)" do
+      set_reconciler_config(limit: 20, grace_seconds: 600)
+
+      doc = insert_orphan!(@old)
+
+      test_pid = self()
+      handler_id = "recon-enqueue-test-#{System.unique_integer([:positive])}"
+
+      :telemetry.attach(
+        handler_id,
+        [:kerf, :reconciler, :enqueue],
+        fn _event, measurements, metadata, _ ->
+          send(test_pid, {:reconcile_enqueue, measurements, metadata})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      assert :ok = perform_job(Reconciler, %{})
+
+      assert_receive {:reconcile_enqueue, %{count: 1}, %{document_id: doc_id, outcome: :ok}}
+      assert doc_id == doc.id
     end
   end
 end
