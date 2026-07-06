@@ -25,7 +25,13 @@ defmodule Kerf.Agents.EmailTriage.Router do
   require Logger
 
   alias Kerf.Repo
-  alias Kerf.Agents.EmailTriage.{RoutingConfig, RoutingDecision, TelegramFormatter, TriageRecord}
+  alias Kerf.Agents.EmailTriage.{
+    NotifyGuard,
+    RoutingConfig,
+    RoutingDecision,
+    TelegramFormatter,
+    TriageRecord
+  }
   alias Kerf.KnowledgeBase.{Document, EmailSender}
 
   @impl Oban.Worker
@@ -40,19 +46,60 @@ defmodule Kerf.Agents.EmailTriage.Router do
 
   defp handle_record(%TriageRecord{triage_status: "enriched"} = record) do
     config = current_config()
+    # Single Document load, shared by the guard (labels/date) and the
+    # :telegram_ping delivery (ping formatting) — no double get!.
+    doc = Repo.get!(Document, record.document_id)
     {rule_name, action_atom} = pick_rule(record, config.rules)
-    action_atom = apply_notify_guard(action_atom, record)
+    action_atom = apply_notify_guard(action_atom, record, doc)
     insert_decision!(record.id, rule_name, action_atom, config.version)
-    deliver(action_atom, record)
+    deliver(action_atom, record, doc)
   end
 
-  # Cycle 2 seam (SPEC C Router addendum). GREEN loads the Document, reads
-  # source_metadata labels/date, and overrides `action_atom` to `:silent` when
-  # `NotifyGuard.notify?/2` returns false (self-sent or stale mail), using an
-  # injectable `now_fn` clock. RED stub: pass-through — no gating, so existing
-  # delivery behaviour is unchanged and the new silencing tests fail
-  # feature-missing.
-  defp apply_notify_guard(action_atom, _record), do: action_atom
+  # SPEC C Router addendum — universal notify guard at the emission seam.
+  # Silences self-sent ("SENT" label) and stale (older than NotifyGuard's
+  # MAX_AGE) mail by overriding the routed action to :silent BEFORE the decision
+  # row is written — so both the immediate deliver and the DigestWorker cron
+  # (WHERE action_taken="telegram_digest") stay silent. The guard is monotonic:
+  # it only silences, never un-silences, and the matched rule_name is preserved.
+  #
+  # A rule that already routes to :silent needs no guard evaluation.
+  defp apply_notify_guard(:silent, _record, _doc), do: :silent
+
+  defp apply_notify_guard(action_atom, record, doc) do
+    guard_input = guard_input(doc)
+
+    if NotifyGuard.notify?(guard_input, current_time()) do
+      action_atom
+    else
+      Logger.info(
+        "[Router] NotifyGuard silenced #{silence_reason(guard_input)} email for " <>
+          "triage_record #{record.id} (rule action was #{action_atom})"
+      )
+
+      :silent
+    end
+  end
+
+  # Project the Document's stored Gmail metadata into the guard's input shape.
+  defp guard_input(doc) do
+    metadata = doc.source_metadata || %{}
+    %{labels: metadata["labels"] || [], date: metadata["date"]}
+  end
+
+  # Reason label for the silence log. Mirrors NotifyGuard's rule order (rule 1
+  # SENT wins over staleness) for operator soak visibility, WITHOUT re-deriving
+  # the boolean — notify?/2 stays the single source of truth for the decision.
+  defp silence_reason(%{labels: labels}) when is_list(labels) do
+    if "SENT" in labels, do: "self-sent", else: "stale"
+  end
+
+  defp silence_reason(_), do: "stale"
+
+  # Injectable clock — deterministic in tests via the now_fn seam.
+  defp current_time do
+    now_fn = Application.get_env(:kerf, __MODULE__, [])[:now_fn] || (&DateTime.utc_now/0)
+    now_fn.()
+  end
 
   # Classified / pending / unclassifiable: not yet enriched, no decision.
   defp handle_record(%TriageRecord{}), do: :ok
@@ -129,8 +176,7 @@ defmodule Kerf.Agents.EmailTriage.Router do
   # propagates so Oban retries on transient failures (worker max_attempts: 5).
   # :telegram_digest and :silent → no-op; the decision row is already the audit
   # log (Step 13's cron will drain digest rows from email_routing_decisions).
-  defp deliver(:telegram_ping, record) do
-    doc = Repo.get!(Document, record.document_id)
+  defp deliver(:telegram_ping, record, doc) do
     ping_input = build_ping_input(record, doc)
     text = TelegramFormatter.format_routing_ping(ping_input)
 
@@ -140,7 +186,7 @@ defmodule Kerf.Agents.EmailTriage.Router do
     end
   end
 
-  defp deliver(_action, _record), do: :ok
+  defp deliver(_action, _record, _doc), do: :ok
 
   defp build_ping_input(record, doc) do
     sender_email = (doc.source_metadata || %{})["sender"] || ""
