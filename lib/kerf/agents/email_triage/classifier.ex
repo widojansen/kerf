@@ -29,40 +29,6 @@ defmodule Kerf.Agents.EmailTriage.Classifier do
     end
   end
 
-  @doc """
-  Returns the JSON schema definition for email classification.
-  """
-  def schema_definition do
-    %{
-      "type" => "object",
-      "required" => ["category", "priority", "action", "summary"],
-      "properties" => %{
-        "category" => %{
-          "type" => "string",
-          "enum" => ["business", "personal", "newsletter", "transactional", "spam"]
-        },
-        "priority" => %{
-          "type" => "integer",
-          "minimum" => 0,
-          "maximum" => 5
-        },
-        "action" => %{
-          "type" => "string",
-          "enum" => ["follow_up", "archive", "flag", "ignore"]
-        },
-        "confidence" => %{
-          "type" => "number",
-          "minimum" => 0.0,
-          "maximum" => 1.0
-        },
-        "summary" => %{
-          "type" => "string",
-          "maxLength" => 500
-        }
-      }
-    }
-  end
-
   defp build_prompt(email, context) do
     sender_ctx =
       case context[:sender_info] do

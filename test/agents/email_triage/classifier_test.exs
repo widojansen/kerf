@@ -98,15 +98,4 @@ defmodule Kerf.Agents.EmailTriage.ClassifierTest do
       assert {:error, "API timeout"} = Classifier.classify(email, provider_fn: provider_fn)
     end
   end
-
-  describe "schema_definition/0" do
-    test "returns a valid JSON schema" do
-      schema = Classifier.schema_definition()
-      assert schema["type"] == "object"
-      assert "category" in Map.keys(schema["properties"])
-      assert "priority" in Map.keys(schema["properties"])
-      assert "action" in Map.keys(schema["properties"])
-      assert "summary" in Map.keys(schema["properties"])
-    end
-  end
 end

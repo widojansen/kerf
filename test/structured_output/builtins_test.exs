@@ -7,10 +7,10 @@ defmodule Kerf.StructuredOutput.BuiltinsTest do
   #
   # This is the canonical, runtime-wired schema (registered under
   # :email_classification via Builtins.schemas() at app boot and resolved by
-  # Kerf.StructuredOutput.complete/4 through SchemaRegistry). The parallel
-  # Classifier.schema_definition/0 copy (lib/kerf/agents/email_triage/classifier.ex)
-  # is a separate, unwired definition — out of scope per Stage 1 read-back
-  # disposition; not touched here.
+  # Kerf.StructuredOutput.complete/4 through SchemaRegistry). A parallel,
+  # unwired schema copy previously lived on the email_triage Classifier
+  # module — deferred at Stage 1 read-back, later deleted as dead-code
+  # drift risk (post-SPEC_C cleanup).
 
   defp email_classification_schema do
     {:email_classification, schema} =
