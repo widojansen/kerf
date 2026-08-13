@@ -24,7 +24,7 @@ Constraints:
 ## 3. Contract read-back (before RED)
 
 1. Confirm the classification entry point that takes (email content, provider_fn) and returns the parsed structured result — the seam the harness calls. Quote it.
-2. Confirm from the enum-fix read-back whether the schema includes a priority field. If **yes**: the harness records it and priority agreement joins scoring (§7). If **no** (priority is deterministic downstream): priority is out of scope for the harness — category agreement subsumes it.
+2. Resolved (SPEC_C read-back, 2026-08-13): the schema includes a required raw `priority` (integer 1-5); `final_priority` is a separate downstream multi-signal derivation (PriorityScorer). The harness records the raw schema priority. Scoring consequence in §7: priority agreement compares **C1 raw priority vs A1 raw priority** (same quantity, same emails); the golden set’s `priority_prod` field is `final_priority` and must never be used as a priority comparator.
 3. Confirm how the current provider selects reasoning behavior (Cascade emits `</think>` always; Lightning takes `chat_template_kwargs.enable_thinking`). The harness needs a per-run switch that is a no-op for Cascade and sets the kwarg for Lightning.
 
 ## 4. Stage A — Cascade 2 validation run (production endpoint, existing vllm.service)
@@ -61,7 +61,7 @@ Exit: all four green, or a written blocker note (B1 failure → hunt nvcr altern
 
 - **Primary:** C1 category agreement with production labels on llm_fallback (n=200), overall + per-label. Reported alongside Cascade's A1↔A2 self-agreement for context.
 - **Adjudication:** every C1↔production disagreement gets an owner ruling; rulings append to `~/eval/golden-overrides.jsonl` (`doc_id`, `label_true`, `note`), which becomes the ground-truth layer. Post-adjudication, report **adjudicated accuracy** for both models — this, not raw agreement, is the decision metric. Expected volume: elevated by the enum fix (challenger may legitimately say `social`); budget for 40–80 rulings.
-- **Guardrails:** schema-validity ≥ Stage A's Cascade rate; fc_control ≥ 90%; social_probe reported descriptively (n=11, no threshold).
+- **Guardrails:** schema-validity ≥ Stage A's Cascade rate; fc_control ≥ 90%; social_probe reported descriptively (n=11, no threshold). Provenance: these rows were labelled by a since-deleted linkedin.com sender rule, not by any current producer; during adjudication treat them as open questions — the LLM can now legitimately emit `social`, and these are the sharpest cases for judging whether it should.
 - **Latency:** C1 p50/p95/p99 vs Stage A baseline. Not a gate, but the headline expected win; if Lightning is *slower* despite DSpark, that's a finding to investigate before cutover.
 - **Goalpost rule:** any metric change after C1 output exists requires written justification in the run notes.
 
