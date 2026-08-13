@@ -295,7 +295,6 @@ defmodule Kerf.Agents.EmailTriage.EmailTriage do
   defp label_for_category("personal"), do: "Kerf/Personal"
   defp label_for_category("newsletter"), do: "Kerf/Newsletter"
   defp label_for_category("transactional"), do: "Kerf/Transactional"
-  defp label_for_category("marketing"), do: "Kerf/Marketing"
   defp label_for_category("social"), do: "Kerf/Social"
   defp label_for_category("spam"), do: "Kerf/Spam"
   defp label_for_category(_), do: "Kerf/Triaged"

@@ -111,6 +111,10 @@ defmodule Kerf.Agents.EmailTriage.FastClassifierTest do
     end
 
     test "matches by Gmail category label" do
+      # CATEGORY_PROMOTIONS maps to "newsletter", not "marketing" — SPEC_C §5
+      # (D11 audit addendum): "marketing" was dead vocabulary (0 of 31,581
+      # ingested documents ever carried the label); remapped rather than
+      # deleted so label-bearing mail, should it arrive, stays fast-classified.
       email = %{
         from: "Shop <deals@randomshop.com>",
         subject: "50% off",
@@ -118,7 +122,7 @@ defmodule Kerf.Agents.EmailTriage.FastClassifierTest do
       }
 
       assert {:ok, classification} = FastClassifier.classify(email)
-      assert classification.category == "marketing"
+      assert classification.category == "newsletter"
       assert classification.action == "archive"
     end
 

@@ -190,9 +190,9 @@ defmodule Kerf.Agents.EmailTriage.FastClassifier do
     cond do
       "CATEGORY_PROMOTIONS" in labels ->
         {:ok, %{
-          category: "marketing",
+          category: "newsletter",
           priority: 1,
-          summary: "Promotional email (Gmail category)",
+          summary: "Promotional email, filed as newsletter (Gmail category)",
           action: "archive",
           confidence: 0.9,
           source: :fast_classifier
@@ -250,7 +250,6 @@ defmodule Kerf.Agents.EmailTriage.FastClassifier do
   end
 
   defp default_priority("newsletter"), do: 1
-  defp default_priority("marketing"), do: 1
   defp default_priority("spam"), do: 1
   defp default_priority("transactional"), do: 2
   defp default_priority("social"), do: 1
@@ -259,7 +258,6 @@ defmodule Kerf.Agents.EmailTriage.FastClassifier do
   defp default_priority(_), do: 2
 
   defp default_action("newsletter"), do: "archive"
-  defp default_action("marketing"), do: "archive"
   defp default_action("spam"), do: "ignore"
   defp default_action("transactional"), do: "archive"
   defp default_action("social"), do: "archive"
