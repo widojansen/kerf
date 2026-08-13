@@ -32,7 +32,7 @@ Deviations from this spec are surfaced, not smoothed.
 Failing tests:
 
 - **T1 — schema contents:** the built triage schema's category enum equals `["business", "personal", "newsletter", "transactional", "spam", "social"]` (order per existing convention in `builtins.ex`; assert as a set if order is not meaningful).
-- **T2 — end-to-end flow:** via the established function-injection seam at `Router.handle_record`, a triage result with `category: "social"` from an injected provider_fn (per the VLLMProvider `&complete/3` capture gotcha: use an explicit wrapper, never the bare capture) produces a `kb_feedback` row with `decision='classified'`, `context->>'category'='social'`, and routes per the behavior confirmed in read-back §2.3.
+- **T2 — end-to-end flow:** via the LLM-response seam — `Classifier.classify/2`'s `provider_fn`, injected through EmailTriage's existing `classifier_fn` option (routing verified separately via Router's real Oban seam against the shipped `priv/email_routing.exs`); corrected 2026-08-13: this spec originally misnamed `Router.handle_record` as the injection seam, which has no provider seam — a triage result with `category: "social"` from an injected provider_fn (per the VLLMProvider `&complete/3` capture gotcha: use an explicit wrapper, never the bare capture) produces a `kb_feedback` row with `decision='classified'`, `context->>'category'='social'`, and routes per the behavior confirmed in read-back §2.3.
 - **T3 — negative:** a category outside the enum is impossible at the schema layer; test that the schema builder output would reject `"marketing"` (i.e., it is not in the enum after this commit — it never was; this pins the pre-commit-2 state).
 
 Seed-stable: pass under at least two seeds before RED commit.
@@ -43,7 +43,7 @@ Add `"social"` to the enum in `builtins.ex`. No test edits. Full suite green; ow
 
 ## 5. Commit 2 — dead vocabulary removal
 
-Delete `marketing` clause heads and references. No behavior change is possible (no producer exists); the proof obligation is simply: full suite green, and `grep -rn marketing lib/ test/` returns nothing triage-related. Single commit, descriptive message referencing the audit.
+Remove `marketing` from the `default_priority/1` / `default_action/1` clause heads and **remap** the `CATEGORY_PROMOTIONS` Gmail branch in `match_by_gmail_category/1` to `"newsletter"`, updating its test to assert `newsletter`. Production evidence (2026-08-13): 0 of 31,581 ingested documents carry the label, so no historical behavior changes; the remap is chosen over deletion so that label-bearing mail, should it ever arrive, stays fast-classified rather than falling through to the LLM. Proof obligation: full suite green, and no `"marketing"` category string survives in `lib/` or `test/`. Single commit, descriptive message referencing the D11 audit and its addendum.
 
 ## 6. Commit 3 — parity guard
 
