@@ -41,7 +41,7 @@ defmodule Kerf.StructuredOutput.Builtins do
            "properties" => %{
              "category" => %{
                "type" => "string",
-               "enum" => ["business", "personal", "newsletter", "transactional", "spam"]
+               "enum" => ["business", "personal", "newsletter", "transactional", "spam", "social"]
              },
              "priority" => %{"type" => "integer", "minimum" => 1, "maximum" => 5},
              "action" => %{
