@@ -428,6 +428,54 @@ defmodule Kerf.LLM.VLLMProviderTest do
              }
     end
 
+    test "chat_template_kwargs appears in request body when provided" do
+      # SPEC_D §3 item 3 (docs/superpowers/specs/SPEC_D_lightning_phase1_eval.md):
+      # the per-run thinking switch for Lightning is a
+      # chat_template_kwargs: {"enable_thinking": false} passthrough,
+      # mirroring the existing guided_json/guided_choice/guided_regex/
+      # response_format/tool_choice add_if_present pattern.
+      test_pid = self()
+
+      adapter = fn request ->
+        send(test_pid, {:request, request})
+        {request, Req.Response.json(openai_response("ok"))}
+      end
+
+      {name, _} = start_provider(adapter)
+
+      VLLMProvider.complete(
+        name,
+        "nvidia/Qwen3-32B-NVFP4",
+        [%{role: "user", content: "hi"}],
+        chat_template_kwargs: %{"enable_thinking" => false}
+      )
+
+      assert_receive {:request, req}
+      body = Jason.decode!(req.body)
+      assert body["chat_template_kwargs"] == %{"enable_thinking" => false}
+    end
+
+    test "chat_template_kwargs is absent from request body when not provided" do
+      test_pid = self()
+
+      adapter = fn request ->
+        send(test_pid, {:request, request})
+        {request, Req.Response.json(openai_response("ok"))}
+      end
+
+      {name, _} = start_provider(adapter)
+
+      VLLMProvider.complete(
+        name,
+        "nvidia/Qwen3-32B-NVFP4",
+        [%{role: "user", content: "hi"}]
+      )
+
+      assert_receive {:request, req}
+      body = Jason.decode!(req.body)
+      refute Map.has_key?(body, "chat_template_kwargs")
+    end
+
     test "strips <think>...</think> from tool-call arguments before decoding" do
       # Step 5.0b: vLLM 0.15.1's step3 parser strips <think> from
       # message.content but does NOT guarantee the same for
