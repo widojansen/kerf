@@ -9,22 +9,26 @@ defmodule Kerf.Eval.ReplayTest do
 
   # Golden-set-v1.jsonl shape per the Phase 0 baseline spec §5.3 (outer
   # private docs tree) — sender_domain, not a full address.
+  defp golden_line_base do
+    %{
+      "doc_id" => "doc-abc123",
+      "stratum" => "llm_fallback",
+      "label_prod" => "business",
+      "classifier" => "llm_classifier",
+      "corrected" => false,
+      "subject" => "Q3 renewal terms",
+      "sender_domain" => "example.com",
+      "body" => "Please review the attached renewal terms before Friday.",
+      "inserted_at" => "2026-05-01T10:00:00Z"
+    }
+  end
+
   defp golden_line(attrs \\ %{}) do
-    Map.merge(
-      %{
-        "doc_id" => "doc-abc123",
-        "stratum" => "llm_fallback",
-        "label_prod" => "business",
-        "classifier" => "llm_classifier",
-        "corrected" => false,
-        "subject" => "Q3 renewal terms",
-        "sender_domain" => "example.com",
-        "body" => "Please review the attached renewal terms before Friday.",
-        "inserted_at" => "2026-05-01T10:00:00Z"
-      },
-      attrs
-    )
-    |> Jason.encode!()
+    golden_line_base() |> Map.merge(attrs) |> Jason.encode!()
+  end
+
+  defp golden_line_without(keys) do
+    golden_line_base() |> Map.drop(keys) |> Jason.encode!()
   end
 
   defp write_tmp_jsonl!(lines) do
@@ -57,9 +61,40 @@ defmodule Kerf.Eval.ReplayTest do
       assert {:error, _reason} = Replay.parse_golden_line(line)
     end
 
-    test "missing required field (body) returns an error tuple" do
-      line = Jason.encode!(%{"doc_id" => "d1", "subject" => "no body", "sender_domain" => "x.com"})
-      assert {:error, _reason} = Replay.parse_golden_line(line)
+    # Contract correction (SPEC_D Stage 2d): body is NOT required. Production
+    # classifies documents with NULL raw_text using an empty body —
+    # email_triage.ex:138 reads `body_text: doc.raw_text || ""` — and this
+    # regime is not rare: 11,798 of 32,168 production documents (37%), and
+    # 57 of the 241 golden rows. The prior version of this test asserted
+    # {:error, _} on a missing body; that was wrong against live production
+    # behavior and is corrected here, not preserved alongside the new
+    # contract.
+    test "missing body coalesces to \"\", mirroring email_triage.ex:138's doc.raw_text || \"\"" do
+      line = golden_line_without(["body"])
+      assert {:ok, %{doc_id: "doc-abc123", email: email}} = Replay.parse_golden_line(line)
+      assert email.body_text == ""
+    end
+
+    test "null body coalesces to \"\"" do
+      line = golden_line(%{"body" => nil})
+      assert {:ok, %{email: email}} = Replay.parse_golden_line(line)
+      assert email.body_text == ""
+    end
+
+    # email_triage.ex:132 (fast_email) and :137 (email) both read
+    # `subject: doc.title || ""` — the identical coalesce rule applied to
+    # subject as to body. Mirrored here rather than treating subject as a
+    # special case.
+    test "missing subject coalesces to \"\", mirroring email_triage.ex:132/137's doc.title || \"\"" do
+      line = golden_line_without(["subject"])
+      assert {:ok, %{email: email}} = Replay.parse_golden_line(line)
+      assert email.subject == ""
+    end
+
+    test "null subject coalesces to \"\"" do
+      line = golden_line(%{"subject" => nil})
+      assert {:ok, %{email: email}} = Replay.parse_golden_line(line)
+      assert email.subject == ""
     end
   end
 
@@ -207,6 +242,32 @@ defmodule Kerf.Eval.ReplayTest do
       assert record.priority_out == nil
       assert record.schema_valid == false
       refute is_nil(record.error)
+    end
+
+    test "a bodyless golden record (parsed via parse_golden_line/1) classifies normally" do
+      # 37% of production documents (11,798/32,168) have NULL raw_text —
+      # email_triage.ex:138 — and the harness must not treat that as a
+      # parse failure or a classification-blocking condition.
+      line = golden_line_without(["body"])
+      assert {:ok, %{doc_id: doc_id, email: email}} = Replay.parse_golden_line(line)
+      assert email.body_text == ""
+
+      provider_fn = fn :email_classification, "test-model", _messages, _opts ->
+        {:ok,
+         %{
+           "category" => "business",
+           "priority" => 3,
+           "action" => "follow_up",
+           "confidence" => 0.7,
+           "summary" => "ok"
+         }}
+      end
+
+      record = Replay.classify_email(email, doc_id, "run-1", provider_fn, "test-model")
+
+      assert record.schema_valid == true
+      assert record.category_out == "business"
+      assert record.error == nil
     end
   end
 
