@@ -43,8 +43,15 @@ defmodule Kerf.Eval.Replay do
   `email.from.name`, `email.subject`, `email.body_text`.
 
   Returns `{:error, reason}` (never raises) on malformed JSON or a missing
-  required field (`doc_id`, `subject`, `body`) — the caller records the
-  error and continues past this line.
+  `doc_id` — the caller records the error and continues past this line.
+  `doc_id` is the only required field.
+
+  `subject` and `body` both coalesce a missing or `nil` value to `""`,
+  mirroring production exactly rather than treating either as a parse
+  error: `email_triage.ex:132`/`:137` read `subject: doc.title || ""` and
+  `:138` reads `body_text: doc.raw_text || ""`. This is not a rare edge
+  case — 37% of production documents (11,798/32,168) have `NULL raw_text`,
+  and 57 of the 241 golden rows do too (SPEC_D Stage 2d).
 
   `email.from.email` is synthesized as `"unknown@" <> sender_domain` — the
   golden set carries only `sender_domain`, not a full address (PII
@@ -56,13 +63,11 @@ defmodule Kerf.Eval.Replay do
   def parse_golden_line(line) do
     case Jason.decode(line) do
       {:ok, data} when is_map(data) ->
-        with {:ok, doc_id} <- fetch_required(data, "doc_id"),
-             {:ok, subject} <- fetch_required(data, "subject"),
-             {:ok, body} <- fetch_required(data, "body") do
+        with {:ok, doc_id} <- fetch_required(data, "doc_id") do
           email = %{
             from: %{email: "unknown@#{Map.get(data, "sender_domain")}", name: nil},
-            subject: subject,
-            body_text: body
+            subject: coalesce(Map.get(data, "subject")),
+            body_text: coalesce(Map.get(data, "body"))
           }
 
           {:ok, %{doc_id: doc_id, email: email}}
@@ -83,6 +88,9 @@ defmodule Kerf.Eval.Replay do
       value -> {:ok, value}
     end
   end
+
+  defp coalesce(nil), do: ""
+  defp coalesce(value), do: value
 
   @doc """
   Read a golden-set JSONL file and parse every line via `parse_golden_line/1`.
