@@ -44,7 +44,7 @@ defmodule Kerf.Eval.ReplayTest do
       assert {:ok, %{doc_id: "doc-abc123", email: email}} = Replay.parse_golden_line(golden_line())
       assert email.subject == "Q3 renewal terms"
       assert email.body_text == "Please review the attached renewal terms before Friday."
-      assert email.from.email =~ "example.com"
+      assert email.from.email == "unknown@example.com"
       assert is_nil(email.from.name)
     end
 
@@ -244,6 +244,105 @@ defmodule Kerf.Eval.ReplayTest do
       refute is_nil(r2.error)
       assert r3.schema_valid == true
       assert Enum.map(results, & &1.doc_id) == ["d1", "d2", "d3"]
+    end
+
+    test "a raising provider_fn for one email yields an error record with the exception message; the batch continues" do
+      provider_fn = fn :email_classification, _model, messages, _opts ->
+        [%{"content" => content}] = messages
+
+        if content =~ "s2" do
+          raise "boom exploded"
+        else
+          {:ok,
+           %{
+             "category" => "business",
+             "priority" => 3,
+             "action" => "follow_up",
+             "confidence" => 0.8,
+             "summary" => "ok"
+           }}
+        end
+      end
+
+      results = Replay.classify_batch(@records, "run-1", provider_fn, "test-model")
+
+      assert length(results) == 3
+      [r1, r2, r3] = results
+      assert r1.schema_valid == true
+      assert r2.schema_valid == false
+      assert r2.error =~ "boom exploded"
+      assert r3.schema_valid == true
+      assert Enum.map(results, & &1.doc_id) == ["d1", "d2", "d3"]
+    end
+  end
+
+  describe "parse_args/1 — CLI contract (SPEC_D §2)" do
+    @required ~w(--input golden.jsonl --output results.jsonl --endpoint http://localhost:8001 --model nemotron-3.5-lightning --tag lightning-thinking-off)
+
+    test "valid argv (required flags only) parses into a config map with correct types and nil defaults" do
+      assert {:ok, config} = Replay.parse_args(@required)
+
+      assert config.input == "golden.jsonl"
+      assert config.output == "results.jsonl"
+      assert config.endpoint == "http://localhost:8001"
+      assert config.model == "nemotron-3.5-lightning"
+      assert config.tag == "lightning-thinking-off"
+      assert config.thinking == nil
+      assert config.temperature == nil
+      assert config.top_p == nil
+      assert config.limit == nil
+    end
+
+    test "optional flags are parsed with correct types when provided" do
+      argv =
+        @required ++
+          ~w(--thinking off --temperature 1.0 --top-p 0.95 --limit 50)
+
+      assert {:ok, config} = Replay.parse_args(argv)
+
+      assert config.thinking == :off
+      assert config.temperature == 1.0
+      assert config.top_p == 0.95
+      assert config.limit == 50
+      assert is_float(config.temperature)
+      assert is_float(config.top_p)
+      assert is_integer(config.limit)
+    end
+
+    test "--thinking on parses to the :on atom" do
+      argv = @required ++ ~w(--thinking on)
+      assert {:ok, config} = Replay.parse_args(argv)
+      assert config.thinking == :on
+    end
+
+    test "missing --input returns a clear error naming the flag" do
+      argv = ~w(--output r.jsonl --endpoint http://x --model m --tag t)
+      assert {:error, reason} = Replay.parse_args(argv)
+      assert reason =~ "input"
+    end
+
+    test "missing --output returns a clear error naming the flag" do
+      argv = ~w(--input g.jsonl --endpoint http://x --model m --tag t)
+      assert {:error, reason} = Replay.parse_args(argv)
+      assert reason =~ "output"
+    end
+
+    test "missing --endpoint returns a clear error naming the flag" do
+      argv = ~w(--input g.jsonl --output r.jsonl --model m --tag t)
+      assert {:error, reason} = Replay.parse_args(argv)
+      assert reason =~ "endpoint"
+    end
+
+    test "missing --model returns a clear error naming the flag" do
+      argv = ~w(--input g.jsonl --output r.jsonl --endpoint http://x --tag t)
+      assert {:error, reason} = Replay.parse_args(argv)
+      assert reason =~ "model"
+    end
+
+    test "missing --tag returns a clear error naming the flag" do
+      argv = ~w(--input g.jsonl --output r.jsonl --endpoint http://x --model m)
+      assert {:error, reason} = Replay.parse_args(argv)
+      assert reason =~ "tag"
     end
   end
 end

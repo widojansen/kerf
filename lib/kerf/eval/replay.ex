@@ -82,6 +82,22 @@ defmodule Kerf.Eval.Replay do
   def build_run_manifest(_opts), do: raise("not implemented")
 
   @doc """
+  Parse `mix kerf.eval.replay` argv into a config map, per SPEC_D §2's CLI
+  contract: `--input --output --endpoint --model --tag [--thinking on|off]
+  [--temperature T --top-p P] [--limit N]`.
+
+  Required: `:input, :output, :endpoint, :model, :tag` (strings) — missing
+  any one returns `{:error, reason}` naming the flag, never raises.
+  Optional, default `nil` when absent: `:thinking` (`:on | :off`),
+  `:temperature`/`:top_p` (float), `:limit` (integer). A `nil` `:thinking`
+  means "not specified" — distinct from `:off` — so the harness's
+  provider_fn can tell "send no chat_template_kwargs at all" (Cascade, or
+  an unspecified Lightning run) apart from an explicit `--thinking off`.
+  """
+  @spec parse_args([String.t()]) :: {:ok, map()} | {:error, String.t()}
+  def parse_args(_argv), do: raise("not implemented")
+
+  @doc """
   Classify one golden-set email through the real `Classifier.classify/2`
   seam, timing the call and building its output record.
 
