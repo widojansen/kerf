@@ -476,6 +476,52 @@ defmodule Kerf.LLM.VLLMProviderTest do
       refute Map.has_key?(body, "chat_template_kwargs")
     end
 
+    test "top_p appears in request body when provided" do
+      # SPEC_D Stage 2c: the eval's defined sampling config (Lightning C1:
+      # "temp 1.0 / top-p 0.95 per model card") requires top_p to actually
+      # reach vLLM — mirrors the chat_template_kwargs pair above.
+      test_pid = self()
+
+      adapter = fn request ->
+        send(test_pid, {:request, request})
+        {request, Req.Response.json(openai_response("ok"))}
+      end
+
+      {name, _} = start_provider(adapter)
+
+      VLLMProvider.complete(
+        name,
+        "nvidia/Qwen3-32B-NVFP4",
+        [%{role: "user", content: "hi"}],
+        top_p: 0.95
+      )
+
+      assert_receive {:request, req}
+      body = Jason.decode!(req.body)
+      assert body["top_p"] == 0.95
+    end
+
+    test "top_p is absent from request body when not provided" do
+      test_pid = self()
+
+      adapter = fn request ->
+        send(test_pid, {:request, request})
+        {request, Req.Response.json(openai_response("ok"))}
+      end
+
+      {name, _} = start_provider(adapter)
+
+      VLLMProvider.complete(
+        name,
+        "nvidia/Qwen3-32B-NVFP4",
+        [%{role: "user", content: "hi"}]
+      )
+
+      assert_receive {:request, req}
+      body = Jason.decode!(req.body)
+      refute Map.has_key?(body, "top_p")
+    end
+
     test "strips <think>...</think> from tool-call arguments before decoding" do
       # Step 5.0b: vLLM 0.15.1's step3 parser strips <think> from
       # message.content but does NOT guarantee the same for
