@@ -125,6 +125,10 @@ defmodule Kerf.LLM.VLLMProvider do
         temp -> Map.put(body, :temperature, temp)
       end
 
+    # Nucleus sampling (SPEC_D Stage 2c): eval sampling configs specify
+    # top_p alongside temperature (e.g. Lightning C1: temp 1.0 / top_p 0.95).
+    body = add_if_present(body, opts, :top_p)
+
     # Structured output: pass through guided decoding params to vLLM.
     body = add_if_present(body, opts, :guided_json)
     body = add_if_present(body, opts, :guided_choice)

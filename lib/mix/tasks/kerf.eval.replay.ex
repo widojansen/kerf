@@ -17,13 +17,6 @@ defmodule Mix.Tasks.Kerf.Eval.Replay do
   `RateLimiter` pair pointed at `--endpoint` — never the app-supervised
   `Kerf.LLM.VLLMProvider` / `Kerf.LLM.RateLimiter` singletons, even though
   `mix app.start` boots them too (production's `VLLM_URL`/`VLLM_MODEL`).
-
-  Known gap: `--top-p` is parsed but not currently wired into the request —
-  `Kerf.LLM.VLLMProvider.build_request_body/4` has no `top_p` passthrough
-  (out of this task's authorized scope, which added only
-  `chat_template_kwargs`). C1's model-card sampling config
-  ("temp 1.0 / top-p 0.95") will only apply temperature until that gap is
-  closed.
   """
   use Mix.Task
 
@@ -118,6 +111,7 @@ defmodule Mix.Tasks.Kerf.Eval.Replay do
     schema_def = fetch_schema!(:email_classification)
     thinking_opts = chat_template_kwargs_opt(config.thinking)
     temperature = config.temperature
+    top_p = config.top_p
 
     fn :email_classification, model, messages, classifier_opts ->
       vllm_wrapper = fn inner_model, inner_messages, inner_opts ->
@@ -125,6 +119,7 @@ defmodule Mix.Tasks.Kerf.Eval.Replay do
           inner_opts
           |> Keyword.merge(thinking_opts)
           |> maybe_put(:temperature, temperature)
+          |> maybe_put(:top_p, top_p)
 
         case VLLMProvider.complete(vllm_name, inner_model, inner_messages, request_opts) do
           {:ok, %{type: :text, content: content, usage: usage}} = ok ->
