@@ -131,6 +131,10 @@ defmodule Kerf.LLM.VLLMProvider do
     body = add_if_present(body, opts, :guided_regex)
     body = add_if_present(body, opts, :response_format)
 
+    # Per-run reasoning-behavior override (SPEC_D §3 item 3): e.g.
+    # %{"enable_thinking" => false} for Lightning. A no-op unless supplied.
+    body = add_if_present(body, opts, :chat_template_kwargs)
+
     # Tool-call routing: forward tool_choice (e.g. {type: "function", function: %{name: ...}}).
     body = add_if_present(body, opts, :tool_choice)
 
