@@ -1,0 +1,23 @@
+{
+  "_fixture_note": "hand-written from spec, replace with recorded response",
+  "_malformation": "category is answered twice (duplicate JSON key; a last-wins decoder hides this, F03.3). Serve these bytes verbatim, never re-encode.",
+  "model": "strands-decider-2b",
+  "answers": {
+    "needs_reply": {"noul": 0.82},
+    "category": {
+      "choice": "business",
+      "confidence": 0.7,
+      "probabilities": {"business": 0.8, "personal": 0.15, "newsletter": 0.05}
+    },
+    "urgency": {
+      "score": 2.15,
+      "confidence": 0.55,
+      "probabilities": {"0": 0.05, "1": 0.15, "2": 0.45, "3": 0.3, "4": 0.05}
+    },
+    "category": {
+      "choice": "personal",
+      "confidence": 0.4,
+      "probabilities": {"business": 0.3, "personal": 0.6, "newsletter": 0.1}
+    }
+  }
+}

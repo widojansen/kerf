@@ -1,0 +1,13 @@
+{
+  "_fixture_note": "hand-written from spec, replace with recorded response",
+  "_malformation": "urgency was asked but is not answered (F03.3)",
+  "model": "strands-decider-2b",
+  "answers": {
+    "needs_reply": {"noul": 0.82},
+    "category": {
+      "choice": "business",
+      "confidence": 0.7,
+      "probabilities": {"business": 0.8, "personal": 0.15, "newsletter": 0.05}
+    }
+  }
+}

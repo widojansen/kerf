@@ -83,6 +83,44 @@ defmodule Kerf.Agents.EmailTriage.VocabularyParityTest do
     end
   end
 
+  # SPEC_H F06.3 — docs/superpowers/specs/SPEC_H_kerf_decide.json
+  #
+  # Kerf.Decide triage Choice questions draw their labels from this same
+  # guarded vocabulary. `assert_triage_vocabulary!/1` is the guard; the second
+  # test proves it bites (validate-the-validator), using "invoice", which the
+  # SPEC_H F11 appendix names as a category but SPEC_C's enum does not contain.
+  defp assert_triage_vocabulary!(option_set) do
+    outside = Kerf.Decide.OptionSet.labels(option_set) -- @canonical_categories
+
+    assert outside == [],
+           "triage OptionSet label(s) #{inspect(outside)} are not in the SPEC_C vocabulary; " <>
+             "add them to the canonical set (and both producers) first"
+  end
+
+  describe "SPEC_H F06.3: Decide triage OptionSet" do
+    setup do
+      assert Code.ensure_loaded?(Kerf.Decide.OptionSet),
+             "Kerf.Decide.OptionSet is not implemented yet (SPEC_H F06.3, RED)"
+
+      :ok
+    end
+
+    test "Decide's triage category OptionSet is exactly the parity-guarded vocabulary" do
+      option_set = Kerf.Decide.OptionSet.triage_categories()
+
+      assert_triage_vocabulary!(option_set)
+
+      assert MapSet.new(Kerf.Decide.OptionSet.labels(option_set)) ==
+               MapSet.new(@canonical_categories)
+    end
+
+    test "a triage OptionSet built from an out-of-vocabulary label fails the guard" do
+      {:ok, rogue} = Kerf.Decide.OptionSet.new(["business", "invoice"])
+
+      assert_raise ExUnit.AssertionError, fn -> assert_triage_vocabulary!(rogue) end
+    end
+  end
+
   describe "why FastClassifier's side is pinned, not derived" do
     test "classify/2 is total (non-crashing) for every canonical category via classification_override" do
       for category <- @canonical_categories do

@@ -1,0 +1,19 @@
+{
+  "_fixture_note": "hand-written from spec, replace with recorded response",
+  "_shape_source": "SPEC_H glossary + Hex jev 0.1.0 lib/jev.ex:132-184 (TypeSafe /v1/systemone answer shape); probabilities deliberately NOT in caller order; choice confidence deliberately wrong (Kerf.Decide must recompute it, F01.3)",
+  "model": "strands-decider-2b",
+  "answers": {
+    "needs_reply": {"noul": 0.82},
+    "category": {
+      "choice": "business",
+      "confidence": 0.99,
+      "probabilities": {"newsletter": 0.05, "personal": 0.15, "business": 0.8}
+    },
+    "urgency": {
+      "score": 2.15,
+      "confidence": 0.55,
+      "probabilities": {"4": 0.05, "3": 0.3, "2": 0.45, "1": 0.15, "0": 0.05}
+    }
+  },
+  "usage": {"input_tokens": 412, "output_tokens": 0, "cost": 0.0000173}
+}

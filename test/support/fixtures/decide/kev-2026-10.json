@@ -1,0 +1,19 @@
+{
+  "_fixture_note": "hand-written from spec, replace with recorded response",
+  "_shape_source": "SPEC_H glossary + Hex jev 0.1.0 lib/jev.ex:132-184 (TypeSafe /v1/systemone answer shape); probabilities deliberately NOT in caller order",
+  "model": "kev-0.3",
+  "answers": {
+    "urgency": {
+      "score": 0.7,
+      "confidence": 0.31,
+      "probabilities": {"0": 0.5, "1": 0.35, "2": 0.1, "3": 0.05, "4": 0.0}
+    },
+    "category": {
+      "choice": "personal",
+      "confidence": 0.4,
+      "probabilities": {"personal": 0.6, "newsletter": 0.1, "business": 0.3}
+    },
+    "needs_reply": {"noul": 0.11}
+  },
+  "usage": {"input_tokens": 398, "output_tokens": 0}
+}

@@ -1,0 +1,18 @@
+{
+  "_fixture_note": "hand-written from spec, replace with recorded response",
+  "_malformation": "category answers with label \"spam\", which was not in the sent option set (F03.3)",
+  "model": "strands-decider-2b",
+  "answers": {
+    "needs_reply": {"noul": 0.82},
+    "category": {
+      "choice": "spam",
+      "confidence": 0.9,
+      "probabilities": {"business": 0.2, "personal": 0.1, "spam": 0.7}
+    },
+    "urgency": {
+      "score": 2.15,
+      "confidence": 0.55,
+      "probabilities": {"0": 0.05, "1": 0.15, "2": 0.45, "3": 0.3, "4": 0.05}
+    }
+  }
+}
