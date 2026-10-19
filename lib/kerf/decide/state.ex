@@ -1,10 +1,10 @@
 defmodule Kerf.Decide.State do
   @moduledoc """
-  SPEC_H F01.6 — RED skeleton.
+  SPEC_H F01.6 — the state a request is asked against.
 
-  The state a request is asked against. `provenance` is shaped per SPEC_G §4
-  (`taint`, `origin`, `sources`); until Kerf.Provenance lands it is a plain
-  map, and Kerf.Decide never accepts one from opts or from `content` (I1).
+  `provenance` is shaped per SPEC_G §4 (`taint`, `origin`, `sources`); until
+  Kerf.Provenance lands it is a plain map, and Kerf.Decide never accepts one
+  from opts or from `content` (I1).
   """
 
   @enforce_keys [:content, :provenance]

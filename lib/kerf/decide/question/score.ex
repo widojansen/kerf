@@ -1,5 +1,5 @@
 defmodule Kerf.Decide.Question.Score do
-  @moduledoc "SPEC_H F01 — RED skeleton. Position on an ordered rubric of 2..10 levels."
+  @moduledoc "SPEC_H F01 — Position on an ordered rubric of 2..10 levels."
 
   @enforce_keys [:name, :instructions, :levels]
   defstruct [:name, :instructions, :levels, criteria: nil, branch: nil]

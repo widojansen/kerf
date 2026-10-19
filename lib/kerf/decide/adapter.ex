@@ -1,6 +1,6 @@
 defmodule Kerf.Decide.Adapter do
   @moduledoc """
-  SPEC_H F01.5 — RED skeleton. The behaviour every decision backend implements.
+  SPEC_H F01.5 — The behaviour every decision backend implements.
 
   `ask/3` receives the validated state, the questions, and the caller's opts
   (passed through, e.g. `base_url:`). Raw answers per type:

@@ -1,5 +1,5 @@
 defmodule Kerf.Decide.Question.Noul do
-  @moduledoc "SPEC_H F01 — RED skeleton. Yes/no question; answered with p_yes."
+  @moduledoc "SPEC_H F01 — Yes/no question; answered with p_yes."
 
   @enforce_keys [:name, :instructions]
   defstruct [:name, :instructions, criteria: nil, branch: nil]

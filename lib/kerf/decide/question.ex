@@ -1,11 +1,10 @@
 defmodule Kerf.Decide.Question do
   @moduledoc """
-  SPEC_H F01 / F06.1 — RED skeleton.
+  SPEC_H F01 / F06.1 — constructors for the three question types.
 
-  Constructors for the three question types. They check argument types only
-  (a Choice takes an OptionSet, never a raw list) and raise
-  FunctionClauseError otherwise; counts and emptiness are validated by
-  Kerf.Decide before any adapter call.
+  They check argument types only (a Choice takes an OptionSet, never a raw
+  list) and raise FunctionClauseError otherwise; counts and emptiness are
+  validated by `Kerf.Decide.validate/2` before any adapter call.
 
   Options: `criteria:` (descriptions) and `branch:` (marks a speculative
   follow-up, F02.4).
@@ -17,14 +16,36 @@ defmodule Kerf.Decide.Question do
   @type t :: Noul.t() | Choice.t() | Score.t()
 
   @spec noul(atom(), String.t() | map(), keyword()) :: Noul.t()
-  def noul(_name, _instructions, _opts \\ []),
-    do: raise(Kerf.Decide.NotImplemented, function: "Kerf.Decide.Question.noul/3")
+  def noul(name, instructions, opts \\ []) when is_atom(name) and is_list(opts) do
+    %Noul{
+      name: name,
+      instructions: instructions,
+      criteria: opts[:criteria],
+      branch: opts[:branch]
+    }
+  end
 
   @spec choice(atom(), String.t() | map(), OptionSet.t(), keyword()) :: Choice.t()
-  def choice(_name, _instructions, _options, _opts \\ []),
-    do: raise(Kerf.Decide.NotImplemented, function: "Kerf.Decide.Question.choice/4")
+  def choice(name, instructions, options, opts \\ [])
+      when is_atom(name) and is_struct(options, OptionSet) and is_list(opts) do
+    %Choice{
+      name: name,
+      instructions: instructions,
+      options: options,
+      criteria: opts[:criteria],
+      branch: opts[:branch]
+    }
+  end
 
   @spec score(atom(), String.t() | map(), [String.t()], keyword()) :: Score.t()
-  def score(_name, _instructions, _levels, _opts \\ []),
-    do: raise(Kerf.Decide.NotImplemented, function: "Kerf.Decide.Question.score/4")
+  def score(name, instructions, levels, opts \\ [])
+      when is_atom(name) and is_list(levels) and is_list(opts) do
+    %Score{
+      name: name,
+      instructions: instructions,
+      levels: levels,
+      criteria: opts[:criteria],
+      branch: opts[:branch]
+    }
+  end
 end

@@ -1,6 +1,6 @@
 defmodule Kerf.Decide.Result do
   @moduledoc """
-  SPEC_H F01.1 — RED skeleton. Result shapes, as types only.
+  SPEC_H F01.1 — Result shapes, as types only.
 
   Results are plain maps, not a struct: F01.1 requires each result to have
   EXACTLY the keys below, and a struct would add `:__struct__`. `probs` is
