@@ -119,7 +119,9 @@ defmodule Kerf.Decide.OptionSetTest do
     end
 
     test "a Choice question refuses a raw list (constructors raise on wrong types)" do
-      assert_raise FunctionClauseError, fn -> Question.choice(:category, "Which?", ["a", "b"]) end
+      # Built at runtime so the type checker cannot prove the call fails at compile time.
+      raw = Enum.map(~w(a b), & &1)
+      assert_raise FunctionClauseError, fn -> Question.choice(:category, "Which?", raw) end
     end
 
     test "an adapter cannot widen the set: an out-of-set label is a schema violation, never a result" do

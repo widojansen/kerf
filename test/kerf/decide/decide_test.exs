@@ -51,9 +51,7 @@ defmodule Kerf.DecideTest do
   Kerf.Decide behaviour and request/result contracts, exercised through a
   stub adapter only. F01.7 (dialyzer / @spec) is a hook, not a test.
 
-  RED note: lib/kerf/decide/ holds raising skeletons; each test fails in its
-  body on a Kerf.Decide.NotImplemented raise or an assertion. Struct values
-  are built with struct!/2 (written before the skeletons existed).
+  Struct values are built with struct!/2 (written before the skeletons existed).
   """
   use ExUnit.Case, async: false
   use ExUnitProperties
