@@ -8,7 +8,6 @@ defmodule Kerf.LLM.ModelRouter do
   """
 
   use GenServer
-  require Logger
 
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)

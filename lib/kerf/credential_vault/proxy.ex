@@ -8,7 +8,6 @@ defmodule Kerf.CredentialVault.Proxy do
   Not a GenServer — a stateless module called directly by agents.
   """
 
-  require Logger
 
   alias Kerf.CredentialVault
   alias Kerf.CredentialVault.LeaseManager

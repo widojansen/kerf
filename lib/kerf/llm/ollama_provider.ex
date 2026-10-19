@@ -18,7 +18,6 @@ defmodule Kerf.LLM.OllamaProvider do
   """
 
   use GenServer
-  require Logger
 
   # --- Public API (mirrors Kerf.LLM.Provider) ---
 

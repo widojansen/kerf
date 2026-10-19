@@ -7,8 +7,6 @@ defmodule Kerf.Monitor.ProcessHealth do
   """
   use GenServer
 
-  require Logger
-
   # --- Public API ---
 
   def start_link(opts) do

@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Kerf.DiffMonitorLogs do
   """
   use Mix.Task
 
-  @type record :: %{
+  @type log_record :: %{
           ts_utc: DateTime.t() | nil,
           fetch: :ok | :error,
           status: String.t() | nil,
@@ -78,7 +78,7 @@ defmodule Mix.Tasks.Kerf.DiffMonitorLogs do
   end
 
   @doc "Parse the Kerf log: select `[monitoring]` lines, parse our own key=value (incl ts=), ignore any backend prefix."
-  @spec parse_kerf(binary()) :: [record()]
+  @spec parse_kerf(binary()) :: [log_record()]
   def parse_kerf(log) do
     log
     |> String.split("\n", trim: true)
@@ -98,7 +98,7 @@ defmodule Mix.Tasks.Kerf.DiffMonitorLogs do
   Parse the Python `monitor.log`: keep only the 3 decision lines, filter all noise,
   parse asctime (`YYYY-MM-DD HH:MM:SS,mmm`) as `tz`-local and convert to UTC.
   """
-  @spec parse_python(binary(), String.t()) :: [record()]
+  @spec parse_python(binary(), String.t()) :: [log_record()]
   def parse_python(log, tz \\ "Europe/Amsterdam")
 
   def parse_python(log, tz) do
@@ -110,7 +110,7 @@ defmodule Mix.Tasks.Kerf.DiffMonitorLogs do
   end
 
   @doc "Bucket both record lists into 5-min slots: `div(unix_utc_seconds, 300)`."
-  @spec align([record()], [record()]) :: %{integer() => {record() | nil, record() | nil}}
+  @spec align([log_record()], [log_record()]) :: %{integer() => {log_record() | nil, log_record() | nil}}
   def align(kerf, python) do
     by_slot = fn records -> Map.new(records, fn r -> {slot(r), r} end) end
     k = by_slot.(kerf)
@@ -122,7 +122,7 @@ defmodule Mix.Tasks.Kerf.DiffMonitorLogs do
   end
 
   @doc "Compare aligned slots; return the divergence + missing-slot summary."
-  @spec diff([record()], [record()]) :: summary()
+  @spec diff([log_record()], [log_record()]) :: summary()
   def diff(kerf, python) do
     aligned = align(kerf, python)
     init = %{slots_compared: 0, matches: 0, divergences: [], kerf_missing: [], python_missing: []}

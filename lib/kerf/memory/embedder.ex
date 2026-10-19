@@ -35,7 +35,6 @@ defmodule Kerf.Memory.Embedder do
   """
 
   use GenServer
-  require Logger
 
   # --- Public API ---
 

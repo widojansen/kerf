@@ -25,8 +25,6 @@ defmodule Kerf.Agents.EmailTriage.Enricher do
     max_attempts: 3,
     unique: [period: 300, fields: [:args, :worker]]
 
-  require Logger
-
   alias Kerf.Repo
   alias Kerf.Agents.EmailTriage.{BodyPrep, Router, TriageRecord, Taxonomy}
   alias Kerf.KnowledgeBase.Document

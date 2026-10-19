@@ -190,14 +190,8 @@ defmodule Mix.Tasks.Kerf.TestCatalog do
         end
       end)
 
-    # Flush any remaining open describe
-    describes =
-      if Map.get(%{current_describe: nil}, :current_describe) do
-        describes
-      else
-        describes
-      end
-
+    # A describe still open at EOF is not flushed: the former "flush" here
+    # tested a literal nil map and returned `describes` on both branches.
     {describes, top_level_tests}
   end
 

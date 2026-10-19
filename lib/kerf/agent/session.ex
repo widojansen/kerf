@@ -6,7 +6,6 @@ defmodule Kerf.Agent.Session do
   """
   use GenServer, restart: :temporary
 
-  require Logger
 
   alias Kerf.LLM.Provider
   alias Kerf.Security.{FileGuard, ShellSandbox, PromptGuard}

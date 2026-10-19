@@ -55,6 +55,9 @@ defmodule Kerf.Agents.EmailTriage.Router do
     deliver(action_atom, record, doc)
   end
 
+  # Classified / pending / unclassifiable: not yet enriched, no decision.
+  defp handle_record(%TriageRecord{}), do: :ok
+
   # SPEC C Router addendum — universal notify guard at the emission seam.
   # Silences self-sent ("SENT" label) and stale (older than NotifyGuard's
   # MAX_AGE) mail by overriding the routed action to :silent BEFORE the decision
@@ -100,9 +103,6 @@ defmodule Kerf.Agents.EmailTriage.Router do
     now_fn = Application.get_env(:kerf, __MODULE__, [])[:now_fn] || (&DateTime.utc_now/0)
     now_fn.()
   end
-
-  # Classified / pending / unclassifiable: not yet enriched, no decision.
-  defp handle_record(%TriageRecord{}), do: :ok
 
   # ---------- rule matching ----------
 

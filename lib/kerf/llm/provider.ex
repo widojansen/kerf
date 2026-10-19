@@ -5,7 +5,6 @@ defmodule Kerf.LLM.Provider do
   """
   use GenServer
 
-  require Logger
 
   # --- Public API ---
 

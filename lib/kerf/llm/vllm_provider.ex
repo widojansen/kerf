@@ -22,7 +22,6 @@ defmodule Kerf.LLM.VLLMProvider do
   """
 
   use GenServer
-  require Logger
 
   # --- Public API (mirrors Kerf.LLM.Provider) ---
 

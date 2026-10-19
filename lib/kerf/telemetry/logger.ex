@@ -8,7 +8,6 @@ defmodule Kerf.Telemetry.Logger do
   """
   use GenServer
 
-  require Logger
 
   # --- Public API ---
 
