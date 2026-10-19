@@ -30,7 +30,9 @@ defmodule Kerf.Decide.OptionSetTest do
   branch is tested against the placeholder `Kerf.Decide.Gate` /
   `Kerf.Decide.Gate.Approved`, private to the Decide subtree.
   TODO(SPEC_G): replace with Kerf.Gate / %Kerf.Gate.Approved{} when it lands.
-  The test module is the only place an approval is constructed.
+  The stand-in gate refuses every request, and lib/ has no way to build an
+  Approved, so these tests forge one with struct!/2 (`approved/1`) to prove
+  act/3 honours a real approval once Kerf.Gate exists.
 
   F06.3 lives in test/agents/email_triage/vocabulary_parity_test.exs, the
   existing SPEC_C guard it extends.
@@ -46,7 +48,15 @@ defmodule Kerf.Decide.OptionSetTest do
   # F06.2 grep guard. Committed allowlist: the only lib/ file allowed to read
   # `.label` and act on it. Same discipline as the SPEC_C parity guard —
   # changing this list is a reviewed decision, not a fix-up.
+  # Tripwire, not proof: destructuring (`%{label: l} = result`) bypasses it.
   @label_effect_allowlist ["lib/kerf/decide/option_set.ex"]
+
+  # F06.4 grep guard. Until SPEC_G, there is no legitimate way to obtain an
+  # Approved; this guard keeps it that way. Allowlist is empty. Textual, so it
+  # also flags a `%Kerf.Decide.Gate.Approved{}` pattern MATCH — check with
+  # is_struct/2 or an alias instead.
+  @approved_construction_allowlist []
+  @approved_construction ~r/%Kerf\.Decide\.Gate\.Approved\{|struct!?\(Kerf\.Decide\.Gate\.Approved/
   @side_effect ~r/\b(Repo\.(insert|update|delete)|Req\.|Oban\.insert|GenServer\.(call|cast)|send\(|Gmail|Telegram|Proxy\.request|CredentialVault\.get|HTTP\.)/
 
   @gate_only [:route, :label, :escalate, :log]
@@ -72,6 +82,15 @@ defmodule Kerf.Decide.OptionSetTest do
       latency_ms: 2,
       provenance: provenance
     }
+  end
+
+  # Test-only forgery: the stand-in gate never mints an Approved (see moduledoc).
+  defp approved(action) do
+    struct!(Kerf.Decide.Gate.Approved,
+      action: action,
+      approver: :wido,
+      approved_at: ~N[2026-10-19 09:00:00]
+    )
   end
 
   @draft %{to: "someone", body: "draft"}
@@ -198,21 +217,43 @@ defmodule Kerf.Decide.OptionSetTest do
     end
 
     test "clean result + :effect action + Approved for that action → {:ok, action}" do
-      {:ok, approved} = Kerf.Decide.Gate.approve({:gmail_send, @draft}, :wido)
-
       assert {:ok, {:gmail_send, @draft}} =
-               act(result("reply", 0.95, clean()), approved: approved)
+               act(result("reply", 0.95, clean()), approved: approved({:gmail_send, @draft}))
+    end
+
+    test "tainted result with human Approved may perform an :effect action" do
+      # SPEC_G I3: a human approval is what makes a tainted artifact acceptable.
+      assert {:ok, {:gmail_send, @draft}} =
+               act(result("reply", 0.95, tainted()), approved: approved({:gmail_send, @draft}))
     end
 
     test "an Approved for a different action does not unlock this one" do
-      {:ok, approved} = Kerf.Decide.Gate.approve({:gmail_trash, "msg-1"}, :wido)
-
       assert {:error, :approval_required} =
-               act(result("reply", 0.95, clean()), approved: approved)
+               act(result("reply", 0.95, clean()), approved: approved({:gmail_trash, "msg-1"}))
+    end
+
+    test "stand-in gate refuses every approval request" do
+      requests = [{:route, :inbox} | Enum.map(@effect, &{&1, "arg"})]
+
+      for action <- requests do
+        assert Kerf.Decide.Gate.approve(action, :wido) == {:error, :gate_not_available},
+               "stand-in gate must refuse #{inspect(action)}"
+      end
+    end
+
+    test "no lib/ file constructs a %Kerf.Decide.Gate.Approved{}" do
+      offenders =
+        Path.join(@repo_root, "lib/**/*.ex")
+        |> Path.wildcard()
+        |> Enum.filter(&(File.read!(&1) =~ @approved_construction))
+        |> Enum.map(&Path.relative_to(&1, @repo_root))
+
+      assert offenders -- @approved_construction_allowlist == [],
+             "Approved constructed in lib/: #{inspect(offenders -- @approved_construction_allowlist)}"
     end
 
     test "act/3 never calls an Approved constructor itself" do
-      {:ok, approved} = Kerf.Decide.Gate.approve({:gmail_send, @draft}, :wido)
+      approved = approved({:gmail_send, @draft})
 
       constructors = [
         {Kerf.Decide.Gate, :approve, :_},

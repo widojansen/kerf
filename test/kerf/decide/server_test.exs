@@ -63,17 +63,17 @@ defmodule Kerf.Decide.ServerTest.Adapters do
 
   defmodule Sleeping do
     @moduledoc false
-    # Reports its pid and $callers so the test can find it under the Task.Supervisor.
+    # Reports its pid and $callers when called (so the test can find it under
+    # the Task.Supervisor) and again when it finishes sleeping (so the test can
+    # order other messages against its completion).
     @behaviour Kerf.Decide.Adapter
 
     @impl true
     def ask(_state, _questions, opts) do
-      send(
-        Keyword.fetch!(opts, :test_pid),
-        {:adapter_running, self(), Process.get(:"$callers", [])}
-      )
-
+      test_pid = Keyword.fetch!(opts, :test_pid)
+      send(test_pid, {:adapter_called, %{pid: self(), callers: Process.get(:"$callers", [])}})
       Process.sleep(Keyword.fetch!(opts, :sleep_ms))
+      send(test_pid, {:adapter_done, self()})
       {:ok, %{category: %{probs: [{"a", 0.975}, {"b", 0.025}]}}}
     end
 
@@ -287,6 +287,8 @@ defmodule Kerf.Decide.ServerTest do
         ask!(server, adapter: Adapters.Sleeping, timeout: 50, test_pid: self(), sleep_ms: 300)
 
       assert_receive {:routed, ^slept, {:error, timeout_reason}}, 500
+      # The stalled adapter's late result must not produce a second answer.
+      refute_receive {:routed, ^slept, _}, 400
 
       assert timeout_reason == :timeout
       assert length(Enum.uniq([raise_reason, exit_reason, timeout_reason])) == 3
@@ -296,22 +298,33 @@ defmodule Kerf.Decide.ServerTest do
 
     test "the mailbox keeps draining while a request is stalled, and the stall runs under Kerf.Decide.TaskSupervisor" do
       server = start_router!()
-      ref = ask!(server, adapter: Adapters.Sleeping, timeout: 50, test_pid: self(), sleep_ms: 300)
 
-      assert_receive {:adapter_running, adapter_pid, callers}, 40
+      ref =
+        ask!(server, adapter: Adapters.Sleeping, timeout: 1_000, test_pid: self(), sleep_ms: 200)
 
-      {elapsed_us, reply} = :timer.tc(fn -> GenServer.call(server, :ping) end)
-      assert reply == :pong
-      assert elapsed_us < 10_000, "ping took #{elapsed_us} µs while a decision was in flight"
+      assert_receive {:adapter_called, %{pid: adapter_pid, callers: callers}}, 500
 
       supervised = Task.Supervisor.children(Kerf.Decide.TaskSupervisor)
 
       assert Enum.any?([adapter_pid | callers], &(&1 in supervised)),
              "stalled adapter call is not running under Kerf.Decide.TaskSupervisor"
 
-      assert_receive {:routed, ^ref, {:error, :timeout}}, 200
-      # The stalled adapter's late result must not produce a second answer.
-      refute_receive {:routed, ^ref, _}, 400
+      # Ordering, not wall-clock: :pong must come back while the adapter is
+      # still sleeping, i.e. before its completion message is in the mailbox.
+      assert :pong = GenServer.call(server, :ping, 100)
+      send(self(), :pong_returned)
+
+      first =
+        receive do
+          :pong_returned -> :pong_returned
+          {:adapter_done, ^adapter_pid} -> :adapter_done
+        after
+          500 -> :neither
+        end
+
+      assert first == :pong_returned, "the adapter finished before the server answered :ping"
+      assert_receive {:adapter_done, ^adapter_pid}, 500
+      assert_receive {:routed, ^ref, :act}, 500
     end
   end
 
