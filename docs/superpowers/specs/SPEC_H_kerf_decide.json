@@ -1,0 +1,590 @@
+{
+  "spec": "SPEC_H",
+  "title": "Kerf.Decide — typed-decision layer and evaluation harness",
+  "status": "draft — letter and SPEC_G alignment verified 2026-10-19",
+  "date": "2026-10-19",
+  "author": "Wido Jansen (drafted with Claude Desktop)",
+  "origin": {
+    "handoff": "handoff_kerf_decide.md (chat 'JEV article analysis', 2026-09-22 → 2026-10-18)",
+    "reference_index": [
+      "#146",
+      "#147",
+      "#148",
+      "#160"
+    ],
+    "related_specs": [
+      "SPEC_G (Kerf.Provenance, Kerf.Lineage, Kerf.Gate, invariants I1–I9) — F01.6, F06.4, F11.4 are written against its primitives",
+      "SPEC_D (mix kerf.eval.replay — harness-inside-Kerf precedent; ~/eval/golden-overrides.jsonl ground-truth layer)",
+      "SPEC_C (6-value category enum; vocabulary parity guard)",
+      "SPEC_F (model-name centralization) — reserved letter, not yet in the specs folder; F04.2 depends on it or on an equivalent single setting"
+    ]
+  },
+  "format_note": "Each feature is intent → acceptance checks → non-binding implementation appendix. Acceptance checks are the contract; the appendix is advisory and may be overridden by Claude Code when the live code says otherwise, provided the deviation is surfaced in the RED report. This is the first spec in the JSON feature-list format; SPEC_A–G are Markdown. Filename follows the folder convention: SPEC_H_kerf_decide.json.",
+  "goal": "A System-One decision layer: send a state (text or JSON) plus typed questions, receive per-question probabilities and confidence in one forward pass, branch on them in Elixir with OTP guards. 10–150 ms per request, calibrated on Kerf's own NL/DE/EN data, self-hosted, no TypeSafe/Jev dependency. The LLM (Nemotron Cascade 2 / Lightning-30B) remains the path for the reasoning minority.",
+  "design_rules": [
+    "Interface first, model second: application code sees only Kerf.Decide result maps; models are adapters.",
+    "Decompose until each question is a gut-check a competent person answers in seconds. Reasoning-shaped questions do not go through Decide.",
+    "Model output never becomes actions. Decide picks indices from an enumerated, pre-validated option set; the executor re-validates against the same set (SPEC_G Gate discipline, same as FileGuard/ShellSandbox).",
+    "State built from ingested content (mail bodies, documents) is attacker-controlled (SPEC_G / Dolev-Yao). A Decide result inherits the provenance of its state; a result on tainted state can gate but cannot itself be a trusted fact.",
+    "Do not adopt vendor calibration numbers. Every model is gated by the harness on our own labelled set before it reaches a production caller.",
+    "Harness before model. No adapter is wired to a production caller until F08–F10 have produced numbers for it."
+  ],
+  "scope": {
+    "in": [
+      "Kerf.Decide behaviour, request/result contracts, three question types (Noul, Choice, Score)",
+      "Jev.Server-pattern integration (dannote/jev, Hex jev 0.1) with guard-based routing and Task.Supervisor isolation",
+      "Adapters: (a) HTTP /v1/systemone, (b) vLLM logit-reading against the resident LLM, (c) Ortex/ONNX Nx.Serving in-BEAM",
+      "Telemetry for per-question confidence and a calibration/drift monitor",
+      "Evaluation harness: ~200-mail NL/DE/EN label set, contrastive pairs, easy/standard/hard tiering, four metrics + latency + coverage as pass/fail",
+      "Three baselines run through the harness; family selection documented",
+      "Phase B mail triage rebuilt as the first Decide caller, with HITL escalation and a correction log"
+    ],
+    "out": [
+      "Fine-tuning recipes (step 4a/4b of the handoff) — a follow-on spec once the harness has picked a family",
+      "Weekly retrain automation (handoff step 6) — follow-on spec; this spec only guarantees the correction log it will consume",
+      "Invoice routing, tool-call guards, rerankers, compaction — later callers; the behaviour must not preclude them but this spec does not implement them",
+      "Any hosted decision API (OpenAI Decisions, Perplexity, Cloudflare Clef)",
+      "Score-type confidence as a gating signal (formulas differ per model; gate on Noul/Choice only until measured)"
+    ]
+  },
+  "glossary": {
+    "state": "The input the questions are asked against: a string or a JSON-encodable map. Immutable for one request.",
+    "question": "A typed, named query: {name, type, instructions, options | levels, criteria?}. Names are atoms, unique within a request.",
+    "Noul": "yes/no proposition → single probability of yes. No separate confidence.",
+    "Choice": "pick one of K options (2 ≤ K ≤ 255) → argmax label, probabilities per option, confidence = (p_max − 1/K) / (1 − 1/K).",
+    "Score": "position on an ordered rubric of 2–10 levels → expected level (float), probabilities per level, adapter-reported confidence.",
+    "isolation": "Questions in one request cannot influence each other's answers.",
+    "permutation invariance": "Reordering Choice options must not change the argmax or materially change the probabilities.",
+    "ECE": "Expected calibration error, 10 equal-width bins, computed on the held-out calibration split.",
+    "contrastive pair": "Two states differing in one fact such that the gold label flips. Tests that the model reads the state rather than the prior.",
+    "correction log": "Append-only record of (state_hash, question, model answer, confidence, human/LLM resolution, resolver, timestamp). Training data for later retrains."
+  },
+  "features": [
+    {
+      "id": "F01",
+      "name": "Kerf.Decide behaviour and contracts",
+      "intent": "Give application code one stable, model-agnostic function to ask typed questions of a state and get back probabilities and confidence, with request validation done in Elixir before any backend is touched.",
+      "acceptance_checks": [
+        {
+          "id": "F01.1",
+          "check": "Kerf.Decide.ask(state, questions, opts) returns {:ok, %{question_name => result}} or {:error, reason}; every result map has exactly the keys defined for its type (Noul: p_yes; Choice: label, probs, confidence; Score: expected, probs, confidence) plus :backend and :latency_ms.",
+          "verify_by": "unit"
+        },
+        {
+          "id": "F01.2",
+          "check": "Request validation rejects before any adapter call: duplicate question names, Choice with K < 2 or K > 255, Score with fewer than 2 or more than 10 levels, empty instructions, non-string/non-map state. Each rejection is {:error, {:invalid_request, detail}} with the offending question name.",
+          "verify_by": "unit + StreamData property over generated requests"
+        },
+        {
+          "id": "F01.3",
+          "check": "Choice confidence is computed in Elixir from the returned probabilities as (p_max − 1/K)/(1 − 1/K), never trusted from the adapter; a property test holds for K ∈ 2..255 and random probability vectors.",
+          "verify_by": "StreamData property"
+        },
+        {
+          "id": "F01.4",
+          "check": "Choice probs are returned keyed by the caller's option labels in the caller's order; the adapter's internal option order is never visible to the caller.",
+          "verify_by": "unit"
+        },
+        {
+          "id": "F01.5",
+          "check": "The behaviour defines @callback ask/3 and @callback info/0 (model id, supported types, max_state_tokens, languages); Kerf.Decide dispatches to the adapter configured under Application.get_env(:kerf, Kerf.Decide)[:adapter] and the adapter module is overridable per call via opts[:adapter].",
+          "verify_by": "unit with a stub adapter"
+        },
+        {
+          "id": "F01.6",
+          "check": "State is a %Kerf.Decide.State{content, provenance} whose provenance is a %Kerf.Provenance{} built by the ingress/human constructors (SPEC_G §4); Decide never accepts a provenance from opts or from the caller's payload (I1). Each result carries provenance = Kerf.Provenance.derive([state.provenance]) (origin :derived, taint monotone — I2). A state without provenance is {:error, {:invalid_request, :missing_provenance}}.",
+          "verify_by": "unit"
+        },
+        {
+          "id": "F01.7",
+          "check": "mix compile --warnings-as-errors and mix dialyzer pass; every public function has @spec.",
+          "verify_by": "PostToolUse hook"
+        }
+      ],
+      "non_binding_appendix": {
+        "modules": [
+          "Kerf.Decide (facade + validation)",
+          "Kerf.Decide.Question (structs: Noul, Choice, Score)",
+          "Kerf.Decide.Result",
+          "Kerf.Decide.Adapter (behaviour)"
+        ],
+        "notes": [
+          "Validation as a pure function Kerf.Decide.validate/1 so it is testable without the facade.",
+          "Keep the request shape close to TypeSafe's {state, questions: {id: {type, instructions, criteria}}} so adapter (a) is a thin mapping — but keys are atoms internally.",
+          "info/0 is what the harness and the drift monitor use to know which model produced a number; it should also surface a model checksum where the adapter can get one."
+        ]
+      }
+    },
+    {
+      "id": "F02",
+      "name": "Jev.Server integration and guard-based routing",
+      "intent": "Let a GenServer ask a decision as a peer process and route on the answer with pattern matching and guards, so a model stall or crash never blocks the server and nothing below handle_answer can reach the network.",
+      "acceptance_checks": [
+        {
+          "id": "F02.1",
+          "check": "A Kerf.Decide.Server behaviour (wrapping dannote/jev's Jev.Server pattern) lets any callback return {:reply, {tag, state, questions}, s}; the answer arrives as handle_answer(tag, results, s) and is routed by clause order with confidence guards.",
+          "verify_by": "unit with literal result maps"
+        },
+        {
+          "id": "F02.2",
+          "check": "Requests run under a dedicated Task.Supervisor; an adapter raise, exit or timeout yields handle_answer(tag, {:error, reason}, s) and the server's mailbox keeps draining during the wait.",
+          "verify_by": "unit: inject a crashing stub adapter; assert server still answers GenServer.call during and after"
+        },
+        {
+          "id": "F02.3",
+          "check": "All handle_answer clauses in the Phase B caller (F11) are testable with literal maps and Req.Test; no test of a handle_answer clause needs a running model.",
+          "verify_by": "test suite runs with no network and no model process"
+        },
+        {
+          "id": "F02.4",
+          "check": "Speculative fan-out: a request may include conditional follow-up questions; handle_answer selects the branch and the unused branch's answers are discarded without being logged as decisions.",
+          "verify_by": "unit"
+        },
+        {
+          "id": "F02.5",
+          "check": "lib/ of Hex jev 0.1 has been read before adoption and any divergence from its README (single author, Oct 2026) is recorded in the RED report; usage.cost from the client is ignored and never surfaced.",
+          "verify_by": "review note in RED report"
+        }
+      ],
+      "non_binding_appendix": {
+        "options": [
+          "Depend on Hex jev directly and wrap it, or vendor the ~200 lines of Jev.Server into Kerf.Decide.Server. Vendoring is preferred if jev's HTTP client is entangled with TypeSafe assumptions (pricing, auth headers)."
+        ],
+        "notes": [
+          "Per-request timeout default 2 000 ms for decoder adapters, 500 ms for the encoder adapter, both configurable.",
+          "Tags should be structs or tuples, not bare atoms, so a server with two in-flight requests can tell them apart."
+        ]
+      }
+    },
+    {
+      "id": "F03",
+      "name": "Adapter A — HTTP /v1/systemone",
+      "intent": "Talk to any local server that speaks the TypeSafe-shaped POST /v1/systemone contract (kev, Strands Decider server, laya-serve), so the first baselines can run with zero in-BEAM model work.",
+      "acceptance_checks": [
+        {
+          "id": "F03.1",
+          "check": "Kerf.Decide.Adapter.HTTP maps a validated request to the /v1/systemone JSON shape and maps the response back to F01 result maps; round-trip tested with Req.Test against recorded Strands Decider and kev responses.",
+          "verify_by": "unit + Req.Test fixtures"
+        },
+        {
+          "id": "F03.2",
+          "check": "base_url is configurable per adapter instance; the default refuses non-loopback and non-tailnet hosts unless opts[:allow_remote] is set, because the Strands server has no auth.",
+          "verify_by": "unit"
+        },
+        {
+          "id": "F03.3",
+          "check": "A response missing a question, answering a question twice, or returning a label outside the sent option set is {:error, {:schema_violation, detail}} — never a partial {:ok, …}.",
+          "verify_by": "unit with malformed fixtures"
+        },
+        {
+          "id": "F03.4",
+          "check": "Non-2xx, timeout and connection refused each map to a distinct {:error, reason} and emit [:kerf, :decide, :error] telemetry.",
+          "verify_by": "unit"
+        }
+      ],
+      "non_binding_appendix": {
+        "notes": [
+          "Req with a Finch pool sized for batch callers.",
+          "Keep the fixture files under test/support/fixtures/decide/ and name them by model + date so a vendor response-shape change is visible in the diff."
+        ]
+      }
+    },
+    {
+      "id": "F04",
+      "name": "Adapter B — vLLM logit reading (SemIf-style baseline)",
+      "intent": "A zero-training baseline that reads next-token logprobs from the resident vLLM model for enumerated options, so the harness has a floor to beat and a fallback when no small model is loaded.",
+      "acceptance_checks": [
+        {
+          "id": "F04.1",
+          "check": "Kerf.Decide.Adapter.VLLM builds one prompt per question with options as single-token or verbalized markers, requests logprobs with max_tokens 1, and derives per-option probabilities by softmax over the option markers only.",
+          "verify_by": "unit with recorded vLLM logprob responses"
+        },
+        {
+          "id": "F04.2",
+          "check": "The model name comes from the SPEC_F centralized setting, not a literal; the test asserts no 'nemotron' or 'lightning' string literal in the adapter module.",
+          "verify_by": "grep in test"
+        },
+        {
+          "id": "F04.3",
+          "check": "Questions are isolated by construction: one completion request per question; the isolation probe (F09.4) reports leak p ≤ 0.10.",
+          "verify_by": "harness"
+        },
+        {
+          "id": "F04.4",
+          "check": "Reasoning is suppressed (no </think> emitted; max_tokens 1) and the adapter rejects a response whose top logprob tokens contain none of the option markers.",
+          "verify_by": "unit"
+        }
+      ],
+      "non_binding_appendix": {
+        "notes": [
+          "Verbalizer: 'A', 'B', … for Choice and 'yes'/'no' for Noul; Score uses the level labels. Check tokenization of the markers once per model via info/0 at boot and fail loudly if a marker is multi-token.",
+          "Expected ~2 s/question on the 30B model — this is the slow baseline, not the product."
+        ]
+      }
+    },
+    {
+      "id": "F05",
+      "name": "Adapter C — Ortex/ONNX Nx.Serving in-BEAM",
+      "intent": "Run an encoder-family decision model (GLiNER2.5-multi-Decide / EuroBERT + typed heads) as a supervised Nx.Serving inside the release, with no Python sidecar, so client-edge boxes get the same decision layer in one deployable.",
+      "acceptance_checks": [
+        {
+          "id": "F05.1",
+          "check": "Kerf.Decide.Adapter.Ortex loads an ONNX file from a configured path at boot under its own supervisor child; a missing or corrupt file fails the adapter's child, not the application, and ask/3 returns {:error, :adapter_unavailable}.",
+          "verify_by": "unit with a 1-layer dummy ONNX graph"
+        },
+        {
+          "id": "F05.2",
+          "check": "A batch of N requests is served by one Nx.Serving.batched_run with batch_size ≥ 8 and the per-request p95 latency on the M5 is ≤ 30 ms for a 512-token state with 5 questions, measured by the harness.",
+          "verify_by": "harness latency run"
+        },
+        {
+          "id": "F05.3",
+          "check": "Tokenization happens in Elixir (Tokenizers hex) and the state is truncated to the model's max context with the truncation surfaced in the result as :truncated true/false.",
+          "verify_by": "unit"
+        },
+        {
+          "id": "F05.4",
+          "check": "The adapter builds and loads on aarch64 Linux (GB10) and arm64 macOS (M5); an onnxruntime wheel/lib mismatch is detected at compile time and documented in the RED report rather than at first request.",
+          "verify_by": "mix test on both hosts, run by Wido"
+        }
+      ],
+      "non_binding_appendix": {
+        "notes": [
+          "GLiNER2.5-multi-Decide ships for the gliner2 Python package; the ONNX export is our work and may lose the label-at-call-time mechanism. If so, EuroBERT-210M + NanoJev-style heads (set-attention Choice, sigmoid Noul, ordinal Score) is the fine-tune target and this adapter becomes dependent on the fine-tune spec.",
+          "Until a real ONNX decision model exists, F05 is accepted against the dummy graph for F05.1/F05.3 and left pending for F05.2/F05.4; do not mark F05 complete on the dummy."
+        ]
+      }
+    },
+    {
+      "id": "F06",
+      "name": "Enumerated option sets and executor re-validation",
+      "intent": "Guarantee that a decision result can only select among options the caller enumerated and validated, and that every consumer re-checks the selection before acting — so a model, a poisoned state or a buggy adapter cannot widen the action space.",
+      "acceptance_checks": [
+        {
+          "id": "F06.1",
+          "check": "Kerf.Decide.OptionSet.new/1 freezes a list of option labels; Choice questions accept only an OptionSet, not a raw list, and the result's label is guaranteed ∈ OptionSet by construction.",
+          "verify_by": "unit"
+        },
+        {
+          "id": "F06.2",
+          "check": "A result cannot be converted into an executor action except through Kerf.Decide.OptionSet.act/3, which re-checks label membership and confidence ≥ the caller's threshold and otherwise returns {:escalate, result}.",
+          "verify_by": "unit; grep test that no production module pattern-matches result.label into a side effect outside act/3"
+        },
+        {
+          "id": "F06.3",
+          "check": "Option labels used for mail triage are drawn from the same vocabulary the CI parity guard enforces; adding a category without updating the vocabulary fails CI.",
+          "verify_by": "existing parity guard extended"
+        },
+        {
+          "id": "F06.4",
+          "check": "act/3 distinguishes :gate_only actions (route, label, escalate, log) from :effect actions (Gmail write, external HTTP, vault read — SPEC_G G0.2). It may perform :gate_only actions directly; an :effect action requires a %Kerf.Gate.Approved{} obtained from Kerf.Gate, and act/3 never constructs one itself. For a tainted-provenance result, Kerf.Gate.auto_acceptable?/1 is false (I3), so no :effect action is reachable without a human approval row.",
+          "verify_by": "unit; aligns with SPEC_G invariants"
+        }
+      ],
+      "non_binding_appendix": {
+        "notes": [
+          "This is the Decide-shaped instance of SPEC_G's Gate. If Kerf.Gate lands first, act/3 should delegate to it rather than duplicate the check."
+        ]
+      }
+    },
+    {
+      "id": "F07",
+      "name": "Telemetry and calibration drift monitor",
+      "intent": "Emit per-question confidence on every answer with only a state hash, so production calibration can be compared against the harness baseline and drift triggers a retrain signal without storing mail content in metrics.",
+      "acceptance_checks": [
+        {
+          "id": "F07.1",
+          "check": "[:kerf, :decide, :answer] is emitted once per question per request with measurements {confidence, latency_ms} and metadata {question_name, type, backend, model_id, state_hash}; the event contains no state text, no option labels beyond the chosen index, and no PII.",
+          "verify_by": "unit with :telemetry_test handler"
+        },
+        {
+          "id": "F07.2",
+          "check": "A Kerf.Decide.Drift Oban worker (queue :decide_monitor, daily) computes per question the confidence histogram over the last 7 days and compares it to the harness-recorded histogram; a Jensen–Shannon divergence above a configured threshold raises a Telegram notice via the existing notification path.",
+          "verify_by": "unit with synthetic histograms; Oban.Testing.assert_enqueued"
+        },
+        {
+          "id": "F07.3",
+          "check": "The harness writes its baseline histogram per (model_id, question_name) to a file the drift worker reads; a missing baseline is logged once and the worker exits :ok, never crashes.",
+          "verify_by": "unit"
+        }
+      ],
+      "non_binding_appendix": {
+        "notes": [
+          "state_hash = SHA-256 of the canonical state encoding; the same hash is the join key to the correction log (F11).",
+          "Histogram bins match ECE bins (10) so harness and production numbers are directly comparable."
+        ]
+      }
+    },
+    {
+      "id": "F08",
+      "name": "Harness — labelled set and tiering",
+      "intent": "Create the only evidence that will exist for NL/DE performance: a hand-labelled set of Wido's real mail plus contrastive pairs, tiered by difficulty, with a held-out calibration split, stored where PII is allowed and never in the public repo.",
+      "acceptance_checks": [
+        {
+          "id": "F08.1",
+          "check": "≥ 200 mails exported with real From/Subject/Date headers (golden-v2 export path, not the sender_domain-only export) and a language mix of roughly NL ≥ 40 %, DE ≥ 25 %, EN ≥ 20 %; the actual counts are recorded in the set's manifest.",
+          "verify_by": "manifest.json checked by the harness loader"
+        },
+        {
+          "id": "F08.2",
+          "check": "Every mail carries gold labels for the Phase B question set: category (Choice), needs_reply (Noul), urgency (Score 1–5), deadline_present (Noul), client (Choice over known clients + none); labelling guidelines are a one-page document in the private tree and each label was assigned by Wido, not by a model.",
+          "verify_by": "manifest + loader validation; spot-check by Wido"
+        },
+        {
+          "id": "F08.3",
+          "check": "≥ 20 contrastive pairs exist, each pair differing in one fact with ≥ 1 gold label flipped; pairs are marked in the manifest.",
+          "verify_by": "loader validation"
+        },
+        {
+          "id": "F08.4",
+          "check": "Each item is tiered easy / standard / hard with a recorded reason; the tier is assigned before any model is run on the set.",
+          "verify_by": "manifest timestamps precede first run log"
+        },
+        {
+          "id": "F08.5",
+          "check": "50 items are held out as the calibration split, stratified by language and tier; they are never used for threshold selection or fine-tuning and the loader refuses to return them to a training export.",
+          "verify_by": "loader unit test"
+        },
+        {
+          "id": "F08.6",
+          "check": "The set lives under ~/eval/decide/ on the Spark and the private ~/Projects/kerf/docs/eval/ on the Mac; a .gitignore test in the public repo asserts no file under docs/superpowers/specs/ or test/ contains an email address from the set.",
+          "verify_by": "CI grep against a hashed address list"
+        },
+        {
+          "id": "F08.7",
+          "check": "Category gold labels reuse the SPEC_C 6-value enum and are seeded from ~/eval/golden-overrides.jsonl where an adjudication exists for the doc_id; the remaining labels and all non-category labels are new hand labels. The manifest records per item whether the category label is 'adjudicated' or 'new'.",
+          "verify_by": "loader validation"
+        }
+      ],
+      "non_binding_appendix": {
+        "notes": [
+          "Export via the existing kb_documents / source_metadata path (subject, sender, sender_name, date live in source_metadata, not columns).",
+          "A small LiveView or a CSV-in-Numbers session is fine for labelling; the harness only needs the manifest JSON. Labelling 200 mails at ~30 s each is ~2 hours; plan it as one sitting per language.",
+          "Hard tier should include the cases that currently reach Tier-2 escalation and the known-priority-but-reply-needed misses from the routing redesign."
+        ]
+      }
+    },
+    {
+      "id": "F09",
+      "name": "Harness — metrics as pass/fail checks",
+      "intent": "Turn the four handoff metrics, latency and coverage into deterministic pass/fail checks any adapter must clear before family selection, so a model is adopted on measured behaviour and not on vendor numbers.",
+      "acceptance_checks": [
+        {
+          "id": "F09.1",
+          "check": "Accuracy per question type is computed on the non-held-out split and reported per tier and per language; the family-selection gate is accuracy on category ≥ the current production classifier on the same items (Lightning-30B via the Phase B path), and ≥ 0.90 on the easy tier.",
+          "verify_by": "harness report"
+        },
+        {
+          "id": "F09.2",
+          "check": "ECE (10 bins) is computed raw and after one-parameter temperature scaling fitted on the calibration split only; gate: post-scaling ECE ≤ 0.08 on Noul and Choice questions. The fitted temperature is written to the adapter config, never applied by hand.",
+          "verify_by": "harness report + config artefact"
+        },
+        {
+          "id": "F09.3",
+          "check": "Permutation flip rate: every Choice item is re-asked under 6 option orders (identity + 5 random with fixed seed); flip rate = fraction of (item, order) pairs whose argmax differs from the identity order. Gate: ≤ 0.05 overall and ≤ 0.10 on the hard tier.",
+          "verify_by": "harness report"
+        },
+        {
+          "id": "F09.4",
+          "check": "Isolation probe: for 30 items, a secret token is placed in a sibling question's instructions and a Noul asks whether the secret is present in the state. Gate: mean p(yes) ≤ 0.10 when the secret is only in the sibling, ≥ 0.90 when it is in the state; and packed-vs-separate requests agree on argmax for ≥ 98 % of questions.",
+          "verify_by": "harness report"
+        },
+        {
+          "id": "F09.5",
+          "check": "Latency p50/p95 per request (5 questions, median state length) is recorded on the M5 and the GB10; gate for a production caller: p95 ≤ 150 ms (decoder) or ≤ 30 ms (encoder) on the host it will run on.",
+          "verify_by": "harness report, run by Wido on each host"
+        },
+        {
+          "id": "F09.6",
+          "check": "Coverage: every question in every request is answered exactly once and every answer is in-schema (label ∈ options, probabilities sum to 1 ± 1e-3, Score expected within level range). Gate: 100 %, no exceptions.",
+          "verify_by": "harness assertion"
+        },
+        {
+          "id": "F09.7",
+          "check": "Contrastive pairs: gate ≥ 0.85 of pairs have the flipped label predicted on the correct side.",
+          "verify_by": "harness report"
+        },
+        {
+          "id": "F09.8",
+          "check": "The harness is deterministic: two runs with the same model, seed and set produce byte-identical reports except timestamps and latencies.",
+          "verify_by": "re-run with --seed, diff"
+        },
+        {
+          "id": "F09.9",
+          "check": "The harness is validated against a known-bad adapter (uniform random probabilities) and a known-good oracle (returns gold labels): random must fail F09.1/F09.2/F09.7, the oracle must pass everything except latency, which is skipped for oracles. This is the validate-the-validator step.",
+          "verify_by": "harness self-test"
+        }
+      ],
+      "non_binding_appendix": {
+        "notes": [
+          "Follow SPEC_D §2: the harness is a mix task (mix kerf.eval.decide) inside Kerf that calls adapters at the Kerf.Decide seam, so request validation, OptionSet handling and provenance are exercised exactly as production will. Read-only with respect to production state: no kb_feedback rows, no Oban jobs, no Router. Output: one JSONL line per (item, question, order-permutation) plus a run-manifest header with model info/0, seed and sampling params.",
+          "Scoring (accuracy, ECE, temperature fit, flip rate, JS histograms) may be a small Python script over the JSONL (numpy/scikit-learn) per the handoff, or Nx — either is acceptable; the gates in F09 are defined on the scored output, not on the implementation.",
+          "Report is JSON plus a Markdown summary; the JSON is what F07.3 reads for the baseline histogram.",
+          "Thresholds above are starting values chosen to be strict enough to reject the random adapter and loose enough that Strands' published numbers would pass if they transfer; they are to be revised once the first real run exists, as an addendum, not an inline edit."
+        ]
+      }
+    },
+    {
+      "id": "F10",
+      "name": "Baselines and family selection",
+      "intent": "Run the three zero-training baselines through the harness and record a family decision (decoder + pointer head vs. encoder + typed heads) that is justified by our numbers, so the fine-tune spec starts from evidence.",
+      "acceptance_checks": [
+        {
+          "id": "F10.1",
+          "check": "Three full harness reports exist: (1) vLLM logit reading on the resident LLM via F04, (2) Strands Decider 2B via F03 against its bundled local server, (3) GLiNER2.5-multi-Decide zero-shot via F03 against a thin local wrapper.",
+          "verify_by": "report files in the private tree"
+        },
+        {
+          "id": "F10.2",
+          "check": "A one-page DECISION_FAMILY.md in the private tree names the chosen family, cites the three reports by path and hash, and lists which gates each baseline passed and failed per language.",
+          "verify_by": "review by Wido"
+        },
+        {
+          "id": "F10.3",
+          "check": "If no baseline passes the F09 gates on NL and DE, the decision document says so explicitly and the fine-tune spec is scoped to close the measured gap; the Phase B caller (F11) is then wired to the best-passing adapter with Tier-2/LLM fallback at the harness-derived threshold, not to an unmeasured model.",
+          "verify_by": "review"
+        },
+        {
+          "id": "F10.4",
+          "check": "Platform notes recorded: Strands/kev/GLiNER install outcome on GB10 aarch64 (CUDA / onnxruntime wheels, --moe-backend constraints) and on the M5, including any that did not run.",
+          "verify_by": "section in DECISION_FAMILY.md"
+        }
+      ],
+      "non_binding_appendix": {
+        "notes": [
+          "Run Strands and GLiNER on the M5 first; only Nemotron needs the GB10.",
+          "Expect kev to be MPS-only; it is a reference for packing/isolation, not a required baseline."
+        ]
+      }
+    },
+    {
+      "id": "F11",
+      "name": "Phase B mail triage as first Decide caller",
+      "intent": "Rebuild mail triage on Kerf.Decide.Server with guard-based routing and HITL escalation, so routine mail is routed in milliseconds, uncertain mail goes to the LLM or to Wido, and every resolution is logged as a labelled example.",
+      "acceptance_checks": [
+        {
+          "id": "F11.1",
+          "check": "Kerf.Agents.EmailTriage.Decider is a Kerf.Decide.Server that, per email, asks category, needs_reply, urgency, deadline_present and client in one request from the header + first ~800 tokens of the prepared body (BodyPrep), and routes in handle_answer clauses ordered: high-confidence → act; mid → LLM (existing Lightning-30B path); low or error → human queue.",
+          "verify_by": "unit with literal result maps for each branch"
+        },
+        {
+          "id": "F11.2",
+          "check": "Thresholds are read from config, populated from the harness (F09.2 post-scaling) and never hard-coded in the module; a missing threshold config fails at boot.",
+          "verify_by": "unit"
+        },
+        {
+          "id": "F11.3",
+          "check": "Routing actions reuse the existing config-file routing rules and emit the same kb_feedback triage rows (feedback_type='triage', context keys source, category, final_priority) with source = 'decide' so downstream digests and Tina are unchanged.",
+          "verify_by": "existing triage tests still green + new source assertion"
+        },
+        {
+          "id": "F11.4",
+          "check": "Every escalation and every human correction appends to a decide_corrections table (state_hash, source_doc_id, question, model_label, confidence, resolved_label, resolver ∈ {llm, human}, inserted_at naive UTC), idempotent on (state_hash, question), append-only (delete rejected, same mechanism as lineage_edges — I6), queried only through Kerf.Scope.for_tenant (I8), and registered as a Kerf.Lineage node with an edge to source_doc_id so Lineage.purge of the source email purges the correction (I4).",
+          "verify_by": "unit + migration"
+        },
+        {
+          "id": "F11.5",
+          "check": "Shadow mode first: for a configurable window the Decider runs alongside the existing triage path, logs agreement per question, and performs no routing; promotion to live routing is a config flip Wido performs, not a code change.",
+          "verify_by": "unit; agreement report after 7 days reviewed by Wido"
+        },
+        {
+          "id": "F11.6",
+          "check": "A tainted state (all mail is) can only trigger :gate_only actions through F06.4; the test asserts no :effect action is reachable from the Decider.",
+          "verify_by": "unit"
+        },
+        {
+          "id": "F11.7",
+          "check": "When the adapter is unavailable the Decider degrades to the existing LLM triage path with one logged warning per minute, not per email.",
+          "verify_by": "unit"
+        }
+      ],
+      "non_binding_appendix": {
+        "notes": [
+          "Replace FastClassifier's role gradually: during shadow mode both run; after promotion FastClassifier rules (email_senders rows with domain='fast-classifier') can be retired in a separate single-concern commit.",
+          "Speculative fan-out candidate: ask 'which client' only matters when category ∈ {client, invoice}; include it anyway and discard — adding a question is near-free.",
+          "Oban queue for the human queue reminder can reuse email_routing."
+        ]
+      }
+    }
+  ],
+  "sequence": [
+    {
+      "step": 1,
+      "features": [
+        "F01",
+        "F02",
+        "F03",
+        "F06"
+      ],
+      "host": "M5, no GPU",
+      "gate": "RED committed, suite green with --seed 1 and --seed 99999, dialyzer clean"
+    },
+    {
+      "step": 2,
+      "features": [
+        "F08"
+      ],
+      "host": "M5 + Spark export",
+      "gate": "manifest validated by loader; Wido has labelled every item"
+    },
+    {
+      "step": 3,
+      "features": [
+        "F09",
+        "F04"
+      ],
+      "host": "M5 (harness), GB10 (F04)",
+      "gate": "F09.9 self-test passes before any real model is run"
+    },
+    {
+      "step": 4,
+      "features": [
+        "F10"
+      ],
+      "host": "M5 + GB10",
+      "gate": "DECISION_FAMILY.md exists"
+    },
+    {
+      "step": 5,
+      "features": [
+        "F07",
+        "F11"
+      ],
+      "host": "Kerf repo + Spark",
+      "gate": "shadow mode 7 days, agreement report reviewed, config flip by Wido"
+    },
+    {
+      "step": 6,
+      "features": [
+        "F05"
+      ],
+      "host": "M5",
+      "gate": "only after the family decision; may be re-sequenced earlier if the encoder family wins F10"
+    },
+    {
+      "step": "follow-on",
+      "features": [
+        "fine-tune spec (4a/4b)",
+        "weekly retrain from decide_corrections"
+      ],
+      "host": "—",
+      "gate": "new spec, not this one"
+    }
+  ],
+  "non_functional": [
+    "Decide never stores state text anywhere except the harness set in the private tree; telemetry and corrections carry hashes.",
+    "No change to existing data-contract constants; new tables and telemetry event names are new constants and must be listed in learnings.md on landing.",
+    "All timestamps naive UTC (Oban convention).",
+    "A failed adapter child must not take down :kerf; the Decide subtree has its own supervisor with :rest_for_one restart."
+  ],
+  "open_questions": [
+    "SPEC_F is not in the specs folder. F04.2 needs a single model-name setting; either SPEC_F lands first or F04 reads VLLM_MODEL via the same runtime.exs path SPEC_E introduced and SPEC_F later consolidates it.",
+    "Does Kerf.Gate / Kerf.Provenance exist in the live tree yet (SPEC_G status is draft)? If not, step 1 ships Kerf.Decide.State with a provenance field shaped per SPEC_G §4 and F06.4's Approved requirement is a compile-time stub until Kerf.Gate lands — read-back decides.",
+    "Depend on Hex jev or vendor the Jev.Server pattern (F02 appendix)? Decide after reading lib/.",
+    "Does GLiNER2.5-multi-Decide's label-at-call-time survive ONNX export? Determines whether F05 is an adapter or depends on the fine-tune spec.",
+    "What is the current production classifier's accuracy on the same 200 items (needed for F09.1)? Requires the golden-v2 export, which is itself an open item.",
+    "Threshold policy for the human queue when unattended (expire to LLM path after N hours, never auto-act) — align with the design note on governed write paths.",
+    "Does Score confidence ever gate anything in Phase B, or does urgency only feed the digest ordering? This spec assumes the latter.",
+    "Who labels DE mail if Wido's DE volume is below the F08.1 mix target — relax the target or synthesise from supplier mail?"
+  ]
+}
