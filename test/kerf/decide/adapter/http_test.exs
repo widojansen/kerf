@@ -26,20 +26,6 @@ defmodule Kerf.Decide.Adapter.HTTPTest do
   @outside_tailnet "http://100.200.1.1:8900"
   @remote "http://example.com"
 
-  setup do
-    for mod <- [
-          Kerf.Decide,
-          Kerf.Decide.Adapter.HTTP,
-          Kerf.Decide.State,
-          Kerf.Decide.Question,
-          Kerf.Decide.OptionSet
-        ] do
-      assert Code.ensure_loaded?(mod), "#{inspect(mod)} is not implemented yet (SPEC_H F03, RED)"
-    end
-
-    :ok
-  end
-
   # ---------- helpers ----------
 
   # Kerf.Provenance does not exist yet: SPEC_G §4-shaped map (see decide_test.exs).

@@ -51,10 +51,9 @@ defmodule Kerf.DecideTest do
   Kerf.Decide behaviour and request/result contracts, exercised through a
   stub adapter only. F01.7 (dialyzer / @spec) is a hook, not a test.
 
-  RED note: none of Kerf.Decide.* exists yet, and this commit may not touch
-  lib/. Struct values are therefore built with struct!/2 at runtime (a
-  %Kerf.Decide.State{} literal would not compile), and `setup` fails each
-  test with a named-module message instead of an UndefinedFunctionError.
+  RED note: lib/kerf/decide/ holds raising skeletons; each test fails in its
+  body on a Kerf.Decide.NotImplemented raise or an assertion. Struct values
+  are built with struct!/2 (written before the skeletons existed).
   """
   use ExUnit.Case, async: false
   use ExUnitProperties
@@ -62,14 +61,6 @@ defmodule Kerf.DecideTest do
   alias Kerf.Decide
   alias Kerf.Decide.{OptionSet, Question, State}
   alias Kerf.DecideTest.{OtherAdapter, ScriptedAdapter}
-
-  @modules_under_test [
-    Kerf.Decide,
-    Kerf.Decide.State,
-    Kerf.Decide.Question,
-    Kerf.Decide.OptionSet,
-    Kerf.Decide.Adapter
-  ]
 
   # Question-level defects F01.2 must reject; one per generated request.
   @defects [
@@ -82,10 +73,6 @@ defmodule Kerf.DecideTest do
   ]
 
   setup do
-    for mod <- @modules_under_test do
-      assert Code.ensure_loaded?(mod), "#{inspect(mod)} is not implemented yet (SPEC_H F01, RED)"
-    end
-
     {:ok, recorder} = Agent.start_link(fn -> %{} end)
     %{recorder: recorder}
   end

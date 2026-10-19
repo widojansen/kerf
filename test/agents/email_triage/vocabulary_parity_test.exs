@@ -98,13 +98,6 @@ defmodule Kerf.Agents.EmailTriage.VocabularyParityTest do
   end
 
   describe "SPEC_H F06.3: Decide triage OptionSet" do
-    setup do
-      assert Code.ensure_loaded?(Kerf.Decide.OptionSet),
-             "Kerf.Decide.OptionSet is not implemented yet (SPEC_H F06.3, RED)"
-
-      :ok
-    end
-
     test "Decide's triage category OptionSet is exactly the parity-guarded vocabulary" do
       option_set = Kerf.Decide.OptionSet.triage_categories()
 

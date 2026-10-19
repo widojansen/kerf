@@ -102,8 +102,8 @@ defmodule Kerf.Decide.ServerTest do
     * a speculative request marks follow-ups with `branch:`; handle_answer
       commits one by returning `{:branch, name, callback_return}`.
 
-  RED note: `use Kerf.Decide.Server` cannot compile while the module is
-  missing, so the router is compiled at runtime by `router!/0`.
+  The router is compiled at runtime by `router!/0` (written before the
+  Kerf.Decide.Server skeleton existed).
   """
   use ExUnit.Case, async: false
 
@@ -113,15 +113,6 @@ defmodule Kerf.Decide.ServerTest do
   @router Kerf.Decide.ServerTest.Router
 
   setup do
-    for mod <- [
-          Kerf.Decide.Server,
-          Kerf.Decide.State,
-          Kerf.Decide.Question,
-          Kerf.Decide.OptionSet
-        ] do
-      assert Code.ensure_loaded?(mod), "#{inspect(mod)} is not implemented yet (SPEC_H F02, RED)"
-    end
-
     router!()
     :ok
   end

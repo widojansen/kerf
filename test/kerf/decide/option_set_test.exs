@@ -52,19 +52,6 @@ defmodule Kerf.Decide.OptionSetTest do
   @gate_only [:route, :label, :escalate, :log]
   @effect [:gmail_send, :gmail_trash, :http_external, :vault_read]
 
-  setup do
-    for mod <- [
-          Kerf.Decide.OptionSet,
-          Kerf.Decide.Question,
-          Kerf.Decide.Gate,
-          Kerf.Decide.Gate.Approved
-        ] do
-      assert Code.ensure_loaded?(mod), "#{inspect(mod)} is not implemented yet (SPEC_H F06, RED)"
-    end
-
-    :ok
-  end
-
   # ---------- helpers ----------
 
   # Kerf.Provenance does not exist yet: SPEC_G §4-shaped maps (see decide_test.exs).
