@@ -64,6 +64,7 @@ defmodule Kerf.MixProject do
       # Dev/Test
       {:lazy_html, ">= 0.1.0", only: :test},
       {:mox, "~> 1.0", only: :test},
+      {:stream_data, "~> 1.2", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test]},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
