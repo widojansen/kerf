@@ -1,0 +1,85 @@
+{
+  "spec": "SPEC_H",
+  "addendum": 1,
+  "title": "Corrections and pinned decisions from step-1 RED (F01, F02, F03, F06)",
+  "date": "2026-10-19",
+  "status": "binding — supersedes the cited SPEC_H text; SPEC_H_kerf_decide.json is not edited inline",
+  "red_state": {
+    "commits": ["5d2d485 StreamData dep", "ba57fbd RED", "4a5f097 chore warnings + CLAUDE.md 1.20.1", "292ef86 RED skeletons", "486a70a RED timing + tainted+Approved"],
+    "tests": "71 in test/kerf/decide/ (66 failing in-body, 5 structural passing) + 2 in test/agents/email_triage/vocabulary_parity_test.exs (DataCase)",
+    "reviewed_by": "Claude Desktop, 2026-10-19, against SPEC_H acceptance checks; no RED edits required"
+  },
+
+  "corrections": [
+    {
+      "id": "A1.1",
+      "supersedes": "F06.4 non_binding_appendix; F06.2 check text",
+      "text": "Until SPEC_G lands, Kerf.Decide.Gate is a stand-in that REFUSES: approve/2 always returns {:error, :gate_not_available}, writes nothing, never returns an Approved. lib/ contains no constructor for %Kerf.Decide.Gate.Approved{} (grep guard, empty allowlist). When Kerf.Gate lands the stand-in is deleted, not upgraded. act/3 checks an approval with is_struct/2 or an alias — a fully qualified %Kerf.Decide.Gate.Approved{} pattern match trips the textual guard."
+    },
+    {
+      "id": "A1.2",
+      "supersedes": "F06.2 check: 'otherwise returns {:escalate, result}'",
+      "text": "act/3 distinguishes violation from uncertainty: label ∉ OptionSet → {:error, :label_not_in_set} (checked BEFORE confidence); confidence < threshold → {:escalate, result}; action name outside the fixed action_class/1 table → {:error, {:unknown_action, name}}; :effect without a matching Approved → {:error, :approval_required}. An Approved unlocks only the action it names."
+    },
+    {
+      "id": "A1.3",
+      "supersedes": "F06.4 (tainted + Approved) — resolves the apparent conflict with F11.6",
+      "text": "At the OptionSet level a tainted result plus a genuine Approved MAY perform an :effect action (SPEC_G I3: human approval is what makes a tainted artifact acceptable). F11.6 is a property of the Decider caller (it never holds an Approved), not of OptionSet."
+    },
+    {
+      "id": "A1.4",
+      "supersedes": "F01.1 non_binding_appendix module list",
+      "text": "Kerf.Decide.Result is a types-only module; results are plain maps so the exact-key contract holds (a struct adds :__struct__). probs is an ordered list of {label, p} in caller order, not a map."
+    },
+    {
+      "id": "A1.5",
+      "supersedes": "F07.1 'emitted once per question per request' (timing)",
+      "text": "[:kerf, :decide, :answer] is emitted by Kerf.Decide.ask/3 for every question WITHOUT branch:. Questions marked branch: are emitted only on commit — by Kerf.Decide.Server when handle_answer returns {:branch, id, return}, or by Kerf.Decide.commit_branch/2 for direct callers. A discarded branch is never emitted (F02.4)."
+    },
+    {
+      "id": "A1.6",
+      "supersedes": "F02.1 (reply protocol detail)",
+      "text": "From any Kerf.Decide.Server callback, {:reply, {tag, %Kerf.Decide.State{}, questions}, s} or the 4-tuple with opts is a decision request; a {:reply, value, s} of any other shape is an ordinary GenServer reply and is passed through unchanged. Callbacks answering GenServer.call while also asking a decision use GenServer.reply/2 + the request form. handle_answer argument order is (tag, results | {:error, reason}, s) — SPEC_H order, not jev's."
+    },
+    {
+      "id": "A1.7",
+      "supersedes": "F02 non_binding_appendix (depend vs vendor)",
+      "text": "Hex jev is NOT a dependency. It requires req ~> 0.7.4 / telemetry ~> 1.4 (Kerf: 0.5.17 / 1.3.0), hard-codes the TypeSafe base URL, bearer key, request-id header and a price, loses option order, trusts server confidence, drops missing answers, and has no deadline. The ~70-line Jev.Server pattern (server.ex:96-163) is vendored into Kerf.Decide.Server under its MIT notice."
+    },
+    {
+      "id": "A1.8",
+      "supersedes": "F03.1 (wire shape details)",
+      "text": "Outgoing body keys are exactly state and questions (no model key). Each question has exactly type, instructions, criteria. Choice criteria is a JSON object keyed by the option labels in caller order; when the caller supplies none, each label is its own description — the key is never omitted because it carries the order. Score criteria is the list of level labels. Error reasons: {:http_status, n}, :timeout, :econnrefused, {:remote_refused, host}; tailnet means 100.64.0.0/10."
+    },
+    {
+      "id": "A1.9",
+      "supersedes": "F11 non_binding_appendix categories {client, invoice}",
+      "text": "Category labels are exactly the SPEC_C 6-value enum (business personal newsletter transactional spam social). 'client' is a separate Choice question over known clients + none, not a category. 'invoice' is not a category; if a transactional sub-signal is needed it is a Noul."
+    },
+    {
+      "id": "A1.10",
+      "supersedes": "F01.6 (validation scope)",
+      "text": "Kerf.Decide copies taint and sources and sets origin :derived. It does not validate the internal consistency of a provenance (e.g. :ingress ⇒ :tainted); that is Kerf.Provenance's job (SPEC_G §4)."
+    }
+  ],
+
+  "pre_authorized_touches_for_green": [
+    "lib/kerf/application.ex: add Kerf.Decide.Supervisor (rest_for_one) with Kerf.Decide.TaskSupervisor as a child — asserted by F02.2",
+    "config/config.exs: Application env :kerf, Kerf.Decide, adapter: … — default may be nil in test; F01.5 sets it per test"
+  ],
+
+  "accepted_gaps": [
+    "F01.7 hook: mix compile --warnings-as-errors fails on exactly 3 Postgrex-generated Kerf.PostgrexTypes warnings (unused Pgvector.Extensions.{Vector,Sparsevec,Halfvec}/4). Accepted until Postgrex/pgvector offer a switch; any OTHER warning still fails the gate.",
+    "F06.3 tests are DataCase and need Postgres; `mix test test/kerf/decide/` alone does not run them. GREEN's gate runs the parity file explicitly.",
+    "F06.2 and F06.4 grep guards are textual tripwires: destructuring bypasses F06.2; F06.4 also flags pattern matches. Neither is a proof; SPEC_G's compile-time test is.",
+    "Adapter info/0 for real adapters is untested in step 1; covered by F10 harness manifests.",
+    "F03 fixtures are hand-written from the TypeSafe shape jev parses; the request shape Strands/kev actually require is unverified until F10 records real responses."
+  ],
+
+  "findings_for_other_specs": [
+    {"spec": "SPEC_G", "finding": "I8 assumes the vocabulary parity guard is a mix task; it is an ExUnit DataCase test (Kerf.Agents.EmailTriage.VocabularyParityTest). The tenant-scope guard should follow the same shape or be the first real mix task."},
+    {"spec": "SPEC_G", "finding": "Replay: %Approved{} has no expiry or single-use token, so one approval row could authorize the same action twice. Decide before Kerf.Gate is built."},
+    {"spec": "CLAUDE.md / data model", "finding": "CLAUDE.md says there is no email_triage table; lib/kerf/agents/email_triage/taxonomy.ex runs UPDATE email_triage. Verify with \\d email_triage on the Spark and correct whichever is wrong."},
+    {"spec": "dependency hygiene", "finding": "41 Hex advisories in locked deps (bandit 1.10.2 HIGH, hpax, mint, phoenix, plug); req 0.5.17 is two minors behind. Own sitting, own commits; if req is bumped, do it before GREEN so F03 tests validate against the shipped Req.Test."}
+  ]
+}
