@@ -25,6 +25,8 @@ defmodule Kerf.Decide.Adapter.HTTPTest do
   @tailnet "http://100.101.102.103:8900"
   @outside_tailnet "http://100.200.1.1:8900"
   @remote "http://example.com"
+  @remote_location "http://example.com/v1/systemone"
+  @loopback_location "http://127.0.0.1:9999/v1/systemone"
 
   # ---------- helpers ----------
 
@@ -73,6 +75,39 @@ defmodule Kerf.Decide.Adapter.HTTPTest do
       |> Plug.Conn.put_resp_content_type("application/json")
       |> Plug.Conn.send_resp(status, raw)
     end)
+  end
+
+  # Same call as ask/2, but `extra` is appended inside the one req_options
+  # list, so Req.merge/2 applies it after the plug (a second req_options: key
+  # in opts would be shadowed by the first).
+  defp ask_with_req_options(base_url, extra) do
+    Decide.ask(state(), questions(),
+      adapter: HTTP,
+      base_url: base_url,
+      req_options: [plug: {Req.Test, __MODULE__}, retry: false] ++ extra
+    )
+  end
+
+  # Answers every request with a redirect to `location`, reporting each one.
+  defp redirect_to(location, status) do
+    test_pid = self()
+
+    Req.Test.stub(__MODULE__, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      send(test_pid, {:request, conn.method, conn.request_path, body})
+
+      conn
+      |> Plug.Conn.put_resp_header("location", location)
+      |> Plug.Conn.send_resp(status, "")
+    end)
+  end
+
+  defp requests_seen(count \\ 0) do
+    receive do
+      {:request, _method, _path, _body} -> requests_seen(count + 1)
+    after
+      0 -> count
+    end
   end
 
   defp keys(%Jason.OrderedObject{values: values}), do: Enum.map(values, &elem(&1, 0))
@@ -230,6 +265,49 @@ defmodule Kerf.Decide.Adapter.HTTPTest do
     test "a remote host is accepted with allow_remote: true" do
       serve(fixture!("strands-decider-2026-10.json"))
       assert {:ok, _} = ask(@remote, allow_remote: true)
+    end
+  end
+
+  # ---------- F03.2b ----------
+
+  describe "F03.2b host policy after merge" do
+    test "a 307 from a loopback server is not followed" do
+      for status <- [307, 308] do
+        redirect_to(@remote_location, status)
+
+        assert {:error, {:redirect_refused, "example.com"}} = ask(@loopback)
+
+        assert requests_seen() == 1
+      end
+    end
+
+    test "a redirect to another loopback port is also not followed" do
+      redirect_to(@loopback_location, 307)
+      assert {:error, {:redirect_refused, "127.0.0.1"}} = ask(@loopback)
+      assert requests_seen() == 1
+    end
+
+    test "req_options cannot override base_url past the host check" do
+      serve(fixture!("strands-decider-2026-10.json"))
+
+      assert {:error, {:remote_refused, "example.com"}} =
+               ask_with_req_options(@loopback, base_url: @remote)
+
+      refute_received {:request, _, _, _}
+
+      assert {:error, {:remote_refused, "example.com"}} =
+               ask_with_req_options(@loopback, url: @remote_location)
+
+      refute_received {:request, _, _, _}
+    end
+
+    test "req_options cannot re-enable redirects" do
+      redirect_to(@remote_location, 307)
+
+      assert {:error, {:redirect_refused, "example.com"}} =
+               ask_with_req_options(@loopback, redirect: true)
+
+      assert requests_seen() == 1
     end
   end
 

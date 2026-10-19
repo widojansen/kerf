@@ -58,6 +58,7 @@ defmodule Kerf.DecideTest do
 
   alias Kerf.Decide
   alias Kerf.Decide.{OptionSet, Question, State}
+  alias Kerf.Decide.Question.Score
   alias Kerf.DecideTest.{OtherAdapter, ScriptedAdapter}
 
   # Question-level defects F01.2 must reject; one per generated request.
@@ -82,6 +83,10 @@ defmodule Kerf.DecideTest do
 
     :ok
   end
+
+  @doc false
+  def handle_telemetry(event, measurements, metadata, test_pid),
+    do: send(test_pid, {:telemetry, event, measurements, metadata})
 
   # ---------- helpers ----------
 
@@ -302,6 +307,67 @@ defmodule Kerf.DecideTest do
   defp defective(:score_too_many, _), do: {:bad, [build_question(:bad, {:score, 11})]}
   defp defective(:empty_instructions, _), do: {:bad, [Question.noul(:bad, "")]}
 
+  # ---------- F01.2b ----------
+
+  describe "F01.2b answer range checks" do
+    test "Choice probs must sum to 1 within 1.0e-3", %{recorder: r} do
+      for probs <- [
+            [{"business", 0.5}, {"personal", 0.2}, {"newsletter", 0.1}],
+            [{"business", 0.7}, {"personal", 0.4}, {"newsletter", 0.2}]
+          ] do
+        responses = %{responses() | category: %{probs: probs}}
+
+        assert {:error, {:schema_violation, {:probs_sum, :category}}} =
+                 ask(state(), request_questions(), r, responses: responses)
+      end
+
+      for probs <- [
+            [{"business", 0.6}, {"personal", 0.3}, {"newsletter", 0.1005}],
+            [{"business", 0.6}, {"personal", 0.3}, {"newsletter", 0.0995}]
+          ] do
+        responses = %{responses() | category: %{probs: probs}}
+        assert {:ok, _} = ask(state(), request_questions(), r, responses: responses)
+      end
+    end
+
+    test "Score expected outside [0, K-1] is a schema violation", %{recorder: r} do
+      for expected <- [-0.5, 4.5] do
+        responses = put_in(responses(), [:urgency, :expected], expected)
+
+        assert {:error, {:schema_violation, {:expected_out_of_range, :urgency}}} =
+                 ask(state(), request_questions(), r, responses: responses)
+      end
+
+      for expected <- [0, 4] do
+        responses = put_in(responses(), [:urgency, :expected], expected)
+        assert {:ok, _} = ask(state(), request_questions(), r, responses: responses)
+      end
+    end
+
+    test "Score confidence outside [0, 1] is a schema violation", %{recorder: r} do
+      for confidence <- [-0.1, 1.2] do
+        responses = put_in(responses(), [:urgency, :confidence], confidence)
+
+        assert {:error, {:schema_violation, {:confidence_out_of_range, :urgency}}} =
+                 ask(state(), request_questions(), r, responses: responses)
+      end
+
+      for confidence <- [0, 1] do
+        responses = put_in(responses(), [:urgency, :confidence], confidence)
+        assert {:ok, _} = ask(state(), request_questions(), r, responses: responses)
+      end
+    end
+
+    test "a %Score{} forged with non-list levels is rejected, not raised", %{recorder: r} do
+      forged = struct!(Score, name: :urgency, instructions: "How urgent?", levels: "not-a-list")
+
+      assert {:error, {:invalid_request, {:urgency, :invalid_levels}}} =
+               ask(state(), [forged], r)
+
+      assert calls(r) == 0
+    end
+  end
+
   # ---------- F01.3 ----------
 
   describe "F01.3 Choice confidence is computed in Elixir" do
@@ -441,4 +507,67 @@ defmodule Kerf.DecideTest do
       end
     end
   end
+
+  # ---------- F07.1 ----------
+
+  describe "F07.1 state_hash" do
+    setup do
+      handler_id = {__MODULE__, make_ref()}
+
+      :ok =
+        :telemetry.attach(
+          handler_id,
+          [:kerf, :decide, :answer],
+          &__MODULE__.handle_telemetry/4,
+          self()
+        )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+    end
+
+    test "state_hash ignores key insertion order, is 64 lowercase hex, and tracks content", %{
+      recorder: r
+    } do
+      small_ab = %{} |> Map.put("a", 1) |> Map.put("b", 2)
+      small_ba = %{} |> Map.put("b", 2) |> Map.put("a", 1)
+
+      # > 32 keys: a HAMT, not a sorted flatmap, so the encoding order differs.
+      keys = Enum.map(1..40, &"k#{&1}")
+      large_fwd = Enum.reduce(keys, %{}, &Map.put(&2, &1, &1))
+      large_rev = keys |> Enum.reverse() |> Enum.reduce(%{}, &Map.put(&2, &1, &1))
+
+      [h_ab, h_ba, h_fwd, h_rev, h_other] =
+        Enum.map(
+          [small_ab, small_ba, large_fwd, large_rev, %{"a" => 1, "b" => 3}],
+          &state_hash!(&1, r)
+        )
+
+      assert h_ab == h_ba
+      assert h_fwd == h_rev
+      for h <- [h_ab, h_fwd, h_other], do: assert(h =~ ~r/\A[0-9a-f]{64}\z/)
+      refute h_other == h_ab
+
+      # Within one node the default encoding is already order-stable, so the
+      # assertions above cannot see the cross-node hazard; pin the canonical
+      # encoding (SHA-256 of term_to_binary(content, [:deterministic])).
+      assert h_fwd == sha256_hex(:erlang.term_to_binary(large_fwd, [:deterministic]))
+    end
+  end
+
+  # Asks request_questions/0 (three unbranched questions) and returns the one
+  # state_hash all three [:kerf, :decide, :answer] events carry.
+  defp state_hash!(content, recorder) do
+    assert {:ok, _} = ask(state(content), request_questions(), recorder)
+
+    hashes =
+      for _question <- 1..3 do
+        assert_received {:telemetry, [:kerf, :decide, :answer], _, %{state_hash: hash}}
+        hash
+      end
+
+    assert [hash] = Enum.uniq(hashes)
+    hash
+  end
+
+  defp sha256_hex(binary), do: :crypto.hash(:sha256, binary) |> Base.encode16(case: :lower)
 end

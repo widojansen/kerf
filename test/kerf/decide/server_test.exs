@@ -167,6 +167,13 @@ defmodule Kerf.Decide.ServerTest do
               send(s.test, {:routed, ref, branch})
               {:noreply, s}
             end
+
+            def terminate(reason, s), do: send(s.test, {:terminated, reason})
+
+            def code_change(old_vsn, s, extra) do
+              send(s.test, {:code_change, old_vsn, extra})
+              {:ok, s}
+            end
           end
         end
       )
@@ -198,6 +205,10 @@ defmodule Kerf.Decide.ServerTest do
     ]
 
   defp start_router!, do: start_supervised!({@router, self()})
+
+  # For tests that stop the server themselves: no restart behind their back.
+  defp start_temporary_router!,
+    do: start_supervised!(Supervisor.child_spec({@router, self()}, restart: :temporary))
 
   defp ask!(server, opts) do
     ref = make_ref()
@@ -325,6 +336,39 @@ defmodule Kerf.Decide.ServerTest do
       assert first == :pong_returned, "the adapter finished before the server answered :ping"
       assert_receive {:adapter_done, ^adapter_pid}, 500
       assert_receive {:routed, ^ref, :act}, 500
+    end
+  end
+
+  # ---------- F02.2b ----------
+
+  describe "F02.2b lifecycle" do
+    test "stopping the server cancels its in-flight tasks" do
+      server = start_temporary_router!()
+
+      ask!(server, adapter: Adapters.Sleeping, timeout: 5_000, test_pid: self(), sleep_ms: 1_000)
+      assert_receive {:adapter_called, %{pid: adapter_pid}}, 500
+
+      :ok = GenServer.stop(server)
+
+      refute_receive {:adapter_done, ^adapter_pid}, 300
+      refute Process.alive?(adapter_pid), "in-flight task outlived its server"
+      refute adapter_pid in Task.Supervisor.children(Kerf.Decide.TaskSupervisor)
+    end
+
+    test "terminate/2 and code_change/3 are delegated when defined" do
+      server = start_temporary_router!()
+      wrapper_state = :sys.get_state(server)
+
+      # Unit-level code_change: no release upgrade, just the callback path.
+      assert function_exported?(Kerf.Decide.Server, :code_change, 3),
+             "Kerf.Decide.Server does not export code_change/3"
+
+      args = ["0.1.0", wrapper_state, :extra]
+      assert {:ok, _} = apply(Kerf.Decide.Server, :code_change, args)
+      assert_receive {:code_change, "0.1.0", :extra}
+
+      :ok = GenServer.stop(server, :normal)
+      assert_receive {:terminated, :normal}, 500
     end
   end
 
