@@ -56,7 +56,10 @@ defmodule Kerf.Application do
         Kerf.Agent.Supervisor,
 
         # Phase 4: Memory Store
-        Kerf.Memory.Supervisor
+        Kerf.Memory.Supervisor,
+
+        # SPEC_H: Kerf.Decide subtree (Task.Supervisor for decision requests)
+        Kerf.Decide.Supervisor
       ] ++ credential_vault_children() ++ approval_gate_children() ++ [
 
         # Phase 6: Scheduler
