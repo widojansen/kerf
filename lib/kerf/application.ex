@@ -47,7 +47,8 @@ defmodule Kerf.Application do
         # Phase A.5: Structured Output SchemaRegistry
         {Kerf.StructuredOutput.SchemaRegistry,
          name: Kerf.StructuredOutput.SchemaRegistry,
-         register_builtins: Application.get_env(:kerf, Kerf.StructuredOutput, [])[:register_builtins] || false},
+         register_builtins:
+           Application.get_env(:kerf, Kerf.StructuredOutput, [])[:register_builtins] || false},
 
         # Phase 2: LLM Provider
         Kerf.LLM.Supervisor,
@@ -60,20 +61,23 @@ defmodule Kerf.Application do
 
         # SPEC_H: Kerf.Decide subtree (Task.Supervisor for decision requests)
         Kerf.Decide.Supervisor
-      ] ++ credential_vault_children() ++ approval_gate_children() ++ [
+      ] ++
+        credential_vault_children() ++
+        approval_gate_children() ++
+        [
+          # Phase 6: Scheduler
+          Kerf.Scheduler.Supervisor,
 
-        # Phase 6: Scheduler
-        Kerf.Scheduler.Supervisor,
-
-        # Phase 7: Dashboard
-        Kerf.Dashboard.Supervisor
-      ] ++ knowledge_base_children() ++ email_triage_children() ++ telegram_children() ++ whatsapp_children() ++ monitor_children()
-
+          # Phase 7: Dashboard
+          Kerf.Dashboard.Supervisor
+        ] ++
+        knowledge_base_children() ++
+        email_triage_children() ++
+        telegram_children() ++ whatsapp_children() ++ monitor_children()
 
     opts = [strategy: :one_for_one, name: Kerf.Supervisor]
     Supervisor.start_link(children, opts)
   end
-
 
   defp credential_vault_children do
     config = Application.get_env(:kerf, Kerf.CredentialVault, [])
@@ -113,10 +117,12 @@ defmodule Kerf.Application do
     config = Application.get_env(:kerf, Kerf.Channels.Telegram, [])
 
     if config[:enabled] do
-      [{Kerf.Channels.Telegram.Supervisor,
-        telegram_opts:
-          config
-          |> Keyword.put(:name, Kerf.Channels.Telegram)}]
+      [
+        {Kerf.Channels.Telegram.Supervisor,
+         telegram_opts:
+           config
+           |> Keyword.put(:name, Kerf.Channels.Telegram)}
+      ]
     else
       []
     end
@@ -126,10 +132,12 @@ defmodule Kerf.Application do
     config = Application.get_env(:kerf, Kerf.Channels.WhatsApp, [])
 
     if config[:enabled] do
-      [{Kerf.Channels.WhatsApp.Supervisor,
-        whatsapp_opts:
-          config
-          |> Keyword.put(:name, Kerf.Channels.WhatsApp)}]
+      [
+        {Kerf.Channels.WhatsApp.Supervisor,
+         whatsapp_opts:
+           config
+           |> Keyword.put(:name, Kerf.Channels.WhatsApp)}
+      ]
     else
       []
     end
@@ -139,13 +147,15 @@ defmodule Kerf.Application do
     health_config = Application.get_env(:kerf, Kerf.Monitor.ProcessHealth, [])
     alerting_config = Application.get_env(:kerf, Kerf.Monitor.Alerting, [])
 
-    [{Kerf.Monitor.Supervisor,
-      name: Kerf.Monitor.Supervisor,
-      process_health_opts:
-        health_config
-        |> Keyword.put(:name, Kerf.Monitor.ProcessHealth),
-      alerting_opts:
-        alerting_config
-        |> Keyword.put(:name, Kerf.Monitor.Alerting)}]
+    [
+      {Kerf.Monitor.Supervisor,
+       name: Kerf.Monitor.Supervisor,
+       process_health_opts:
+         health_config
+         |> Keyword.put(:name, Kerf.Monitor.ProcessHealth),
+       alerting_opts:
+         alerting_config
+         |> Keyword.put(:name, Kerf.Monitor.Alerting)}
+    ]
   end
 end
