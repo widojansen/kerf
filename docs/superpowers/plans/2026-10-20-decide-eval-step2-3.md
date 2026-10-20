@@ -728,8 +728,18 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
   guards falling through to `:unknown_question_type`. Not fixed in ff0b859 (GREEN edits no tests;
   the fix needs a RED first). Lead proposal: task **D1b** (same executor, Sonnet) — RED
   `test/eval/manifest_test.exs` gains "load of a manifest whose question_set options is not a list
-  returns `{:error, _}`" and the `levels` twin, both asserting `{:error, [{:unknown_question_type,
-  nil, _} | _]}`; GREEN adds the guards; gated as any task. A second reviewer note ("nil
+  returns `{:error, _}`" and the `levels` twin; GREEN adds the guards; gated as any task.
+  **Shape (executor note 21:06, lead recommendation):** in ff0b859 `:unknown_question_type` is
+  emitted per labelled item with that item's id from `check_label/4`, after the question_set and
+  duplicate checks — so a nil-headed assertion would not match it, and one bad question definition
+  would produce one violation per item. D1b therefore adds a **manifest-level** question-definition
+  shape check, run once before the per-item checks, with a dedicated code
+  `:question_def_invalid` (`{:question_def_invalid, nil, {question_key, reason}}`, e.g.
+  `{"category", :options_not_list}` / `{"urgency", :levels_not_list}`); the RED asserts
+  `{:error, [{:question_def_invalid, nil, {"category", _}} | _]}` at the head of the list and that
+  the per-item `:unknown_question_type` is not emitted for that manifest. Alternative (b), a
+  membership-only assertion with the existing per-item code, is cheaper but keeps the 244-violation
+  behaviour. Add `:question_def_invalid` to the §2.1 code list when D1b is dispatched. A second reviewer note ("nil
   `labelled_at` slips past `ready_for_run?`") was checked by the executor and is wrong: in the
   `for`, `stamp = …` binds rather than filters and `before_or_at?(nil, _)` is false, so nil stamps
   are reported as late — recorded so nobody chases it.
