@@ -69,8 +69,9 @@ logs/
 
 # Memory/notes (workstation only)
 .remember/
-# Private working docs are kept in the outer folder, not in the repo
-CLAUDE.md
+
+# Private working docs are kept in the outer folder (~/Projects/kerf/private), not in the repo.
+# CLAUDE.md at the repo root is PUBLIC and committed; it imports the private notes by absolute path.
 EMAIL_TRIAGE_DIAGNOSTIC_SPEC.md
 MODULE_MAP.md
 TEST_CATALOG.md
@@ -78,5 +79,9 @@ AUTORESEARCH_PATTERN.md
 REMOVE_STANDALONE_DASHBOARD_SPEC.md
 RENAME_TO_KERF_SPEC.md
 .claude-context/
-.DS_Store
-/CLAUDE.md
+CLAUDE.local.md
+
+# Claude Code multi-session
+.claude/worktrees/
+.claude/settings.local.json
+
