@@ -7,14 +7,17 @@ defmodule Kerf.Decide.Adapter.HTTP do
   base_url:`), `allow_remote:` and `req_options:` (merged into the Req
   request). The host must be loopback or tailnet (100.64.0.0/10) unless
   `allow_remote: true` — the Strands server has no auth — and is checked
-  before any request is made.
+  before any request is made, on the URL that remains after `req_options:`
+  are merged. Redirects are never followed: a 3xx with a Location header is
+  `{:redirect_refused, host}`.
 
   The request body is exactly `{state, questions: {name: {type,
   instructions, criteria}}}` in caller order (addendum A1.8). Responses are
   decoded preserving key order so a duplicated answer is a schema violation,
   not a silent last-wins overwrite. Usage and cost are ignored (F02.5).
-  Transport errors are `{:http_status, n}`, `:timeout`, `:econnrefused`, or
-  `{:transport, reason}`, each emitting `[:kerf, :decide, :error]`.
+  Transport errors are `{:redirect_refused, host}`, `{:http_status, n}`,
+  `:timeout`, `:econnrefused`, or `{:transport, reason}`, each emitting
+  `[:kerf, :decide, :error]`.
   """
 
   @behaviour Kerf.Decide.Adapter
@@ -29,9 +32,10 @@ defmodule Kerf.Decide.Adapter.HTTP do
   @impl true
   def ask(%State{content: content}, questions, opts) do
     with {:ok, base_url} <- base_url(opts),
-         :ok <- check_host(base_url, Keyword.get(opts, :allow_remote, false)),
+         request = request(base_url, opts),
+         :ok <- check_host(request, Keyword.get(opts, :allow_remote, false)),
          {:ok, body} <- encode(content, questions),
-         {:ok, raw} <- post(base_url, body, opts),
+         {:ok, raw} <- post(request, body),
          {:ok, answers} <- decode(raw) do
       map_answers(questions, answers)
     end
@@ -58,13 +62,25 @@ defmodule Kerf.Decide.Adapter.HTTP do
 
   defp config, do: Application.get_env(:kerf, __MODULE__, [])
 
-  defp check_host(_base_url, true), do: :ok
+  defp check_host(_request, true), do: :ok
 
-  defp check_host(base_url, _allow_remote) do
-    host = URI.parse(base_url).host
+  defp check_host(request, _allow_remote) do
+    host = effective_uri(request).host
 
     if local_host?(host), do: :ok, else: {:error, {:remote_refused, host}}
   end
+
+  # The URL Req will actually call: an absolute `url` wins over `base_url`
+  # (Req's put_base_url step), whichever of them req_options supplied.
+  defp effective_uri(%Req.Request{url: %URI{scheme: nil}, options: options}),
+    do: base_uri(options[:base_url])
+
+  defp effective_uri(%Req.Request{url: url}), do: url
+
+  defp base_uri(base_url) when is_binary(base_url), do: URI.parse(base_url)
+  defp base_uri(%URI{} = base_url), do: base_url
+  # A function base_url is resolved by Req at request time, after this check.
+  defp base_uri(_base_url), do: %URI{}
 
   defp local_host?("localhost"), do: true
 
@@ -121,25 +137,51 @@ defmodule Kerf.Decide.Adapter.HTTP do
   defp criteria(%Score{levels: levels}), do: levels
   defp criteria(%Noul{criteria: criteria}), do: criteria
 
-  defp post(base_url, body, opts) do
-    request =
-      Req.new(
-        base_url: base_url,
-        url: @path,
-        method: :post,
-        body: body,
-        headers: [{"content-type", "application/json"}],
-        decode_body: false,
-        receive_timeout: Keyword.get(opts, :timeout, @default_receive_timeout)
-      )
-      |> Req.merge(Keyword.get(opts, :req_options, []))
+  # redirect: false is merged last so req_options cannot re-enable it: a
+  # followed redirect would carry the state past the host check.
+  defp request(base_url, opts) do
+    Req.new(
+      base_url: base_url,
+      url: @path,
+      method: :post,
+      headers: [{"content-type", "application/json"}],
+      decode_body: false,
+      receive_timeout: Keyword.get(opts, :timeout, @default_receive_timeout)
+    )
+    |> Req.merge(Keyword.get(opts, :req_options, []))
+    |> Req.merge(redirect: false)
+  end
 
-    case Req.request(request) do
-      {:ok, %Req.Response{status: status, body: raw}} when status in 200..299 -> {:ok, raw}
-      {:ok, %Req.Response{status: status}} -> transport_error({:http_status, status})
-      {:error, %Req.TransportError{reason: :timeout}} -> transport_error(:timeout)
-      {:error, %Req.TransportError{reason: :econnrefused}} -> transport_error(:econnrefused)
-      {:error, exception} -> transport_error({:transport, Exception.message(exception)})
+  defp post(request, body) do
+    case Req.request(request, body: body) do
+      {:ok, %Req.Response{status: status, body: raw}} when status in 200..299 ->
+        {:ok, raw}
+
+      {:ok, %Req.Response{status: status} = response} when status in 300..399 ->
+        redirect_error(request, response)
+
+      {:ok, %Req.Response{status: status}} ->
+        transport_error({:http_status, status})
+
+      {:error, %Req.TransportError{reason: :timeout}} ->
+        transport_error(:timeout)
+
+      {:error, %Req.TransportError{reason: :econnrefused}} ->
+        transport_error(:econnrefused)
+
+      {:error, exception} ->
+        transport_error({:transport, Exception.message(exception)})
+    end
+  end
+
+  defp redirect_error(request, %Req.Response{status: status} = response) do
+    case Req.Response.get_header(response, "location") do
+      [location | _] ->
+        host = URI.merge(effective_uri(request), location).host
+        transport_error({:redirect_refused, host})
+
+      [] ->
+        transport_error({:http_status, status})
     end
   end
 
