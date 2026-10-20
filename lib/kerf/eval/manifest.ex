@@ -218,10 +218,16 @@ defmodule Kerf.Eval.Manifest do
 
   @spec validate(t()) :: :ok | {:error, [violation()]}
   def validate(%__MODULE__{} = manifest) do
+    # A malformed question definition is reported once, up front (S-26); the
+    # per-item label checks need well-formed definitions, so they are skipped.
+    def_violations = question_def_violations(manifest.question_set)
+    check_labels? = def_violations == []
+
     violations =
-      question_set_violations(manifest) ++
+      def_violations ++
+        question_set_violations(manifest) ++
         duplicate_violations(manifest.items) ++
-        Enum.flat_map(manifest.items, &item_violations(&1, manifest)) ++
+        Enum.flat_map(manifest.items, &item_violations(&1, manifest, check_labels?)) ++
         pair_violations(manifest.items) ++
         counts_violations(manifest)
 
@@ -229,6 +235,31 @@ defmodule Kerf.Eval.Manifest do
   end
 
   def validate(other), do: {:error, [{:schema_invalid, nil, {:not_a_manifest, other}}]}
+
+  # Shape of each question definition, checked once per manifest. JSON can
+  # hand us a string where a list belongs; that must be a violation, not a raise.
+  defp question_def_violations(qs) when is_map(qs) do
+    for {key, qdef} <- Enum.sort(qs),
+        reason = question_def_problem(qdef),
+        reason != nil do
+      {:question_def_invalid, nil, {key, reason}}
+    end
+  end
+
+  defp question_def_violations(_qs), do: []
+
+  defp question_def_problem(%{"type" => "choice", "options" => options}) when is_list(options),
+    do: nil
+
+  defp question_def_problem(%{"type" => "choice"}), do: :options_not_list
+  defp question_def_problem(%{"type" => "noul"}), do: nil
+
+  defp question_def_problem(%{"type" => "score", "levels" => levels}) when is_list(levels),
+    do: nil
+
+  defp question_def_problem(%{"type" => "score"}), do: :levels_not_list
+  defp question_def_problem(%{"type" => _other}), do: :unknown_type
+  defp question_def_problem(_qdef), do: :not_a_definition
 
   defp question_set_violations(%{question_set: qs}) when is_map(qs) do
     if MapSet.new(Map.keys(qs)) == MapSet.new(QuestionSet.order()),
@@ -254,13 +285,16 @@ defmodule Kerf.Eval.Manifest do
     values |> Enum.frequencies() |> Enum.filter(fn {_, n} -> n > 1 end) |> Enum.map(&elem(&1, 0))
   end
 
-  defp item_violations(%Item{} = item, manifest) do
+  defp item_violations(%Item{} = item, manifest, check_labels?) do
     id = item.id
 
     List.flatten([
       if(item.language in @languages, do: [], else: [{:language_invalid, id, item.language}]),
       body_violations(item),
-      if(item.labels == nil, do: [], else: label_violations(id, item.labels, manifest)),
+      if(item.labels == nil or not check_labels?,
+        do: [],
+        else: label_violations(id, item.labels, manifest)
+      ),
       label_source_violations(item),
       tier_violations(item),
       if(item.split in @splits, do: [], else: [{:split_invalid, id, item.split}]),
@@ -271,7 +305,8 @@ defmodule Kerf.Eval.Manifest do
     ])
   end
 
-  defp item_violations(other, _manifest), do: [{:schema_invalid, nil, {:not_an_item, other}}]
+  defp item_violations(other, _manifest, _check_labels?),
+    do: [{:schema_invalid, nil, {:not_an_item, other}}]
 
   defp body_violations(%Item{id: id, state: state}) do
     case state do
@@ -302,6 +337,15 @@ defmodule Kerf.Eval.Manifest do
   # Labels are checked against the manifest's own question_set; JSON
   # round-trip strings ("3", "true") are rejected, never coerced (F08.2).
   defp label_violations(id, labels, %{question_set: qs}) when is_map(labels) and is_map(qs) do
+    case question_def_violations(qs) do
+      [] -> label_violations_checked(id, labels, qs)
+      def_violations -> def_violations
+    end
+  end
+
+  defp label_violations(id, labels, _manifest), do: [{:label_wrong_type, id, {:labels, labels}}]
+
+  defp label_violations_checked(id, labels, qs) do
     unknown =
       for key <- Map.keys(labels), not Map.has_key?(qs, key), do: {:unknown_question, id, key}
 
@@ -316,9 +360,8 @@ defmodule Kerf.Eval.Manifest do
     unknown ++ List.flatten(per_question)
   end
 
-  defp label_violations(id, labels, _manifest), do: [{:label_wrong_type, id, {:labels, labels}}]
-
-  defp check_label(id, question, %{"type" => "choice", "options" => options}, value) do
+  defp check_label(id, question, %{"type" => "choice", "options" => options}, value)
+       when is_list(options) do
     cond do
       not is_binary(value) -> [{:label_wrong_type, id, {question, value}}]
       value not in options -> [{:label_not_in_options, id, {question, value}}]
@@ -330,7 +373,8 @@ defmodule Kerf.Eval.Manifest do
     if is_boolean(value), do: [], else: [{:label_wrong_type, id, {question, value}}]
   end
 
-  defp check_label(id, question, %{"type" => "score", "levels" => levels}, value) do
+  defp check_label(id, question, %{"type" => "score", "levels" => levels}, value)
+       when is_list(levels) do
     cond do
       not is_integer(value) -> [{:label_wrong_type, id, {question, value}}]
       value < 1 or value > length(levels) -> [{:urgency_out_of_range, id, {question, value}}]
