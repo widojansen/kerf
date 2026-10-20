@@ -7,14 +7,43 @@ defmodule Kerf.Eval.Manifest.QuestionSet do
   consumer iterates `order/0`.
   """
 
+  alias Kerf.Decide.OptionSet
+
+  @order ["category", "needs_reply", "urgency", "deadline_present", "client"]
+
   @spec order() :: [String.t()]
-  def order, do: not_implemented("F08.2")
+  def order, do: @order
 
   @spec phase_b([String.t()]) :: %{String.t() => Kerf.Eval.Manifest.question_def()}
-  def phase_b(_clients), do: not_implemented("F08.2")
-
-  # RED skeleton: apply/3 keeps Elixir 1.20's type inference from typing the
-  # body as none(), which would turn every test call site into a type warning.
-  defp not_implemented(check),
-    do: apply(:erlang, :error, [RuntimeError.exception("not implemented (SPEC_H #{check})")])
+  def phase_b(clients) when is_list(clients) do
+    %{
+      "category" => %{
+        "type" => "choice",
+        "instructions" =>
+          "Which category best describes this email? Pick the single closest category.",
+        "options" => OptionSet.labels(OptionSet.triage_categories())
+      },
+      "needs_reply" => %{
+        "type" => "noul",
+        "instructions" => "Does this email need a reply from the recipient?"
+      },
+      "urgency" => %{
+        "type" => "score",
+        "instructions" =>
+          "How urgent is this email for the recipient, from 1 (can wait indefinitely) " <>
+            "to 5 (needs action today)?",
+        "levels" => ["1", "2", "3", "4", "5"]
+      },
+      "deadline_present" => %{
+        "type" => "noul",
+        "instructions" => "Does this email state or imply a concrete deadline or due date?"
+      },
+      "client" => %{
+        "type" => "choice",
+        "instructions" =>
+          "Which client is this email about? Choose \"none\" if it concerns no client.",
+        "options" => clients ++ ["none"]
+      }
+    }
+  end
 end
