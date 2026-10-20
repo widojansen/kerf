@@ -114,7 +114,7 @@ assign_split(t, n, seed)      :: t   # pure (S-17/S-18): marks exactly n eligibl
 items(t, :eval | :calibration) :: {:ok, [Item]} | {:error, :not_frozen}
 training_export(t)            :: {:ok, [Item]} | {:error, :not_frozen}  # NEVER contains split == "calibration" (F08.5)
 ready_for_run?(t)             :: :ok | {:error, violation}   # frozen AND every tiered_at <= frozen_at AND counts match (F08.4)
-sha256(path)                  :: String.t()                  # lowercase hex of file bytes (run header)
+sha256(path)                  :: {:ok, String.t()} | {:error, term()}  # lowercase hex of file bytes on success (run header); {:error, reason} on an unreadable path — never raises (owner change 2026-10-20, S-23b)
 ```
 
 Validation codes (minimum): `:duplicate_item_id`, `:duplicate_doc_id` (compares non-nil `doc_id`
@@ -450,7 +450,7 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 
 **Closes:** F09.3/F09.4/F09.6 (request generation), F09.8 (deterministic order), F08.4 (refuses an unready manifest).
 **Files:** create `lib/kerf/eval/harness.ex` — `run(manifest, opts) :: {:ok, %{header, lines, end}} | {:error, term}` with `opts`: `adapter`, `adapter_opts`, `seed`, `permutations` (6), `isolation_items` (30: the first 30 eval items by id), `limit`, `skip_latency`, `sink` (fn line -> :ok, default no-op; the mix task streams to disk). Builds the state string and provenance per §2.6; asks main requests per order, separate requests, isolation probes with token `"KERF-" <> (Base.encode16(:crypto.hash(:sha256, Integer.to_string(seed)), case: :lower) |> binary_part(0, 12))` — parenthesised so the 12 hex chars follow the prefix (A3.12; the H3 RED asserts `token =~ ~r/\AKERF-[0-9a-f]{12}\z/`); never calls an adapter directly (test greps `lib/kerf/eval/harness.ex` for `.ask(` other than `Kerf.Decide.ask`). The H3 RED also asserts `Kerf.Eval.Harness.Questions.order() == Kerf.Eval.Manifest.QuestionSet.order()` (S-16).
-**RED tests:** `test/eval/harness_test.exs` using `Kerf.Eval.Manifest.Synthetic.build(n: 8, pairs: 2)` (10 items, 1 calibration): line count = 10 × (6×5 + 5) + 2 × min(isolation_items, eval items) isolation lines (with `isolation_items: 30` and 9 eval items: 350 + 18 = 368 answer lines); order of lines as §2.3; `order_index 0` is identity; same seed → identical normalized output across two runs (F09.8); unfrozen or late-tiered manifest → `{:error, …}` (F08.4); a crashing stub adapter on one item yields an error line and the run completes; `harness_gold` present only for Oracle, `harness_seed` only for Random (stub adapter records opts); `limit` recorded in header. **Owner pins (2026-10-20):** `harness_gold` is atom-keyed (`%{category: …, needs_reply: …, urgency: 1..5, deadline_present: …, client: …}` plus `secret_present:` for probes), converted from the manifest's string keys through the fixed Phase B list (`Questions.order/0`), never `String.to_atom/1`; `harness_seed` is the ready 3-tuple `{seed, item_index * 64 + question_index, order_index}` computed by the harness, passed through to Random as-is (the RED asserts both shapes on the recorded opts). **Owner pins (2026-10-20, pre-push review of df95c9d):** the run header's `adapter` field is the module's `inspect/1` string (`"Kerf.Eval.Adapters.Random"`), never `Atom.to_string/1` (which yields `"Elixir.…"`); the harness hands `Run.header/1`, `Run.answer_line/1` and `Run.end_line/1` plain maps, never structs — `Run.jsonable/1` does not handle structs. The H3 RED asserts the header's `adapter` string for a stub adapter and that the harness passes maps (a struct in the header input is an error, not a silent encode).
+**RED tests:** `test/eval/harness_test.exs` using `Kerf.Eval.Manifest.Synthetic.build(n: 8, pairs: 2)` (10 items, 1 calibration): line count = 10 × (6×5 + 5) + 2 × min(isolation_items, eval items) isolation lines (with `isolation_items: 30` and 9 eval items: 350 + 18 = 368 answer lines); order of lines as §2.3; `order_index 0` is identity; same seed → identical normalized output across two runs (F09.8); unfrozen or late-tiered manifest → `{:error, …}` (F08.4); a crashing stub adapter on one item yields an error line and the run completes; `harness_gold` present only for Oracle, `harness_seed` only for Random (stub adapter records opts); `limit` recorded in header. **Owner pins (2026-10-20):** `harness_gold` is atom-keyed (`%{category: …, needs_reply: …, urgency: 1..5, deadline_present: …, client: …}` plus `secret_present:` for probes), converted from the manifest's string keys through the fixed Phase B list (`Questions.order/0`), never `String.to_atom/1`; `harness_seed` is the ready 3-tuple `{seed, item_index * 64 + question_index, order_index}` computed by the harness, passed through to Random as-is (the RED asserts both shapes on the recorded opts). **Owner pins (2026-10-20, pre-push review of df95c9d):** the run header's `adapter` field is the module's `inspect/1` string (`"Kerf.Eval.Adapters.Random"`), never `Atom.to_string/1` (which yields `"Elixir.…"`); the harness hands `Run.header/1`, `Run.answer_line/1` and `Run.end_line/1` plain maps, never structs — `Run.jsonable/1` does not handle structs. The H3 RED asserts the header's `adapter` string for a stub adapter and that the harness passes maps (a struct in the header input is an error, not a silent encode). **Owner pin (2026-10-20, S-23b):** the header's `manifest_sha256` is the `hex` of `{:ok, hex} = Manifest.sha256(path)`; an `{:error, reason}` aborts the run as `{:error, {:manifest_sha256, reason}}` before any request is made (the H3 RED asserts the abort with an unreadable path and a stub adapter that records zero calls).
 **GREEN gate:** `mix test test/eval/harness_test.exs --no-start` both seeds; full suite both seeds.
 
 ### H4 — Mix task and self-test  (model: Sonnet) — **starts after H3** (S-2 decided, see §10.2)
@@ -518,6 +518,7 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 | 2026-10-20 | D1 | GREEN authorized by owner 20:29 on 964ff43; relayed to kerf-eval-data with the owner's implementation decisions (nothing raises; save tmp+rename, load rebuilds structs; seed_s/uniform_s threaded; one private frozen guard; Synthetic timestamps strictly before frozen_at) and the S-21 pins | 964ff43 | — | alerting_test flake accepted as pre-existing (hygiene list, with process_health) |
 | 2026-10-20 | H2 | dispatched to kerf-eval-harness (Opus) 20:29; branch to be rebased onto main (H1 already there) | — | — | RED expected: test(RED): SPEC_H H2 — scoring and report (F09.1–F09.7, F07.3) |
 | 2026-10-20 | D1 | GREEN blocked 20:33 by a RED self-contradiction found by kerf-eval-data (reported, not worked around): `test/eval/manifest_test.exs:105` adds synthetic items to `Synthetic.build()` (frozen) and expects `{:ok, …}`, while the owner's amendment at `:701` requires `{:error, [{:frozen, …}]}` on the same call. No lib satisfies both; GREEN tops out at 117/118. Proposed one-word RED amendment: line 106 → `Synthetic.build(frozen: false)` (test intent — nil doc_ids never collide — unchanged). Lead verified both tests at 964ff43; GREEN commit held | 964ff43 | — | awaiting owner: amend RED then GREEN, or commit GREEN at 117/118 with the test flagged |
+| 2026-10-20 | D1 | RED amendment #2 (`frozen: false`, one line) re-gated by lead: task files 0/118, 118 RuntimeError skeleton raises (F08.1 ×8, F08.2 ×7, F08.5 ×97, F08.7 ×6), identical locations both seeds; full suite seed 1: 1328/1446 passed, 118 failed (D1 files only), 14 excluded; seed 99999: 1326/1446, 120 failed = 118 D1 + `alerting_test.exs:135` + `process_health_test.exs:90` (both accepted monitor flakes, addendum 02 / hygiene list); compile: the 3 Postgrex warnings; diff 964ff43..990fbed = 1 test line, nothing under lib/, mix.lock unchanged | 990fbed | 1 / 99999 | passed; RED amendment #3 (sha256 tuple, S-23b) dispatched 20:43, re-gate folds both; GREEN D1 authorization carries to that sha |
 | — | H1b | RED — pending, starts after H2 GREEN is gated | — | — | — |
 | — | H1b | GREEN — pending | — | — | — |
 
@@ -655,4 +656,31 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
   on both seeds (118 in-body failures) and the GREEN authorization carries over to it. Lesson for
   addendum 03: an amendment that adds a guard must re-check every earlier test that drives the
   guarded path.
+  **S-23b (plan contradiction, same gate, owner-approved 2026-10-20 20:42):** §2.1 typed
+  `sha256(path) :: String.t()` while the owner's GREEN rule says nothing raises, so an unreadable
+  path had no legal return. The frozen interface changes to
+  `sha256(path) :: {:ok, String.t()} | {:error, term()}`. RED amendment #3 (executor, test file
+  only, on top of 990fbed): the sha256 test asserts `{:ok, "ba7816bf…15ad"}` and gains "sha256 of a
+  missing path is `{:error, _}`", commit `test(RED): SPEC_H D1 — sha256/1 returns an ok/error tuple
+  (F08.1)`; folded into the same re-gate as the `frozen: false` fix; GREEN D1 on top. Cause: the plan,
+  not the executor. H3 pin added (§7).
+- **S-24 (D1 GREEN implementation decisions reported by kerf-eval-data 20:43, beyond the §2.1
+  minimum; for owner acceptance at the GREEN gate)** (1) `Manifest.t()` types `counts: counts() |
+  nil` and `export: export() | nil` (both default nil in the defstruct; dialyzer otherwise flags
+  `Synthetic.build/1` as no_return) — struct fields unchanged. (2) `save/2` errors are
+  `{:error, [violation]}`, e.g. `{:write_failed, nil, {:write | :rename, path, reason}}`.
+  (3) Extra violation codes: `:frozen`, `:unknown_item`, `:tier_invalid`, `:split_invalid`,
+  `:frozen_incomplete`, `:unknown_question_type`, `:file_unreadable`, `:invalid_json`,
+  `:schema_version`, `:schema_invalid`, `:write_failed`, `:encode_failed`; freeze: `:unlabelled`,
+  `:untiered`, `:too_few_real_items`, `:too_few_pairs`, `:language_mix_shortfall`; ready_for_run?:
+  `:not_frozen`, `:labelled_after_freeze`, `:tiered_after_freeze`. (4) `freeze/4` sets
+  `export.mix_shortfall_acknowledged = true` only when a shortfall existed and was allowed.
+  (5) `Overrides.load/1`: a later line for the same `doc_id` supersedes an earlier one (SPEC_D §7
+  appends rulings); blank lines skipped; errors `{:error, {:line, n, reason}}` or
+  `{:error, {:file_unreadable, reason}}`. (6) `Language.guess/1` returns `"und"` on a tie for the
+  top score as well as on no stopword hit. (7) `Synthetic`: languages follow a fixed 9:6:5 NL/DE/EN
+  cycle over real items so the mix holds for every seed (the seed drives labels, tiers and a-item
+  choice); the flipped question cycles through `order/0`; timestamps created 08:00Z, labelled and
+  tiered 10:00Z, frozen 12:00Z on 2026-10-20; `set_id` = `"synthetic-s<seed>"`. Lead view: none
+  contradicts SPEC_H F08 or the addenda; (3)'s codes are a superset of §2.1's minimum.
 
