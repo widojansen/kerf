@@ -317,7 +317,7 @@ defmodule Kerf.DecideTest do
           ] do
         responses = %{responses() | category: %{probs: probs}}
 
-        assert {:error, {:schema_violation, {:probs_sum, :category}}} =
+        assert {:error, {:schema_violation, {:category, :probs_sum}}} =
                  ask(state(), request_questions(), r, responses: responses)
       end
 
@@ -334,7 +334,7 @@ defmodule Kerf.DecideTest do
       for expected <- [-0.5, 4.5] do
         responses = put_in(responses(), [:urgency, :expected], expected)
 
-        assert {:error, {:schema_violation, {:expected_out_of_range, :urgency}}} =
+        assert {:error, {:schema_violation, {:urgency, :expected_out_of_range}}} =
                  ask(state(), request_questions(), r, responses: responses)
       end
 
@@ -348,7 +348,7 @@ defmodule Kerf.DecideTest do
       for confidence <- [-0.1, 1.2] do
         responses = put_in(responses(), [:urgency, :confidence], confidence)
 
-        assert {:error, {:schema_violation, {:confidence_out_of_range, :urgency}}} =
+        assert {:error, {:schema_violation, {:urgency, :confidence_out_of_range}}} =
                  ask(state(), request_questions(), r, responses: responses)
       end
 
