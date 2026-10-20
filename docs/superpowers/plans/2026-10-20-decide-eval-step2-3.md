@@ -645,4 +645,14 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
   and the seed tuple (A3.11). The test suite pins the algorithm with an independent re-statement and
   a golden list. Scheduled after H2 and before H3 so H3's run files are produced by the final
   algorithm (→ addendum 03).
+- **S-23 (RED self-contradiction, D1, 2026-10-20)** The owner-side RED amendment 964ff43 ("frozen
+  manifests refuse mutation") made the original RED test at `test/eval/manifest_test.exs:105`
+  unsatisfiable: it adds synthetic items to `Synthetic.build()` (frozen) and expects `{:ok, …}`,
+  while the amendment requires `{:error, [{:frozen, …}]}` on that call. The contradiction came from
+  the owner-side amendment, not from the executor, who found it during GREEN and reported it rather
+  than editing a test. Owner ruling 20:35: a second one-line RED amendment — line 106 becomes
+  `Synthetic.build(frozen: false)`, nothing else — committed before GREEN; the lead re-gates that sha
+  on both seeds (118 in-body failures) and the GREEN authorization carries over to it. Lesson for
+  addendum 03: an amendment that adds a guard must re-check every earlier test that drives the
+  guarded path.
 
