@@ -15,6 +15,9 @@ defmodule Kerf.Decide.Server do
   Return `{:branch, branch_id, callback_return}` from handle_answer to commit
   a speculative branch: only then are that branch's answers emitted as
   `[:kerf, :decide, :answer]` (F02.4, A1.5).
+
+  The server traps exits, so on stop it kills its in-flight requests before
+  delegating `terminate/2`; `code_change/3` is delegated too (F02.2b).
   """
 
   # Pattern vendored from dannote/jev 0.1.0, lib/jev/server.ex:96-163.
@@ -45,7 +48,15 @@ defmodule Kerf.Decide.Server do
   @callback handle_cast(term(), term()) :: reply()
   @callback handle_info(term(), term()) :: reply()
   @callback handle_continue(term(), term()) :: reply()
-  @optional_callbacks handle_call: 3, handle_cast: 2, handle_info: 2, handle_continue: 2
+  @callback terminate(reason :: term(), term()) :: term()
+  @callback code_change(old_vsn :: term(), term(), extra :: term()) ::
+              {:ok, term()} | {:error, term()}
+  @optional_callbacks handle_call: 3,
+                      handle_cast: 2,
+                      handle_info: 2,
+                      handle_continue: 2,
+                      terminate: 2,
+                      code_change: 3
 
   defmacro __using__(_opts) do
     quote do
@@ -67,6 +78,9 @@ defmodule Kerf.Decide.Server do
 
   @impl GenServer
   def init({mod, arg}) do
+    # So terminate/2 also runs on a supervisor shutdown, not only GenServer.stop.
+    Process.flag(:trap_exit, true)
+
     case mod.init(arg) do
       {:ok, s} -> {:ok, %{mod: mod, s: s, pending: %{}}}
       {:ok, s, extra} -> {:ok, %{mod: mod, s: s, pending: %{}}, extra}
@@ -120,6 +134,29 @@ defmodule Kerf.Decide.Server do
     if function_exported?(mod, :handle_info, 2),
       do: handle_return(mod.handle_info(msg, st.s), st, :info),
       else: {:noreply, st}
+  end
+
+  @impl GenServer
+  def terminate(reason, %{mod: mod, s: s, pending: pending}) do
+    # Requests are async_nolink: without this they would outlive the server.
+    Enum.each(pending, fn {_ref, %{task: task, timer: timer}} ->
+      Process.cancel_timer(timer)
+      Task.Supervisor.terminate_child(Kerf.Decide.TaskSupervisor, task.pid)
+    end)
+
+    if function_exported?(mod, :terminate, 2), do: mod.terminate(reason, s), else: :ok
+  end
+
+  @impl GenServer
+  def code_change(old_vsn, %{mod: mod, s: s} = st, extra) do
+    if function_exported?(mod, :code_change, 3) do
+      case mod.code_change(old_vsn, s, extra) do
+        {:ok, s} -> {:ok, %{st | s: s}}
+        error -> error
+      end
+    else
+      {:ok, st}
+    end
   end
 
   # ---------- requests and answers ----------
