@@ -126,7 +126,10 @@ differs), `:pair_fact_blank`, `:counts_mismatch`, `:language_invalid`, `:unknown
 `:question_set_keys` (keys ≠ `QuestionSet.order/0` as a set), `:frozen` (any mutation —
 `put_label/4`, `put_tier/5`, `put_language/3`, `add_synthetic_item/4`, `mark_pair/5` — or a second
 `freeze/4` on a manifest whose `frozen_at` is set: `{:error, [{:frozen, item_id | nil, _} | _]}`,
-manifest unchanged; owner amendment to D1 RED, 2026-10-20, F08.4/F08.5).
+manifest unchanged; owner amendment to D1 RED, 2026-10-20, F08.4/F08.5), `:question_def_invalid`
+(manifest-level, emitted once before any per-item check, `{:question_def_invalid, nil,
+{question_key, reason}}` with reason `:options_not_list` / `:levels_not_list` / …; heads the
+violation list; the per-item `:unknown_question_type` is not emitted for such a manifest — D1b, S-26).
 
 Freeze rules (`freeze/4`): refuses unless every item has `labels` and `tier`; ≥ 200 **real** items
 (`counts.total − counts.pairs`, i.e. `doc_id` non-nil — F08.1 counts exported mails; synthetic pair
@@ -376,6 +379,14 @@ H3 after D1 lands on `main` and after H1b; H4 after H3 (S-2 is decided: see §10
 **RED tests:** `test/eval/manifest_test.exs` (load/validate/save round-trip; every violation code in §2.1 with one failing manifest each; `:duplicate_doc_id` fires for two real items with the same `doc_id` and does **not** fire for two synthetic items with `doc_id: nil`; `put_label` rejects wrong types and unknown options, sets `labelled_at`, keeps `"adjudicated"`; `put_tier` requires reason; `labelled_by == "wido"` (S-19); `freeze` refuses on <200 / <20 pairs / unlabelled / mix shortfall unless allowed, assigns exactly 50 calibration, never a pair item, same seed → same split; `assign_split/3` quotas over the eligible pool with each (language, tier) stratum ∈ {⌊quota⌋, ⌈quota⌉} and a total of exactly n (S-18); `validate` rejects a `question_set` whose keys are not exactly `QuestionSet.order/0` (`:question_set_keys`); `training_export` excludes calibration; `items(:calibration)` returns 50; `ready_for_run?` fails when a `tiered_at` > `frozen_at` or unfrozen; `sha256/1`), `test/eval/manifest/synthetic_test.exs` (seeded, validates, 220/24 defaults, no address outside `example.invalid`, same seed → identical JSON; `build()` has 244 items of which 220 real and 24 synthetic (`counts.pairs == 24`); `build(frozen: false)` then `freeze/4` succeeds and equals `build()`'s split (50 calibration); `build(n: 8, pairs: 2)` has 10 items, is frozen, validates, `ready_for_run?` `:ok`, exactly 1 calibration item, no pair item in calibration — S-17), `test/eval/manifest/language_test.exs` (NL/DE/EN sample sentences, `"und"` for empty), `test/eval/manifest/overrides_test.exs` (SPEC_D line shape, bad `label_true`, malformed line → error), `test/eval/manifest/question_set_test.exs` (`order/0` is literally `["category", "needs_reply", "urgency", "deadline_present", "client"]`; `phase_b/1` has exactly those keys; category options == `Kerf.Decide.OptionSet.triage_categories() |> labels`, `"none"` last in client).
 **GREEN gate:** `mix test test/eval/manifest_test.exs test/eval/manifest/ --no-start --seed 1` and `--seed 99999` green; full suite both seeds; compile/dialyzer clean.
 
+### D1b — Question-definition shape check, never a raise  (model: Opus kept — lead recommendation, see S-26; owner go 21:11, option (a))
+
+**Closes:** F08.1/F08.2 "nothing raises" for `load/1` and `validate/1` on a malformed `question_set` (S-26).
+**Files:** modify `lib/kerf/eval/manifest.ex` only. Tests: `test/eval/manifest_test.exs` only.
+**RED tests:** two `load/1` tests on a tmp `manifest.json` written from `Synthetic.build()` with the `question_set` hand-edited: (1) `"category"` `"options"` set to a non-list, (2) `"urgency"` `"levels"` set to a non-list. Each asserts `{:error, [{:question_def_invalid, nil, {"category", _}} | _]}` (resp. `{"urgency", _}`) — the code heads the list — and that no `{:unknown_question_type, _, _}` is in the list. In RED these fail in-body (today the call raises). Commit `test(RED): SPEC_H D1b — question_set definition shape is a violation, never a raise (F08.1, F08.2)`.
+**GREEN:** one manifest-level question-definition shape check run once before the per-item checks, emitting `{:question_def_invalid, nil, {question_key, reason}}`; `is_list` guards so `check_label/4` cannot raise; per-item question-type checks are skipped for a manifest whose definitions are invalid. Commit `feat: Manifest.validate/1 — manifest-level question definition check (SPEC_H F08.1, F08.2, S-26)`.
+**GREEN gate:** `mix test test/eval/manifest_test.exs test/eval/manifest/ --no-start` both seeds; full suite both seeds; dialyzer 0 new. Branch starts on top of ff0b859; if `main` has moved (owner merge), rebase first.
+
 ### D2 — Export (`Kerf.Eval.Export`, `mix kerf.eval.export`) and `mix kerf.eval.freeze`  (model: Sonnet)
 
 **Closes:** F08.1 (export with real From/Subject/Date via `source_metadata`), F08.7 (seeding from overrides, `"adjudicated"`).
@@ -522,6 +533,9 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 | 2026-10-20 | D1 | RED amendment #3 (sha256 ok/error tuple, +5/−1 in the test file) re-gated by lead: task files 0/119, 119 RuntimeError skeleton raises (F08.1 ×9, F08.2 ×7, F08.5 ×97, F08.7 ×6), identical locations both seeds; full suite seed 1: 1328/1447 passed, 119 failed (D1 files only), 14 excluded; seed 99999: 1327/1447, 120 failed = 119 D1 + accepted `alerting_test.exs:135` flake; compile: the 3 Postgrex warnings; nothing under lib/, mix.lock unchanged | 7bdcc9b | 1 / 99999 | passed; GREEN D1 authorization relayed for this sha 20:57 — executor committing GREEN on top |
 | 2026-10-20 | H2 | RED gated by lead: branch rebased onto main (parent 4c9edd4); 4 new files (2 skeletons, 2 test files, +1472); task files 70/145 passed (the 70 H1 tests), 75 RuntimeError skeleton raises (F09.1 ×35, F09.2 ×14, F09.8 ×9, F09.7 ×6, F09.3 ×3, F09.5 ×3, F09.6 ×3, F09.4 ×1, F07.3 ×1), identical failure locations both seeds; full suite seed 1: 1398/1473 passed, 75 failed (score_test 66, report_test 9), 14 excluded; seed 99999: 1397/1473, 76 = 75 + accepted `process_health_test.exs:90` flake; compile: the 3 Postgrex warnings, 0 test-compile warnings; mix.lock unchanged; skeletons use the same apply(:erlang, :error, …) form accepted for D1 | 5077b60 | 1 / 99999 | awaiting owner GREEN authorization; contract choices under S-25 need the owner's yes/no before GREEN (one of them, F09.1 nil-baseline → pending, changes gate semantics) |
 | 2026-10-20 | D1 | GREEN gated by lead: task files 119/119 both seeds; full suite seed 1: 1447/1447, 14 excluded; seed 99999: 1446/1447, the one failure the accepted `alerting_test.exs:135` flake; diff 7bdcc9b..ff0b859 = 5 lib files under lib/kerf/eval/manifest* (+948/−50), nothing under test/, mix.lock unchanged, no file outside the owner block since 891d0ee; compile: the 3 Postgrex warnings; format clean; dialyzer 26 = pre-existing baseline, 0 lines mentioning lib/kerf/eval | ff0b859 | 1 / 99999 | ready for owner merge to main; S-24 decisions and S-26 defect for owner acceptance/triage |
+| 2026-10-20 | D1 | GREEN accepted by owner 21:11, S-24 accepted in full; owner merging eval/data to main | ff0b859 | — | D1b dispatched (option (a)); D2/D3/D4 after the merge |
+| 2026-10-20 | H2 | S-25 ruled (S-25b): (1)–(4), (6)–(11) accepted; (5) overturned on F09.1; RED amendment relayed 21:12 | — | — | re-gate the amendment sha, then GREEN H2 authorized on it |
+| 2026-10-20 | D1b | dispatched to kerf-eval-data 21:12 (stays on Opus) | — | — | RED expected: test(RED): SPEC_H D1b — question_set definition shape is a violation, never a raise (F08.1, F08.2) |
 | — | H1b | RED — pending, starts after H2 GREEN is gated | — | — | — |
 | — | H1b | GREEN — pending | — | — | — |
 
@@ -719,6 +733,14 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
   same report. Lead view: (1)–(4), (6)–(11) are the natural reading of §2.4; (5)'s F09.1 rule is a
   semantic choice the owner should confirm or overturn (alternative: "fail" when the easy clause
   fails regardless of the baseline, "pending" only when easy passes and the baseline is nil).
+  **S-25b (owner ruling 2026-10-20 21:11 → addendum 04):** (1)–(4), (6)–(11) accepted as pinned.
+  (5) overturned on F09.1 only: F09.1 = "fail" when category-easy < 0.90 regardless of the
+  baseline; "pending" only when easy ≥ 0.90 and `baseline_accuracy` is nil; "pass" when both
+  clauses hold. RED amendment on `eval/harness` (test file only, on top of 5077b60): the one F09.1
+  expectation changes to "fail" and a second case is added (easy fails, baseline nil → "fail");
+  commit `test(RED): SPEC_H H2 — F09.1 easy clause fails independently of the baseline (F09.1)`;
+  lead re-gates; GREEN H2 authorized on that sha. Addendum 04 will cover S-22 through S-26 once H2
+  and D1b are green.
 - **S-26 (defect found at D1 GREEN by the executor's pre-commit reviewer, confirmed by the
   executor, no test covers it; owner triage)** `Manifest.validate/1` can still raise on a
   hand-edited `question_set`: a choice question whose `"options"` is not a list raises in the `in`
