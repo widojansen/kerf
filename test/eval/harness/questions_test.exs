@@ -60,11 +60,23 @@ defmodule Kerf.Eval.Harness.QuestionsTest do
     Question.choice(:category, "Which category?", OptionSet.new!(@categories))
   end
 
-  # Independent re-statement of plan 2.3: identity at 0, then a seeded shuffle
-  # under a 3-tuple (a 4-tuple makes :rand.seed/2 raise).
+  # Independent re-statement of plan 7 H1b (S-22): a functional Fisher–Yates over
+  # :rand.uniform_s/2, seeded with :rand.seed_s(:exsss, {seed, item_index * 64 +
+  # question_index, order_index}) (the 3-tuple of A3.11) and the state threaded
+  # through every step. For i from k − 1 down to 1: {j, state} = uniform_s(i + 1),
+  # j ∈ 1..i+1, swap a[i] and a[j − 1]. Never calls lib/.
   defp expected_order(labels, seed, item_index, question_index, order_index) do
-    :rand.seed(:exsss, {seed, item_index * 64 + question_index, order_index})
-    Enum.shuffle(labels)
+    state = :rand.seed_s(:exsss, {seed, item_index * 64 + question_index, order_index})
+    k = length(labels)
+    a = labels |> Enum.with_index() |> Map.new(fn {label, i} -> {i, label} end)
+
+    {a, _state} =
+      Enum.reduce((k - 1)..1//-1, {a, state}, fn i, {a, state} ->
+        {j, state} = :rand.uniform_s(i + 1, state)
+        {%{a | i => a[j - 1], (j - 1) => a[i]}, state}
+      end)
+
+    Enum.map(0..(k - 1), &a[&1])
   end
 
   # ---------- from_question_set/1 ----------
@@ -171,6 +183,28 @@ defmodule Kerf.Eval.Harness.QuestionsTest do
     orders = Questions.orders_for(category_question(), 1, 10_000, 63, 6)
 
     assert Enum.at(orders, 5) == expected_order(@categories, 1, 10_000, 63, 5)
+  end
+
+  test "orders_for/5 leaves the caller's :rand state untouched" do
+    :rand.seed(:exsss, {1, 2, 3})
+    before = :rand.export_seed()
+
+    Questions.orders_for(category_question(), 7, 3, 2, 6)
+
+    assert :rand.export_seed() == before
+  end
+
+  test "orders_for/5 golden: seed 7, item 3, question 2 gives these six orders" do
+    # Produced once by expected_order/5 above (H1b RED); a drift of the algorithm
+    # or of the seeding fails here.
+    assert Questions.orders_for(category_question(), 7, 3, 2, 6) == [
+             ["business", "personal", "newsletter", "transactional", "spam", "social"],
+             ["transactional", "social", "spam", "personal", "newsletter", "business"],
+             ["business", "spam", "personal", "newsletter", "transactional", "social"],
+             ["spam", "social", "transactional", "personal", "newsletter", "business"],
+             ["social", "newsletter", "business", "transactional", "spam", "personal"],
+             ["spam", "newsletter", "business", "transactional", "social", "personal"]
+           ]
   end
 
   test "orders_for/5 gives nil for every order of a non-Choice question" do
