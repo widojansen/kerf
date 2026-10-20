@@ -103,7 +103,7 @@ defmodule Kerf.Eval.ManifestTest do
     end
 
     test ":duplicate_doc_id does not fire for two added synthetic items with doc_id nil" do
-      m = Synthetic.build()
+      m = Synthetic.build(frozen: false)
       [a | _] = unpaired_real(m)
       {:ok, {m, id1}} = Manifest.add_synthetic_item(m, a.id, a.state, @now)
       {:ok, {m, id2}} = Manifest.add_synthetic_item(m, a.id, a.state, @now)
