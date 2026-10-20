@@ -496,6 +496,8 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 | 2026-10-20 | — | plan approved by owner 2026-10-20 (with changes 1–8: SQL precedence, `--db` read-back, nil `doc_id`, S-2 ruling, repo plan path, worktree commands, private-tree output constraint, RED failure-kind check) | 9aa38b0 | — | executors may start D1 and H1 |
 | 2026-10-20 | — | commit-review corrections applied (addendum 03 r2: A3.7, A3.11, A3.12 → S-10, S-15) | 8b77863 | — | owner go received 16:36; D1 and H1 dispatched |
 | 2026-10-20 | D1 | blocked before RED: S-16..S-19 raised by kerf-eval-data | 9f075f0 (cherry-picked to main as efc09db) | — | lead rulings below; D1 unblocked |
+| 2026-10-20 | — | lead rulings S-16..S-19 + S-17 split arithmetic committed; D1 unblocked 17:52 | 891d0ee | — | reviewer pins → S-21 |
+| 2026-10-20 | H1 | RED gated by lead: task files 0/70 passed, 70 RuntimeError skeleton raises, identical set both seeds; full suite 1328/1398 passed, 70 failed (all H1 modules), 14 excluded, both seeds; compile clean (3 tolerated); diff vs 8b77863 = 8 files, owner block only | 44aa772 | 1 / 99999 | awaiting owner GREEN authorization |
 
 ### 10.2 Spec disagreements and corrections (stop and write here; never diverge silently)
 
@@ -603,6 +605,11 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
   - S-19 → accepted: module constant `@labelled_by "wido"`; `put_label/4` unchanged; RED asserts it.
   - Worktrees: `mix deps.get` in a fresh worktree is a lock-only fetch and is allowed; `mix.lock`
     must remain unchanged in every RED/GREEN commit (the lead's owner-block check covers it).
+- **S-21 (pins from the commit review of 891d0ee, binding for D1)** (1) "real item" means `doc_id`
+  non-nil everywhere; `counts.pairs` = number of synthetic items; `:counts_mismatch` fires when
+  `counts.total − counts.pairs` ≠ the number of `doc_id`-non-nil items. (2) `assign_split/3` uses
+  `:rand.seed_s(:exsss, {seed, 0, 0})` with threaded state, never `:rand.seed/2` (process-global).
+  (3) Language-mix thresholds are over `counts.total`; synthetic b-items copy their a-item's language.
 - **S-20 (note)** The private notes say executor worktrees live under `.claude/worktrees/<name>/`;
   the actual layout is the plan's sibling directories (`../kerf-eval-data`, `../kerf-eval-harness`).
   Owner to reconcile the private notes; executors follow the plan.
