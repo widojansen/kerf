@@ -170,7 +170,8 @@ File `lib/kerf/eval/harness/run.ex`. Line 1 header, then one line per answer, la
   `"isolation_state"` (question `"secret_present"`, `qtype:"noul"`, gold `false`/`true`).
 - `order` is the option list sent for a Choice question in that request; `null` for Noul/Score.
   `order_index 0` is identity (manifest order); 1..5 are `Enum.shuffle` under
-  `:rand.seed(:exsss, {seed, item_index, question_index, order_index})`.
+  `:rand.seed(:exsss, {seed, item_index * 64 + question_index, order_index})` — a 3-tuple;
+  `:rand.seed/2` raises on a 4-tuple (A3.11; `question_index < 64` always).
 - `result` keys by `qtype`: noul `{p_yes}`, choice `{label, probs, confidence}`, score
   `{expected, probs, confidence}` — exactly `Kerf.Decide.Result` minus `backend/latency_ms/provenance`.
   On adapter error: `result: null`, `error: inspect(reason)`, the run continues (F09.6 then fails).
@@ -211,13 +212,18 @@ Keys sorted recursively (`Jason.OrderedObject`) so two reports are byte-identica
 
 ### 2.5 PII guard artefact (owner: kerf-eval-data)
 
-`priv/eval/decide_address_hashes.txt` — committed, one lowercase hex SHA-256 per line of each
-downcased, trimmed address in the set (`from` of every real item), sorted, header line `# sha256 of
-addresses in the decide set; regenerate with mix kerf.eval.export --hashes-out`. The export writes
-it to `--hashes-out`; the owner copies/commits it. `test/eval/pii_guard_test.exs` extracts
-`~r/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/` tokens from every file under
-`docs/superpowers/specs/`, `test/`, `lib/`, `docs/superpowers/plans/`, hashes them, asserts none is in the list
-(spec names the first two directories; the extra two are a superset, recorded in Status S-10).
+The address-hash list is **not committed** (A3.7: unsalted SHA-256 of addresses in a public repo is a
+membership oracle over the owner's correspondents; `priv/eval/` is not created). It lives at
+`~/Projects/kerf/private/eval/decide/address_hashes.txt`, written by `mix kerf.eval.export
+--hashes-out`: one lowercase hex SHA-256 per line of each downcased, trimmed address in the set
+(`from` of every real item), sorted, header line `# sha256 of addresses in the decide set`.
+`test/eval/pii_guard_test.exs` is tagged `@moduletag :pii_guard`, reads the list path from the
+`KERF_EVAL_HASHES` environment variable, extracts `~r/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/`
+tokens from every file under `docs/superpowers/specs/`, `docs/superpowers/plans/`, `test/`, `lib/`,
+hashes them and asserts none is in the list. When the variable is unset the test is **skipped with a
+printed notice** (`IO.puts` naming the variable, then `ExUnit` skip), never silently green. The
+lead's gate runs with `KERF_EVAL_HASHES` set once the real list exists and treats a skip as a gate
+failure from then on (§9).
 
 ### 2.6 Adapter seam
 
@@ -226,7 +232,8 @@ and nothing else; no `ask` injection, no direct `adapter.ask/3`. `state` is
 `%Kerf.Decide.State{content: "From: …\nSubject: …\nDate: …\n\n<body>", provenance: %{taint: :tainted, origin: :ingress, sources: [item.id]}}`
 (SPEC_G §4 shape; swap for `Kerf.Provenance.ingress(:email)` when it lands — Status S-4).
 `extras`: `harness_gold: %{question_name => gold}` only when the adapter is `Kerf.Eval.Adapters.Oracle`;
-`harness_seed: {seed, item_index, question_index, order_index}` only for `Kerf.Eval.Adapters.Random`.
+`harness_seed: {seed, item_index * 64 + question_index, order_index}` (the 3-tuple `:rand.seed/2`
+accepts, A3.11) only for `Kerf.Eval.Adapters.Random`.
 Real adapters receive neither.
 
 Adapters (`lib/kerf/eval/adapters/`): `Random` — uniform random probability vectors (normalized
@@ -300,7 +307,7 @@ UI action (`mix kerf.eval.freeze`, owner-run).
 
 | Executor | Owns (create/modify) | Tests |
 |---|---|---|
-| **kerf-eval-data** (F08) | `lib/kerf/eval/manifest.ex`, `lib/kerf/eval/manifest/**`, `lib/kerf/eval/export.ex`, `lib/mix/tasks/kerf.eval.export.ex`, `lib/mix/tasks/kerf.eval.freeze.ex`, `lib/kerf/dashboard/live/eval/**`, `lib/kerf/dashboard/router.ex` (one guarded block), `config/dev.exs`, `config/test.exs` (the `:eval_ui` entry only), `priv/eval/` | `test/eval/manifest_test.exs`, `test/eval/manifest/**`, `test/eval/export_test.exs`, `test/eval/pii_guard_test.exs`, `test/dashboard/eval/**` |
+| **kerf-eval-data** (F08) | `lib/kerf/eval/manifest.ex`, `lib/kerf/eval/manifest/**`, `lib/kerf/eval/export.ex`, `lib/mix/tasks/kerf.eval.export.ex`, `lib/mix/tasks/kerf.eval.freeze.ex`, `lib/kerf/dashboard/live/eval/**`, `lib/kerf/dashboard/router.ex` (one guarded block), `config/dev.exs`, `config/test.exs` (the `:eval_ui` entry only) | `test/eval/manifest_test.exs`, `test/eval/manifest/**`, `test/eval/export_test.exs`, `test/eval/pii_guard_test.exs`, `test/dashboard/eval/**` |
 | **kerf-eval-harness** (F09) | `lib/kerf/eval/harness.ex`, `lib/kerf/eval/harness/**`, `lib/kerf/eval/adapters/{random,oracle}.ex`, `lib/mix/tasks/kerf.eval.decide.ex` | `test/eval/harness_test.exs`, `test/eval/harness/**`, `test/eval/adapters/**` |
 | **lead** (this session) | `docs/superpowers/plans/2026-10-20-decide-eval-step2-3.md`, gate runs, status relay | — |
 | **owner** | `docs/superpowers/specs/SPEC_H_addendum_03.json`, everything in §8 | — |
@@ -375,8 +382,8 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 ### D3 — PII guard  (model: Sonnet)
 
 **Closes:** F08.6.
-**Files:** create `lib/kerf/eval/manifest/pii.ex` (`address_hashes(manifest) :: [hex]`, `write_hashes(hashes, path)`, `scan(paths, hashes) :: [{file, line_no}]`), `priv/eval/decide_address_hashes.txt` (header line only until the owner commits the real list).
-**RED tests:** `test/eval/pii_guard_test.exs` — the committed hash list parses; scanning the four directories finds no hashed address (seeded test: write a tmp file containing a synthetic address whose hash is in a tmp list → `scan` reports it; the live scan is empty).
+**Files:** create `lib/kerf/eval/manifest/pii.ex` (`address_hashes(manifest) :: [hex]`, `write_hashes(hashes, path)`, `read_hashes(path) :: {:ok, [hex]} | {:error, term}`, `scan(paths, hashes) :: [{file, line_no}]`). No file under the repo (A3.7).
+**RED tests:** `test/eval/pii_guard_test.exs` (`@moduletag :pii_guard`) — the list at `KERF_EVAL_HASHES` parses via `read_hashes/1`; when the variable is unset the module prints a notice naming `KERF_EVAL_HASHES` and skips (asserted with a tmp env in a helper test: `System.delete_env` → notice captured with `ExUnit.CaptureIO`, no assertion runs); with it set, scanning the four directories finds no hashed address; unit test of `scan/2` with a tmp file containing a synthetic address whose hash is in a tmp list → reported; `write_hashes/2` then `read_hashes/1` round-trips and sorts.
 **GREEN gate:** `mix test test/eval/pii_guard_test.exs --no-start` both seeds.
 
 ### D4 — Labelling page  (model: Sonnet)
@@ -394,7 +401,7 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 ### H1 — Run format, question building, Random and Oracle adapters  (model: Sonnet)
 
 **Closes:** F09.6 (in-schema enforced at the seam — the test proves both adapters pass `Kerf.Decide.ask/3` validation), F09.8 (normalize), F09.9 (the two adapters).
-**Files:** create `lib/kerf/eval/harness/run.ex` (`header/1`, `answer_line/1`, `end_line/1`, `write/3`, `read/1 :: {:ok, {header, lines, end}} | {:error, term}`, `normalize/1`), `lib/kerf/eval/harness/questions.ex` (`from_question_set(question_set) :: [Kerf.Decide.Question.t()]` in key order, names atomized from the fixed Phase B key list only — unknown keys are an error, never `String.to_atom/1`; `permute(questions, orders)`; `orders_for(question, seed, item_index, question_index, n)`; `secret_probe(token)`), `lib/kerf/eval/adapters/random.ex`, `lib/kerf/eval/adapters/oracle.ex`.
+**Files:** create `lib/kerf/eval/harness/run.ex` (`header/1`, `answer_line/1`, `end_line/1`, `write/3`, `read/1 :: {:ok, {header, lines, end}} | {:error, term}`, `normalize/1`), `lib/kerf/eval/harness/questions.ex` (`from_question_set(question_set) :: [Kerf.Decide.Question.t()]` in key order, names atomized from the fixed Phase B key list only — unknown keys are an error, never `String.to_atom/1`; `permute(questions, orders)`; `orders_for(question, seed, item_index, question_index, n)` (seeds `:rand` with the 3-tuple of §2.3 per order index); `secret_probe(token)`), `lib/kerf/eval/adapters/random.ex`, `lib/kerf/eval/adapters/oracle.ex`.
 **RED tests:** `test/eval/harness/run_test.exs` (JSONL round-trip, deterministic encoding, `normalize` drops exactly the four keys, malformed file → error), `test/eval/harness/questions_test.exs` (hand-built `question_set` map → 5 questions, category OptionSet in manifest order, `orders_for` seeded and identity at index 0, unknown key → error), `test/eval/adapters/random_test.exs` and `oracle_test.exs` (each through `Kerf.Decide.ask/3`: results in-schema for all three types; Random identical for identical `harness_seed`, different otherwise; Oracle picks `harness_gold` under any option order, `p_yes` ≥ 0.9 iff gold true).
 **GREEN gate:** `mix test test/eval/harness/ test/eval/adapters/ --no-start` both seeds; full suite both seeds.
 
@@ -409,7 +416,7 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 ### H3 — Harness orchestration over a manifest  (model: Sonnet) — **starts after D1 is on `main`**
 
 **Closes:** F09.3/F09.4/F09.6 (request generation), F09.8 (deterministic order), F08.4 (refuses an unready manifest).
-**Files:** create `lib/kerf/eval/harness.ex` — `run(manifest, opts) :: {:ok, %{header, lines, end}} | {:error, term}` with `opts`: `adapter`, `adapter_opts`, `seed`, `permutations` (6), `isolation_items` (30: the first 30 eval items by id), `limit`, `skip_latency`, `sink` (fn line -> :ok, default no-op; the mix task streams to disk). Builds the state string and provenance per §2.6; asks main requests per order, separate requests, isolation probes with token `"KERF-" <> Base.encode16(:crypto.hash(:sha256, "#{seed}"), case: :lower) |> binary_part(0, 12)`; never calls an adapter directly (test greps `lib/kerf/eval/harness.ex` for `.ask(` other than `Kerf.Decide.ask`).
+**Files:** create `lib/kerf/eval/harness.ex` — `run(manifest, opts) :: {:ok, %{header, lines, end}} | {:error, term}` with `opts`: `adapter`, `adapter_opts`, `seed`, `permutations` (6), `isolation_items` (30: the first 30 eval items by id), `limit`, `skip_latency`, `sink` (fn line -> :ok, default no-op; the mix task streams to disk). Builds the state string and provenance per §2.6; asks main requests per order, separate requests, isolation probes with token `"KERF-" <> (Base.encode16(:crypto.hash(:sha256, Integer.to_string(seed)), case: :lower) |> binary_part(0, 12))` — parenthesised so the 12 hex chars follow the prefix (A3.12; the H3 RED asserts `token =~ ~r/\AKERF-[0-9a-f]{12}\z/`); never calls an adapter directly (test greps `lib/kerf/eval/harness.ex` for `.ask(` other than `Kerf.Decide.ask`).
 **RED tests:** `test/eval/harness_test.exs` using `Kerf.Eval.Manifest.Synthetic.build(n: 8, pairs: 2)`: line count = items × (6×5 + 5) + probes; order of lines as §2.3; `order_index 0` is identity; same seed → identical normalized output across two runs (F09.8); unfrozen or late-tiered manifest → `{:error, …}` (F08.4); a crashing stub adapter on one item yields an error line and the run completes; `harness_gold` present only for Oracle, `harness_seed` only for Random (stub adapter records opts); `limit` recorded in header.
 **GREEN gate:** `mix test test/eval/harness_test.exs --no-start` both seeds; full suite both seeds.
 
@@ -428,7 +435,7 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 - H-2 Provide `~/Projects/kerf/private/eval/decide/clients.txt` (one client id per line) before D2's first real export.
 - H-3 Run `mix kerf.eval.freeze --manifest … --seed 1` (point of no return; `--allow-mix-shortfall` is your call, recorded in the manifest).
 - H-4 Copy the frozen manifest to the Spark `~/eval/decide/manifest.json` (scp = state-changing on the Spark).
-- H-5 Commit `priv/eval/decide_address_hashes.txt` produced by `--hashes-out`.
+- H-5 Run `mix kerf.eval.export … --hashes-out ~/Projects/kerf/private/eval/decide/address_hashes.txt`; keep the file in the private tree; export `KERF_EVAL_HASHES=<that path>` in the shell the lead's gate runs use (A3.7). Nothing is committed.
 - H-6 Commit `SPEC_H_addendum_03.json` from the Status entries marked "→ addendum 03".
 - H-7 Authorize each GREEN; merge each gated branch to `main`; `git push`.
 - H-8 Create the two worktrees and start the executor sessions (§5 commands).
@@ -448,6 +455,8 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
    `mix test --seed 1`, `mix test --seed 99999` (full suite: only the new tests fail),
    `mix compile --warnings-as-errors` (3 tolerated), owner-block check
    (`git diff --stat main..<sha>`), back to `main`, one message to the owner with the counts and kinds.
+   Once the real address-hash list exists (H-5), every gate run is made with `KERF_EVAL_HASHES`
+   set, and a printed `:pii_guard` skip in the output is a gate failure (A3.7).
 3. Owner authorizes GREEN. Lead relays.
 4. Executor implements, no edits under `test/`, commits
    `feat: <module> … (SPEC_H F0x.y)`; messages "GREEN <task> <sha>" and idles.
@@ -463,7 +472,8 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 | Date | Task | Event | Sha | Seeds 1 / 99999 | Notes |
 |---|---|---|---|---|---|
 | 2026-10-20 | — | plan written | — | — | owner review |
-| 2026-10-20 | — | plan approved by owner 2026-10-20 (with changes 1–8: SQL precedence, `--db` read-back, nil `doc_id`, S-2 ruling, repo plan path, worktree commands, private-tree output constraint, RED failure-kind check) | — | — | executors may start D1 and H1 |
+| 2026-10-20 | — | plan approved by owner 2026-10-20 (with changes 1–8: SQL precedence, `--db` read-back, nil `doc_id`, S-2 ruling, repo plan path, worktree commands, private-tree output constraint, RED failure-kind check) | 9aa38b0 | — | executors may start D1 and H1 |
+| 2026-10-20 | — | commit-review corrections applied (addendum 03 r2: A3.7, A3.11, A3.12 → S-10, S-15) | — | — | awaiting owner go to dispatch D1 and H1 |
 
 ### 10.2 Spec disagreements and corrections (stop and write here; never diverge silently)
 
@@ -496,8 +506,14 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
   spec change.
 - **S-9 (decision)** Freeze refuses a language-mix shortfall unless `--allow-mix-shortfall`, and
   records the acknowledgement in the manifest (spec open question 8).
-- **S-10 (note)** The PII guard scans `lib/` and `docs/superpowers/plans/` in addition to the two
-  directories F08.6 names (superset, stricter).
+- **S-10 (binding, A3.7 r2)** The PII guard scans `lib/` and `docs/superpowers/plans/` in addition
+  to the two directories F08.6 names (superset, stricter). The address-hash list is never committed
+  (membership oracle); it lives in the private tree and the guard reads `KERF_EVAL_HASHES`, skipping
+  with a printed notice when unset. Corrected after the commit review of 9aa38b0.
+- **S-15 (binding, A3.11/A3.12 r2)** Per-request `:rand` seeds are the 3-tuple
+  `{seed, item_index * 64 + question_index, order_index}` (4-tuples raise); the isolation token
+  expression is parenthesised so 12 hex chars follow `KERF-`. Corrected after the commit review of
+  9aa38b0; the freeze seed `{seed, 0, 0}` is unchanged.
 - **S-11 (note)** Addendum 01 pre-authorized `config :kerf, Kerf.Decide, adapter:`; it was never
   added and this plan does not need it (the harness passes `adapter:` per call).
 - **S-12 (note)** `state_hash` is deferred to step 5 (A2.1); run lines join on `item_id`/`doc_id`.

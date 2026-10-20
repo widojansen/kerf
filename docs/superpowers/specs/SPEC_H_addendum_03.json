@@ -6,7 +6,6 @@
   "status": "binding — supersedes the cited SPEC_H / addendum text; earlier files are not edited inline",
   "plan": "docs/superpowers/plans/2026-10-20-decide-eval-step2-3.md (lead: kerf-lead; approved by owner 2026-10-20)",
   "source": "Plan §10.2 Status entries S-1 … S-14, reviewed by Claude Desktop against SPEC_H F08/F09",
-
   "corrections": [
     {
       "id": "A3.1",
@@ -41,7 +40,7 @@
     {
       "id": "A3.7",
       "supersedes": "F08.6 scanned directories",
-      "text": "The PII guard scans docs/superpowers/specs/, docs/superpowers/plans/, test/ and lib/ (superset of the two the spec names) against priv/eval/decide_address_hashes.txt. (S-10)"
+      "text": "The PII guard scans docs/superpowers/specs/, docs/superpowers/plans/, test/ and lib/ (superset of the two the spec names). The address-hash list is NOT committed: unsalted SHA-256 of addresses in a public repo is a membership oracle over the owner's correspondents. It lives at ~/Projects/kerf/private/eval/decide/address_hashes.txt (produced by mix kerf.eval.export --hashes-out); the guard test reads the path from KERF_EVAL_HASHES, is tagged :pii_guard, and when the variable is unset it is SKIPPED with a printed notice, never silently green. The lead's gate runs the suite with KERF_EVAL_HASHES set once the real list exists and treats a skip as a gate failure from that point. priv/eval/ is not created. (S-10, commit-review 9aa38b0)"
     },
     {
       "id": "A3.8",
@@ -57,14 +56,23 @@
       "id": "A3.10",
       "supersedes": "addendum 01 'pre_authorized_touches_for_green' (config :kerf, Kerf.Decide, adapter:)",
       "text": "Never added and not needed: the harness and every caller pass adapter: per call. Withdrawn. (S-11)"
+    },
+    {
+      "id": "A3.11",
+      "supersedes": "plan §2.3 / §2.6 harness_seed shape",
+      "text": ":rand.seed/2 takes an integer or a 3-tuple. Per-request seeds are {seed, item_index * 64 + question_index, order_index} (question_index < 64 always). The freeze seed {seed, 0, 0} is unchanged. (commit-review 9aa38b0)"
+    },
+    {
+      "id": "A3.12",
+      "supersedes": "plan §7 H3 isolation token",
+      "text": "token = \"KERF-\" <> (Base.encode16(:crypto.hash(:sha256, Integer.to_string(seed)), case: :lower) |> binary_part(0, 12)) — 12 hex chars after the prefix; the parentheses are the point. (commit-review 9aa38b0)"
     }
   ],
-
   "unchanged_and_confirmed": [
     "state_hash remains deferred to step 5 per A2.1; run lines join on item_id/doc_id, F07.3 joins on (model_id, question_name). (S-12)",
     "Kerf.Provenance / Kerf.Gate still absent; the harness builds the SPEC_G §4-shaped provenance map as step 1 did. (S-4)",
     "F09 gate thresholds are the SPEC_H values; revisable only by addendum."
   ],
-
-  "working_method_note": "From step 2 onward, work follows the lead/executor model: the lead (kerf-lead) plans and gates, executors implement in sibling worktrees, the owner authorises each GREEN and runs push/freeze/Spark copies, Claude Desktop writes specs/addenda and reviews plans and RED tests. Private operating notes: ~/Projects/kerf/private/CLAUDE.md, imported by the public CLAUDE.md."
+  "working_method_note": "From step 2 onward, work follows the lead/executor model: the lead (kerf-lead) plans and gates, executors implement in sibling worktrees, the owner authorises each GREEN and runs push/freeze/Spark copies, Claude Desktop writes specs/addenda and reviews plans and RED tests. Private operating notes: ~/Projects/kerf/private/CLAUDE.md, imported by the public CLAUDE.md.",
+  "revision": "r2 2026-10-20: A3.7 replaced and A3.11–A3.12 added after the commit-review findings on 9aa38b0 (unpushed; no consumer yet — the only time an addendum is edited in place)."
 }
