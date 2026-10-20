@@ -1,0 +1,47 @@
+{
+  "spec": "SPEC_H",
+  "addendum": 2,
+  "title": "Step 1b outcome, deferred fixes for step 5, and decisions on state_hash encoding",
+  "date": "2026-10-20",
+  "status": "binding — supersedes the cited SPEC_H / addendum-01 text; neither earlier file is edited inline",
+  "step_1_state": {
+    "green_commits": ["22b2f23 F01+F06", "6570165 F02", "65bed8f F03", "90d2eb2 1b redirects/merged URL", "463530f 1b state_hash + range checks", "b9dbae2 1b server lifecycle"],
+    "tests": "82 in test/kerf/decide/ + 2 F06.3 in the parity file; full suite 1328/0, both seeds; dialyzer 0 in Decide; owner re-ran 2026-10-20",
+    "adapter_status": "Kerf.Decide.Adapter.HTTP is now safe to point at a LOCAL Strands Decider / kev process (loopback or tailnet, redirects refused, merged URL checked). Still not for remote hosts without allow_remote and a reason."
+  },
+
+  "corrections": [
+    {
+      "id": "A2.1",
+      "supersedes": "addendum 01 A1.5 (state_hash) and the GREEN decision 'term_to_binary [:deterministic]'",
+      "text": "state_hash is a persisted join key (decide_corrections, drift baselines) and must survive an OTP major upgrade and be computable outside the BEAM (harness scoring). :erlang.term_to_binary/2 with [:deterministic] is stable only within an OTP major (OTP 28 erts-16.4 erlang.erl:9884). DECISION: state_hash = lowercase hex SHA-256 of the CANONICAL JSON of state.content — Jason-encoded with object keys sorted lexicographically at every depth, no whitespace, strings as given (no Unicode normalisation), numbers as Jason emits them. A string content is encoded as a JSON string. Implemented as a RED→GREEN pair at the START of step 5 (F07/F11), before any row is persisted; the current F07.1 test's [:deterministic] assertion is replaced in that RED. Until then no hash is stored anywhere."
+    },
+    {
+      "id": "A2.2",
+      "supersedes": "F02 non_binding_appendix (server lifecycle)",
+      "text": "Kerf.Decide.Server traps exits so terminate/2 runs on supervisor shutdown. Consequence: every linked crash arrives as {:EXIT, pid, reason}. DECISION for the step-5 RED→GREEN pair: (a) if the using module exports handle_info/2 the message is delivered to it; otherwise the wrapper stops with that reason, matching plain GenServer semantics. (b) terminate/2 kills pending tasks with Process.exit(pid, :kill) after demonitor, not Task.Supervisor.terminate_child/2, so a supervisor that is already down cannot block the module's own terminate/2. (c) handle_continue/2 is guarded with function_exported?/3 like the other optional callbacks. These are F02-shaped and land with F11, the first production `use Kerf.Decide.Server`."
+    },
+    {
+      "id": "A2.3",
+      "supersedes": "A1.8 (host policy) — adds the function base_url and relative-Location cases",
+      "text": "A 0-arity function base_url cannot be checked before send and is refused as {:remote_refused, nil}. An absolute url: in req_options wins over base_url:, matching Req.put_base_url. redirect: false is merged LAST so req_options cannot re-enable it. Known edge: allow_remote: true + function base_url + relative Location raises in URI.merge/2 rather than returning {:redirect_refused, nil}; fix in the step-5 pair (treat as {:redirect_refused, nil}). Not reachable with the default policy."
+    },
+    {
+      "id": "A2.4",
+      "supersedes": "F01.2 / F03.3 (answer normalisation) — records the 1b additions",
+      "text": "After schema checks and before result maps: Choice and Score probs must satisfy |Σp − 1| ≤ 1.0e-3 else {:schema_violation, {name, :probs_sum}}; Score expected ∈ [0, K−1] else {name, :expected_out_of_range}; Score confidence ∈ [0, 1] else {name, :confidence_out_of_range}. A %Score{} whose levels is not a list is a validation error {:invalid_request, {name, :invalid_levels}}, never a raise. All answer-level violations use the {name, reason} shape."
+    }
+  ],
+
+  "accepted_gaps": [
+    "F01.7 hook: the 3 Postgrex-generated warnings remain the only tolerated compile warnings in lib/; the runtime-compiled test Router warning is the only tolerated one in test/.",
+    "test/monitor/process_health_test.exs:147 has a 200 ms timing window that flaked once on a loaded M5 (pre-existing, unrelated to Decide). Candidate for the hygiene sitting: convert to message ordering like F02.2.",
+    "mix dialyzer reports 26 pre-existing warnings outside Decide (mix tasks, LLM providers, system_page). Not SPEC_H scope."
+  ],
+
+  "next": {
+    "step_2_F08": "Label set — the only item on the critical path that depends on the owner. Export via golden-v2 path (real headers), seed category labels from ~/eval/golden-overrides.jsonl, tier before any model run, 50 held out. Manifest + loader spec unchanged from SPEC_H F08 / A1 F08.7.",
+    "step_3_entry": "Once the manifest validates, Strands Decider 2B and GLiNER2.5-multi-Decide can be run on the M5 through the hardened HTTP adapter the same day.",
+    "hygiene_sitting": "req 0.5→0.7, bandit and the other advisories, process_health flake, 26 dialyzer items — separate from SPEC_H, any time."
+  }
+}
