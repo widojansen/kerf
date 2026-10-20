@@ -26,7 +26,9 @@ defmodule Kerf.Eval.Harness.ScoreTest do
       with Q = 5 Phase B questions and n the first `limit` items when a limit is set.
     * `histograms/1` takes `%{model_id:, confidences: %{question => [p]}}`.
     * `gates/1` takes the report without `"gates"`; it reads the run's `limit`,
-      `latency_skipped`, `baseline_accuracy` and `host_class`.
+      `latency_skipped`, `baseline_accuracy` and `host_class`. F09.1 fails on category
+      easy < 0.90 whatever the baseline; it is pending only when easy >= 0.90 and the
+      baseline is nil (owner ruling 2026-10-20).
     * `accuracy/2` and `contrastive/2` take gold, split, tier and language from the
       manifest items; an error line counts as a wrong answer in accuracy.
     * Flip rate, isolation and latency count every split; accuracy, ECE (raw and
@@ -923,8 +925,18 @@ defmodule Kerf.Eval.Harness.ScoreTest do
     assert statuses(gates) == Map.new(@gate_ids, &{&1, "pending"})
   end
 
-  test "gates/1 F09.1 is pending without a baseline accuracy" do
+  test "gates/1 F09.1 is pending without a baseline accuracy when category easy >= 0.90" do
     assert gate_status(passing_report(%{"baseline_accuracy" => nil}), "F09.1") == "pending"
+  end
+
+  test "gates/1 F09.1 fails on category easy < 0.90 even without a baseline accuracy" do
+    report =
+      put_in(
+        passing_report(%{"baseline_accuracy" => nil})["accuracy"]["category"]["by_tier"]["easy"],
+        0.89
+      )
+
+    assert gate_status(report, "F09.1") == "fail"
   end
 
   test "gates/1 F09.1 needs category easy >= 0.90 and overall >= the baseline" do
@@ -1167,6 +1179,25 @@ defmodule Kerf.Eval.Harness.ScoreTest do
     assert statuses(limited["gates"]) == Map.new(@gate_ids, &{&1, "pending"})
     # the first 2 items: 2 × 35 + 2 × min(30, 2)
     assert %{"expected" => 74, "answered" => 74} = limited["coverage"]
+  end
+
+  test "score/4 F09.1 fails without a baseline when the easy-tier category answer is wrong" do
+    items = run_items()
+
+    # it-0001 is the only eval easy item: its main order-0 category answer goes wrong
+    lines =
+      Enum.map(oracle_run(items), fn
+        %{"item_id" => "it-0001", "probe" => "main", "order_index" => 0, "question" => "category"} =
+            l ->
+          %{l | "result" => choice_result(l["order"], "spam")}
+
+        l ->
+          l
+      end)
+
+    report = Score.score(header(), lines, items, host_class: :decoder)
+
+    assert report["gates"]["F09.1"]["status"] == "fail"
   end
 
   test "score/4 counts an error line and a missing line against coverage and fails F09.6" do
