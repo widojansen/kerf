@@ -26,6 +26,7 @@ defmodule Kerf.Decide do
   @max_options 255
   @min_levels 2
   @max_levels 10
+  @probs_tolerance 1.0e-3
 
   @type results :: %{atom() => Kerf.Decide.Result.t()}
 
@@ -131,6 +132,9 @@ defmodule Kerf.Decide do
 
   defp validate_shape(%Choice{name: name}), do: invalid({name, :invalid_options})
 
+  defp validate_shape(%Score{name: name, levels: levels}) when not is_list(levels),
+    do: invalid({name, :invalid_levels})
+
   defp validate_shape(%Score{name: name, levels: levels}) do
     n = length(levels)
 
@@ -205,7 +209,8 @@ defmodule Kerf.Decide do
     do: {:ok, %{p_yes: p}}
 
   defp result(%Choice{options: %OptionSet{labels: labels}}, {:ok, %{probs: probs}}) do
-    with {:ok, ordered} <- reorder(probs, labels) do
+    with {:ok, ordered} <- reorder(probs, labels),
+         :ok <- sums_to_one(ordered) do
       {label, p_max} = Enum.max_by(ordered, &elem(&1, 1))
       k = length(labels)
       {:ok, %{label: label, probs: ordered, confidence: (p_max - 1 / k) / (1 - 1 / k)}}
@@ -214,7 +219,10 @@ defmodule Kerf.Decide do
 
   defp result(%Score{levels: levels}, {:ok, %{expected: expected, probs: probs, confidence: c}})
        when is_number(expected) and is_number(c) do
-    with {:ok, ordered} <- reorder(probs, levels) do
+    with {:ok, ordered} <- reorder(probs, levels),
+         :ok <- sums_to_one(ordered),
+         :ok <- in_range(expected, 0, length(levels) - 1, :expected_out_of_range),
+         :ok <- in_range(c, 0, 1, :confidence_out_of_range) do
       {:ok, %{expected: expected, probs: ordered, confidence: c}}
     end
   end
@@ -235,6 +243,14 @@ defmodule Kerf.Decide do
   end
 
   defp reorder(_probs, _labels), do: {:error, :invalid_probs}
+
+  defp sums_to_one(probs) do
+    total = probs |> Enum.map(&elem(&1, 1)) |> Enum.sum()
+    if abs(total - 1) <= @probs_tolerance, do: :ok, else: {:error, :probs_sum}
+  end
+
+  defp in_range(value, min, max, _reason) when value >= min and value <= max, do: :ok
+  defp in_range(_value, _min, _max, reason), do: {:error, reason}
 
   defp prob_key({key, _p}), do: key
   defp prob_key(_other), do: nil
@@ -279,6 +295,11 @@ defmodule Kerf.Decide do
     if function_exported?(backend, :info, 0), do: backend.info()[:model_id]
   end
 
+  # [:deterministic] so the hash does not depend on a map's in-memory layout.
+  # OTP guarantees the encoding only within one major release; a join key
+  # meant to survive an OTP upgrade needs its own canonical encoding (F07.1).
   defp state_hash(%State{content: content}),
-    do: :crypto.hash(:sha256, :erlang.term_to_binary(content)) |> Base.encode16(case: :lower)
+    do:
+      :crypto.hash(:sha256, :erlang.term_to_binary(content, [:deterministic]))
+      |> Base.encode16(case: :lower)
 end
