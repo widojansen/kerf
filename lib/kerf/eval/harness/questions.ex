@@ -121,15 +121,20 @@ defmodule Kerf.Eval.Harness.Questions do
 
   # ---------- ordering ----------
 
-  # :rand.seed/2 takes a 3-tuple (A3.11) and Enum.shuffle/1 reads the process
-  # :rand state, so shuffle in a short-lived process and leave the caller's alone.
+  # Functional Fisher–Yates over an explicit :rand state (S-22): the seed is the
+  # A3.11 3-tuple and the state is threaded through every swap, so the order is
+  # pinned to :rand.uniform_s/2 and the caller's process :rand state is untouched.
   defp shuffled(labels, seed) do
-    fn ->
-      :rand.seed(:exsss, seed)
-      Enum.shuffle(labels)
-    end
-    |> Task.async()
-    |> Task.await()
+    k = length(labels)
+    slots = labels |> Enum.with_index() |> Map.new(fn {label, i} -> {i, label} end)
+
+    {slots, _state} =
+      Enum.reduce((k - 1)..1//-1, {slots, :rand.seed_s(:exsss, seed)}, fn i, {slots, state} ->
+        {j, state} = :rand.uniform_s(i + 1, state)
+        {%{slots | i => slots[j - 1], (j - 1) => slots[i]}, state}
+      end)
+
+    Enum.map(0..(k - 1)//1, &Map.fetch!(slots, &1))
   end
 
   defp permute_one(question, :error), do: {:ok, question}
