@@ -123,7 +123,10 @@ only — synthetic pair items all carry `doc_id: nil` and must not collide), `:u
 `"true"` for a Noul — JSON round-trip strings are rejected, not coerced), `:urgency_out_of_range`,
 `:empty_body`, `:empty_tier_reason`, `:pair_incomplete` (≠ 2 items), `:pair_no_flip` (no label
 differs), `:pair_fact_blank`, `:counts_mismatch`, `:language_invalid`, `:unknown_label_source`,
-`:question_set_keys` (keys ≠ `QuestionSet.order/0` as a set).
+`:question_set_keys` (keys ≠ `QuestionSet.order/0` as a set), `:frozen` (any mutation —
+`put_label/4`, `put_tier/5`, `put_language/3`, `add_synthetic_item/4`, `mark_pair/5` — or a second
+`freeze/4` on a manifest whose `frozen_at` is set: `{:error, [{:frozen, item_id | nil, _} | _]}`,
+manifest unchanged; owner amendment to D1 RED, 2026-10-20, F08.4/F08.5).
 
 Freeze rules (`freeze/4`): refuses unless every item has `labels` and `tier`; ≥ 200 **real** items
 (`counts.total − counts.pairs`, i.e. `doc_id` non-nil — F08.1 counts exported mails; synthetic pair
