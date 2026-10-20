@@ -669,6 +669,68 @@ defmodule Kerf.Eval.ManifestTest do
     end
   end
 
+  # -- frozen manifests ------------------------------------------------------
+
+  describe "frozen manifests are immutable (F08.4/F08.5)" do
+    test "put_label/4 refuses with :frozen and leaves the manifest unchanged" do
+      m = Synthetic.build()
+      [a | _] = unpaired_real(m)
+      labels = %{a.labels | "needs_reply" => not a.labels["needs_reply"]}
+      assert {:error, [{:frozen, _, _} | _]} = Manifest.put_label(m, a.id, labels, @now)
+      assert m == Synthetic.build()
+    end
+
+    test "put_tier/5 refuses with :frozen and leaves the manifest unchanged" do
+      m = Synthetic.build()
+      [a | _] = unpaired_real(m)
+
+      assert {:error, [{:frozen, _, _} | _]} =
+               Manifest.put_tier(m, a.id, "hard", "late re-tier", @now)
+
+      assert m == Synthetic.build()
+    end
+
+    test "put_language/3 refuses with :frozen and leaves the manifest unchanged" do
+      m = Synthetic.build()
+      [a | _] = unpaired_real(m)
+      lang = if a.language == "de", do: "nl", else: "de"
+      assert {:error, [{:frozen, _, _} | _]} = Manifest.put_language(m, a.id, lang)
+      assert m == Synthetic.build()
+    end
+
+    test "add_synthetic_item/4 refuses with :frozen and leaves the manifest unchanged" do
+      m = Synthetic.build()
+      [a | _] = unpaired_real(m)
+      assert {:error, [{:frozen, _, _} | _]} = Manifest.add_synthetic_item(m, a.id, a.state, @now)
+      assert m == Synthetic.build()
+    end
+
+    test "mark_pair/5 refuses with :frozen and leaves the manifest unchanged" do
+      m = Synthetic.build()
+      [a | rest] = unpaired_real(m)
+      b = Enum.find(rest, &(&1.labels != a.labels)) || flunk("no differing item")
+
+      assert {:error, [{:frozen, _, _} | _]} =
+               Manifest.mark_pair(m, "pair-late", a.id, b.id, "late pair")
+
+      assert m == Synthetic.build()
+    end
+
+    test "freeze/4 refuses an already-frozen manifest with {:frozen, nil, _}" do
+      m = Synthetic.build()
+      assert {:error, [{:frozen, nil, _} | _]} = Manifest.freeze(m, 2, @now, [])
+      assert m == Synthetic.build()
+    end
+
+    test "ready_for_run?/1 rejects an item labelled after frozen_at" do
+      m = Synthetic.build()
+      [a | _] = unpaired_real(m)
+      m = update_item(m, a.id, &%{&1 | labelled_at: "2099-01-01T00:00:00Z"})
+      assert {:error, {_code, item_id, _}} = Manifest.ready_for_run?(m)
+      assert item_id == a.id
+    end
+  end
+
   # -- items/2, training_export/1, ready_for_run?/1 -------------------------
 
   describe "items/2 and training_export/1 (F08.5)" do
