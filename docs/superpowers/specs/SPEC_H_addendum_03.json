@@ -1,0 +1,70 @@
+{
+  "spec": "SPEC_H",
+  "addendum": 3,
+  "title": "Step 2–3 plan decisions: F08/F09 corrections from the lead's plan review",
+  "date": "2026-10-20",
+  "status": "binding — supersedes the cited SPEC_H / addendum text; earlier files are not edited inline",
+  "plan": "docs/superpowers/plans/2026-10-20-decide-eval-step2-3.md (lead: kerf-lead; approved by owner 2026-10-20)",
+  "source": "Plan §10.2 Status entries S-1 … S-14, reviewed by Claude Desktop against SPEC_H F08/F09",
+
+  "corrections": [
+    {
+      "id": "A3.1",
+      "supersedes": "F08.6 path 'the private ~/Projects/kerf/docs/eval/ on the Mac'",
+      "text": "The Mac-side private location is ~/Projects/kerf/private/eval/decide/. No docs/ tree exists or is created. Spark side ~/eval/decide/ unchanged. All eval artefacts (manifest, run JSONL, reports, temperatures.json, LABELLING.md, clients.txt, selftest output) live only there; the mix tasks refuse an output path inside the repo root. (S-1, plan §3)"
+    },
+    {
+      "id": "A3.2",
+      "supersedes": "F09.9 'random must fail F09.1/F09.2/F09.7'",
+      "text": "Temperature scaling of an uninformative adapter drives T → ∞ and probabilities → 1/K, so uniform random is EXPECTED to pass post-scaling F09.2. F09.9 now reads: the random adapter must fail F09.1, F09.7 and RAW F09.2 (ECE before scaling > 0.08); its scaled F09.2 is reported, not asserted. The oracle must pass every gate except F09.5, which is skipped for synthetic adapters. The F09.2 production gate itself is unchanged (scaled ECE ≤ 0.08). (S-2)"
+    },
+    {
+      "id": "A3.3",
+      "supersedes": "F09.1 second clause ('≥ the current production classifier on the same items')",
+      "text": "No baseline number exists until golden-v2 / F10 supplies it. The gate reports status 'pending' unless --baseline-accuracy is given; a pending gate is never a pass. The self-test passes 0.5 explicitly so the mechanism is exercised. (S-5)"
+    },
+    {
+      "id": "A3.4",
+      "supersedes": "F09.2 'the fitted temperature is written to the adapter config'",
+      "text": "No adapter has a temperature option yet. The harness emits temperatures.json (%{question => T}) next to the report; wiring it into an adapter or caller config is F10/F11 work. (S-6)"
+    },
+    {
+      "id": "A3.5",
+      "supersedes": "F08.1 language mix (open question 8)",
+      "text": "Language is not stored in Kerf; the export assigns a stopword heuristic (language_source 'heuristic'), the owner corrects it in the labelling page ('human'), and F08.1 counts are computed over final values. Freeze refuses a mix shortfall (NL ≥ 0.40, DE ≥ 0.25, EN ≥ 0.20) unless --allow-mix-shortfall, and records the acknowledgement in the manifest. (S-7, S-9)"
+    },
+    {
+      "id": "A3.6",
+      "supersedes": "F08.1 export scope (implicit)",
+      "text": "The export excludes kb_documents rows with raw_text IS NULL (~37 % of email documents); a Decide state needs content. Header-only items would be a spec change, not a plan decision. Override doc_ids are selected only within the same source_type/raw_text filter — the OR is parenthesised inside the AND chain. (S-8, plan change 1)"
+    },
+    {
+      "id": "A3.7",
+      "supersedes": "F08.6 scanned directories",
+      "text": "The PII guard scans docs/superpowers/specs/, docs/superpowers/plans/, test/ and lib/ (superset of the two the spec names) against priv/eval/decide_address_hashes.txt. (S-10)"
+    },
+    {
+      "id": "A3.8",
+      "supersedes": "F08.7 overrides seeding (detail)",
+      "text": "~/eval/golden-overrides.jsonl lines are {doc_id, label_true, note} per SPEC_D §7. Whether doc_id equals kb_documents.id is a D2 read-back item; a mismatch stops D2. The production database name is likewise a read-back item (SELECT current_database()) surfaced as --db; no literal name in code or tests. (S-3, S-14)"
+    },
+    {
+      "id": "A3.9",
+      "supersedes": "F08.3 / F08.5 (detail)",
+      "text": "Contrastive pair items are synthetic edits of a real item (doc_id nil, synthetic_of set); :duplicate_doc_id compares non-nil doc_ids only. Freeze keeps both items of a pair in the eval split — never calibration. Calibration = exactly 50 items, stratified by (language, tier), largest-remainder rounding, seeded. (plan §2.1, change 3)"
+    },
+    {
+      "id": "A3.10",
+      "supersedes": "addendum 01 'pre_authorized_touches_for_green' (config :kerf, Kerf.Decide, adapter:)",
+      "text": "Never added and not needed: the harness and every caller pass adapter: per call. Withdrawn. (S-11)"
+    }
+  ],
+
+  "unchanged_and_confirmed": [
+    "state_hash remains deferred to step 5 per A2.1; run lines join on item_id/doc_id, F07.3 joins on (model_id, question_name). (S-12)",
+    "Kerf.Provenance / Kerf.Gate still absent; the harness builds the SPEC_G §4-shaped provenance map as step 1 did. (S-4)",
+    "F09 gate thresholds are the SPEC_H values; revisable only by addendum."
+  ],
+
+  "working_method_note": "From step 2 onward, work follows the lead/executor model: the lead (kerf-lead) plans and gates, executors implement in sibling worktrees, the owner authorises each GREEN and runs push/freeze/Spark copies, Claude Desktop writes specs/addenda and reviews plans and RED tests. Private operating notes: ~/Projects/kerf/private/CLAUDE.md, imported by the public CLAUDE.md."
+}
