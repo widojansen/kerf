@@ -64,9 +64,11 @@ Files: `lib/kerf/eval/manifest.ex`, `lib/kerf/eval/manifest/item.ex`.
   export: %{host: String.t(), exported_at: String.t(), query_sha256: String.t(),
             overrides_sha256: String.t() | nil, row_count: non_neg_integer(),
             mix_shortfall_acknowledged: boolean()},
-  question_set: %{String.t() => question_def},   # see below; key order = Phase B order
+  question_set: %{String.t() => question_def},   # plain map; keys == QuestionSet.order/0 exactly. ORDER IS NOT IN THE MAP (S-16): every consumer iterates QuestionSet.order/0
   counts: %{total: n, labelled: n, tiered: n, held_out: n, pairs: n,
-            by_language: %{String.t() => n}, by_tier: %{String.t() => n}},  # recomputed on save, re-checked on load (F08.1)
+            by_language: %{String.t() => n}, by_tier: %{String.t() => n}},  # recomputed on save, re-checked on load (F08.1).
+            # total INCLUDES synthetic pair items; pairs = number of pairs = number of synthetic b-items;
+            # real items = total − pairs, and that is what the freeze "≥ 200" threshold counts (S-17)
   items: [%Kerf.Eval.Manifest.Item{}]
 }
 
@@ -74,8 +76,9 @@ Files: `lib/kerf/eval/manifest.ex`, `lib/kerf/eval/manifest/item.ex`.
 # %{"type" => "choice", "instructions" => s, "options" => [labels in caller order]}
 # %{"type" => "noul",   "instructions" => s}
 # %{"type" => "score",  "instructions" => s, "levels" => ["1","2","3","4","5"]}
-# Phase B keys in this order: "category" (options = SPEC_C 6-enum, A1.9), "needs_reply",
-# "urgency", "deadline_present", "client" (options = clients ++ ["none"]).
+# Phase B keys, in the order QuestionSet.order/0 returns them: "category" (options = SPEC_C
+# 6-enum, A1.9), "needs_reply", "urgency", "deadline_present", "client" (options = clients ++ ["none"]).
+# An Elixir map and a decoded JSON object do not preserve this order (S-16 ruling: option (b)).
 
 %Kerf.Eval.Manifest.Item{
   id: String.t(),                          # "it-0001", unique, stable
@@ -101,12 +104,13 @@ Public functions (all `@spec`'d; errors are `{:error, [violation]}` with
 load(path)                    :: {:ok, t} | {:error, [violation]}   # decode + validate/1
 validate(t)                   :: :ok | {:error, [violation]}
 save(t, path)                 :: :ok | {:error, term}  # validate (shape; incompleteness allowed pre-freeze), recompute counts, write tmp + rename
-put_label(t, item_id, labels, now)        :: {:ok, t} | {:error, [violation]}  # checks against question_set; sets labelled_at/by, label_sources["category"] = "new" unless already "adjudicated"
+put_label(t, item_id, labels, now)        :: {:ok, t} | {:error, [violation]}  # checks against question_set; sets labelled_at and labelled_by = @labelled_by "wido" (module constant, S-19), label_sources["category"] = "new" unless already "adjudicated"
 put_tier(t, item_id, tier, reason, now)   :: {:ok, t} | {:error, [violation]}  # reason non-blank
 put_language(t, item_id, lang)            :: {:ok, t} | {:error, [violation]}  # language_source "human"
 add_synthetic_item(t, of_item_id, state, now) :: {:ok, {t, item_id}}
 mark_pair(t, pair_id, item_a, item_b, fact)   :: {:ok, t} | {:error, [violation]}
-freeze(t, seed, now, opts)    :: {:ok, t} | {:error, [violation]}  # see rules
+freeze(t, seed, now, opts)    :: {:ok, t} | {:error, [violation]}  # see rules; calls assign_split/3 with n = 50
+assign_split(t, n, seed)      :: t   # pure (S-17/S-18): marks exactly n eligible (non-pair) items "calibration", stratified by (language, tier) over the ELIGIBLE pool, quota_s = n · n_s / N_eligible with largest-remainder rounding (each stratum ∈ {⌊quota_s⌋, ⌈quota_s⌉}), chosen by :rand.seed(:exsss, {seed, 0, 0}) over items sorted by id; every other item "eval". Shared by freeze/4 and Synthetic.build/1.
 items(t, :eval | :calibration) :: {:ok, [Item]} | {:error, :not_frozen}
 training_export(t)            :: {:ok, [Item]} | {:error, :not_frozen}  # NEVER contains split == "calibration" (F08.5)
 ready_for_run?(t)             :: :ok | {:error, violation}   # frozen AND every tiered_at <= frozen_at AND counts match (F08.4)
@@ -118,18 +122,34 @@ only — synthetic pair items all carry `doc_id: nil` and must not collide), `:u
 `:missing_question_label`, `:label_not_in_options`, `:label_wrong_type` (e.g. `"3"` for urgency,
 `"true"` for a Noul — JSON round-trip strings are rejected, not coerced), `:urgency_out_of_range`,
 `:empty_body`, `:empty_tier_reason`, `:pair_incomplete` (≠ 2 items), `:pair_no_flip` (no label
-differs), `:pair_fact_blank`, `:counts_mismatch`, `:language_invalid`, `:unknown_label_source`.
+differs), `:pair_fact_blank`, `:counts_mismatch`, `:language_invalid`, `:unknown_label_source`,
+`:question_set_keys` (keys ≠ `QuestionSet.order/0` as a set).
 
-Freeze rules (`freeze/4`): refuses unless every item has `labels` and `tier`; `length(items) >= 200`;
+Freeze rules (`freeze/4`): refuses unless every item has `labels` and `tier`; ≥ 200 **real** items
+(`counts.total − counts.pairs`, i.e. `doc_id` non-nil — F08.1 counts exported mails; synthetic pair
+items do not count);
 `pairs >= 20` each with ≥ 1 flipped label; language mix NL ≥ 0.40, DE ≥ 0.25, EN ≥ 0.20 of `total`
 unless `opts[:allow_mix_shortfall]` (then `export.mix_shortfall_acknowledged = true`, Status S-9).
-Assigns exactly 50 items `split: "calibration"`, stratified by (language, tier) with largest-remainder
-rounding, chosen by `:rand.seed(:exsss, {seed, 0, 0})` over items sorted by id; pair items are never
-calibration (both stay `"eval"`); everything else `"eval"`; sets `frozen_at = now`.
+Then `assign_split(t, 50, seed)` (pair items are never calibration; both stay `"eval"`) and sets
+`frozen_at = now`.
 
 Companion modules (same owner): `Kerf.Eval.Manifest.Synthetic.build(opts) :: t` (seeded; defaults
-`n: 220, pairs: 24, seed: 1`; frozen; addresses `user<n>@example.invalid`; client names
-`"client-a".."client-c"`; the only manifest tests and the harness self-test ever use),
+`n: 220, pairs: 24, seed: 1, frozen: true`; addresses `user<n>@example.invalid`; client names
+`"client-a".."client-c"`; the only manifest tests and the harness self-test ever use).
+Size semantics (binding for D1, D4, H3, H4): `n` is the number of **real** items (`doc_id` set);
+`pairs` **appends** that many **synthetic** b-items (`doc_id: nil`, `synthetic_of` = a real item,
+same language, one label flipped), so a build has `n + pairs` items: `build()` = 244 items, 220
+real, 196 eligible (non-pair); `n: 8, pairs: 2` = 10 items; `n: 12, pairs: 2` = 14; `n: 60, pairs: 6`
+= 66. S-17 ruling: `Synthetic` does **not** go through the freeze thresholds; it labels and tiers
+every item, then calls `assign_split(t, n_cal, seed)` with
+`n_cal = if real >= 200, do: 50, else: max(1, round(0.2 * eligible))`, and sets `frozen_at`
+(`n: 8, pairs: 2` → 1 calibration item). With `frozen: false` it returns the same manifest unfrozen;
+the default size (220/24, language mix met) passed through `freeze/4` must succeed and yield the
+identical split — both paths call `assign_split(t, 50, seed)` — which keeps the real freeze path
+exercised.
+`Kerf.Eval.Manifest.QuestionSet.order/0 :: ["category", "needs_reply", "urgency", "deadline_present", "client"]`
+(S-16: the single source of question order; `validate/1` requires `question_set` keys == this list
+as a set, code `:question_set_keys`),
 `Kerf.Eval.Manifest.Language.guess(text) :: "nl" | "de" | "en" | "und"` (stopword ratio),
 `Kerf.Eval.Manifest.Overrides.load(path) :: {:ok, %{doc_id => category}} | {:error, term}`
 (line shape per SPEC_D §7: `doc_id`, `label_true`, `note`; `label_true` ∉ 6-enum is an error),
@@ -177,7 +197,8 @@ File `lib/kerf/eval/harness/run.ex`. Line 1 header, then one line per answer, la
   On adapter error: `result: null`, `error: inspect(reason)`, the run continues (F09.6 then fails).
 - `latency_ms` is the request latency from the result; identical for all lines of one request.
 - Lines are written in deterministic order: items in manifest order → probes (main orders 0..5,
-  separate, isolation) → questions in `question_set` order.
+  separate, isolation) → questions in `Kerf.Eval.Manifest.QuestionSet.order/0` order (S-16; the
+  harness's `Questions` module carries the same fixed list and H3's RED asserts the two are equal).
 - `Run.normalize/1` drops `latency_ms`, `started_at`, `finished_at`, `run_id` — F09.8 compares
   normalized files byte-for-byte.
 
@@ -349,7 +370,7 @@ on `main`; H4 after H3 (S-2 is decided: see §10.2).
 
 **Closes:** F08.1 (counts/mix check), F08.2 (label validation), F08.3, F08.4 (`ready_for_run?`), F08.5, F08.7 (label_sources).
 **Files:** create `lib/kerf/eval/manifest.ex`, `manifest/item.ex`, `manifest/synthetic.ex`, `manifest/language.ex`, `manifest/overrides.ex`, `manifest/question_set.ex`.
-**RED tests:** `test/eval/manifest_test.exs` (load/validate/save round-trip; every violation code in §2.1 with one failing manifest each; `:duplicate_doc_id` fires for two real items with the same `doc_id` and does **not** fire for two synthetic items with `doc_id: nil`; `put_label` rejects wrong types and unknown options, sets `labelled_at`, keeps `"adjudicated"`; `put_tier` requires reason; `freeze` refuses on <200 / <20 pairs / unlabelled / mix shortfall unless allowed, assigns exactly 50 calibration stratified by (language,tier), never a pair item, same seed → same split; `training_export` excludes calibration; `items(:calibration)` returns 50; `ready_for_run?` fails when a `tiered_at` > `frozen_at` or unfrozen; `sha256/1`), `test/eval/manifest/synthetic_test.exs` (seeded, frozen, validates, 220/24 defaults, no address outside `example.invalid`, same seed → identical JSON), `test/eval/manifest/language_test.exs` (NL/DE/EN sample sentences, `"und"` for empty), `test/eval/manifest/overrides_test.exs` (SPEC_D line shape, bad `label_true`, malformed line → error), `test/eval/manifest/question_set_test.exs` (Phase B keys in order, category options == `Kerf.Decide.OptionSet.triage_categories() |> labels`, `"none"` last in client).
+**RED tests:** `test/eval/manifest_test.exs` (load/validate/save round-trip; every violation code in §2.1 with one failing manifest each; `:duplicate_doc_id` fires for two real items with the same `doc_id` and does **not** fire for two synthetic items with `doc_id: nil`; `put_label` rejects wrong types and unknown options, sets `labelled_at`, keeps `"adjudicated"`; `put_tier` requires reason; `labelled_by == "wido"` (S-19); `freeze` refuses on <200 / <20 pairs / unlabelled / mix shortfall unless allowed, assigns exactly 50 calibration, never a pair item, same seed → same split; `assign_split/3` quotas over the eligible pool with each (language, tier) stratum ∈ {⌊quota⌋, ⌈quota⌉} and a total of exactly n (S-18); `validate` rejects a `question_set` whose keys are not exactly `QuestionSet.order/0` (`:question_set_keys`); `training_export` excludes calibration; `items(:calibration)` returns 50; `ready_for_run?` fails when a `tiered_at` > `frozen_at` or unfrozen; `sha256/1`), `test/eval/manifest/synthetic_test.exs` (seeded, validates, 220/24 defaults, no address outside `example.invalid`, same seed → identical JSON; `build()` has 244 items of which 220 real and 24 synthetic (`counts.pairs == 24`); `build(frozen: false)` then `freeze/4` succeeds and equals `build()`'s split (50 calibration); `build(n: 8, pairs: 2)` has 10 items, is frozen, validates, `ready_for_run?` `:ok`, exactly 1 calibration item, no pair item in calibration — S-17), `test/eval/manifest/language_test.exs` (NL/DE/EN sample sentences, `"und"` for empty), `test/eval/manifest/overrides_test.exs` (SPEC_D line shape, bad `label_true`, malformed line → error), `test/eval/manifest/question_set_test.exs` (`order/0` is literally `["category", "needs_reply", "urgency", "deadline_present", "client"]`; `phase_b/1` has exactly those keys; category options == `Kerf.Decide.OptionSet.triage_categories() |> labels`, `"none"` last in client).
 **GREEN gate:** `mix test test/eval/manifest_test.exs test/eval/manifest/ --no-start --seed 1` and `--seed 99999` green; full suite both seeds; compile/dialyzer clean.
 
 ### D2 — Export (`Kerf.Eval.Export`, `mix kerf.eval.export`) and `mix kerf.eval.freeze`  (model: Sonnet)
@@ -391,7 +412,7 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 **Closes:** F08.2 (labelling path writes through the loader), F08.3 (pair marking), F08.4 (tier + reason + `tiered_at` captured), F08.1 (language override).
 **Files:** create `lib/kerf/dashboard/live/eval/label_page.ex` (`Kerf.Dashboard.Live.Eval.LabelPage`, `use Phoenix.LiveDashboard.PageBuilder`, `menu_link/2` → `"Eval Labels"`); modify `lib/kerf/dashboard/router.ex` (append `eval_label: Kerf.Dashboard.Live.Eval.LabelPage` to `additional_pages` under `if Application.compile_env(:kerf, :eval_ui)`), `config/dev.exs`, `config/test.exs` (§2.8).
 **Behaviour:** `mount` loads the manifest from `Application.get_env(:kerf, :eval_ui)[:manifest_path]` (missing/invalid → page renders the violations, no crash); list with filters (unlabelled, language, tier); item view shows `state` fields; one form posting `labels` (5 fields), `tier`, `tier_reason`, `language`; events `"save_label"`, `"save_tier"`, `"save_language"`, `"add_synthetic"`, `"mark_pair"` each call the matching `Manifest.put_*` then `Manifest.save/2`, and render violations verbatim; progress line from `manifest.counts`.
-**RED tests:** `test/dashboard/eval/label_page_test.exs` (`use Kerf.ConnCase`, `@moduletag :integration`; tmp copy of `Manifest.Synthetic.build(n: 12, pairs: 2)` with labels removed; `live(conn, "/dashboard/eval_label")` renders items; saving a valid label updates the file and `labelled_at`; an invalid label shows the violation and leaves the file unchanged; tier without reason refused; `mark_pair` on items with identical labels refused), `test/dashboard/eval/eval_ui_config_test.exs` (`config/prod.exs` and `config/runtime.exs` contain no `:eval_ui`; `router.ex` contains `compile_env(:kerf, :eval_ui)`).
+**RED tests:** `test/dashboard/eval/label_page_test.exs` (`use Kerf.ConnCase`, `@moduletag :integration`; tmp copy of `Manifest.Synthetic.build(n: 12, pairs: 2)` (14 items) with labels removed; `live(conn, "/dashboard/eval_label")` renders items; saving a valid label updates the file and `labelled_at`; an invalid label shows the violation and leaves the file unchanged; tier without reason refused; `mark_pair` on items with identical labels refused), `test/dashboard/eval/eval_ui_config_test.exs` (`config/prod.exs` and `config/runtime.exs` contain no `:eval_ui`; `router.ex` contains `compile_env(:kerf, :eval_ui)`).
 **GREEN gate:** `mix test test/dashboard/eval/` (app started) both seeds; full suite both seeds.
 
 ---
@@ -401,7 +422,7 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 ### H1 — Run format, question building, Random and Oracle adapters  (model: Sonnet)
 
 **Closes:** F09.6 (in-schema enforced at the seam — the test proves both adapters pass `Kerf.Decide.ask/3` validation), F09.8 (normalize), F09.9 (the two adapters).
-**Files:** create `lib/kerf/eval/harness/run.ex` (`header/1`, `answer_line/1`, `end_line/1`, `write/3`, `read/1 :: {:ok, {header, lines, end}} | {:error, term}`, `normalize/1`), `lib/kerf/eval/harness/questions.ex` (`from_question_set(question_set) :: [Kerf.Decide.Question.t()]` in key order, names atomized from the fixed Phase B key list only — unknown keys are an error, never `String.to_atom/1`; `permute(questions, orders)`; `orders_for(question, seed, item_index, question_index, n)` (seeds `:rand` with the 3-tuple of §2.3 per order index); `secret_probe(token)`), `lib/kerf/eval/adapters/random.ex`, `lib/kerf/eval/adapters/oracle.ex`.
+**Files:** create `lib/kerf/eval/harness/run.ex` (`header/1`, `answer_line/1`, `end_line/1`, `write/3`, `read/1 :: {:ok, {header, lines, end}} | {:error, term}`, `normalize/1`), `lib/kerf/eval/harness/questions.ex` (`order/0` — the fixed Phase B key list, equal to `Kerf.Eval.Manifest.QuestionSet.order/0`; `from_question_set(question_set) :: {:ok, [Kerf.Decide.Question.t()]} | {:error, term}` in `order/0` order (tagged tuple so the unknown-key error has a shape — pinned in H1 RED 44aa772), names atomized from the fixed Phase B key list only — unknown keys are an error, never `String.to_atom/1`; `permute(questions, orders)`; `orders_for(question, seed, item_index, question_index, n)` (seeds `:rand` with the 3-tuple of §2.3 per order index); `secret_probe(token)`), `lib/kerf/eval/adapters/random.ex`, `lib/kerf/eval/adapters/oracle.ex`.
 **RED tests:** `test/eval/harness/run_test.exs` (JSONL round-trip, deterministic encoding, `normalize` drops exactly the four keys, malformed file → error), `test/eval/harness/questions_test.exs` (hand-built `question_set` map → 5 questions, category OptionSet in manifest order, `orders_for` seeded and identity at index 0, unknown key → error), `test/eval/adapters/random_test.exs` and `oracle_test.exs` (each through `Kerf.Decide.ask/3`: results in-schema for all three types; Random identical for identical `harness_seed`, different otherwise; Oracle picks `harness_gold` under any option order, `p_yes` ≥ 0.9 iff gold true).
 **GREEN gate:** `mix test test/eval/harness/ test/eval/adapters/ --no-start` both seeds; full suite both seeds.
 
@@ -416,15 +437,15 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 ### H3 — Harness orchestration over a manifest  (model: Sonnet) — **starts after D1 is on `main`**
 
 **Closes:** F09.3/F09.4/F09.6 (request generation), F09.8 (deterministic order), F08.4 (refuses an unready manifest).
-**Files:** create `lib/kerf/eval/harness.ex` — `run(manifest, opts) :: {:ok, %{header, lines, end}} | {:error, term}` with `opts`: `adapter`, `adapter_opts`, `seed`, `permutations` (6), `isolation_items` (30: the first 30 eval items by id), `limit`, `skip_latency`, `sink` (fn line -> :ok, default no-op; the mix task streams to disk). Builds the state string and provenance per §2.6; asks main requests per order, separate requests, isolation probes with token `"KERF-" <> (Base.encode16(:crypto.hash(:sha256, Integer.to_string(seed)), case: :lower) |> binary_part(0, 12))` — parenthesised so the 12 hex chars follow the prefix (A3.12; the H3 RED asserts `token =~ ~r/\AKERF-[0-9a-f]{12}\z/`); never calls an adapter directly (test greps `lib/kerf/eval/harness.ex` for `.ask(` other than `Kerf.Decide.ask`).
-**RED tests:** `test/eval/harness_test.exs` using `Kerf.Eval.Manifest.Synthetic.build(n: 8, pairs: 2)`: line count = items × (6×5 + 5) + probes; order of lines as §2.3; `order_index 0` is identity; same seed → identical normalized output across two runs (F09.8); unfrozen or late-tiered manifest → `{:error, …}` (F08.4); a crashing stub adapter on one item yields an error line and the run completes; `harness_gold` present only for Oracle, `harness_seed` only for Random (stub adapter records opts); `limit` recorded in header.
+**Files:** create `lib/kerf/eval/harness.ex` — `run(manifest, opts) :: {:ok, %{header, lines, end}} | {:error, term}` with `opts`: `adapter`, `adapter_opts`, `seed`, `permutations` (6), `isolation_items` (30: the first 30 eval items by id), `limit`, `skip_latency`, `sink` (fn line -> :ok, default no-op; the mix task streams to disk). Builds the state string and provenance per §2.6; asks main requests per order, separate requests, isolation probes with token `"KERF-" <> (Base.encode16(:crypto.hash(:sha256, Integer.to_string(seed)), case: :lower) |> binary_part(0, 12))` — parenthesised so the 12 hex chars follow the prefix (A3.12; the H3 RED asserts `token =~ ~r/\AKERF-[0-9a-f]{12}\z/`); never calls an adapter directly (test greps `lib/kerf/eval/harness.ex` for `.ask(` other than `Kerf.Decide.ask`). The H3 RED also asserts `Kerf.Eval.Harness.Questions.order() == Kerf.Eval.Manifest.QuestionSet.order()` (S-16).
+**RED tests:** `test/eval/harness_test.exs` using `Kerf.Eval.Manifest.Synthetic.build(n: 8, pairs: 2)` (10 items, 1 calibration): line count = 10 × (6×5 + 5) + 2 × min(isolation_items, eval items) isolation lines (with `isolation_items: 30` and 9 eval items: 350 + 18 = 368 answer lines); order of lines as §2.3; `order_index 0` is identity; same seed → identical normalized output across two runs (F09.8); unfrozen or late-tiered manifest → `{:error, …}` (F08.4); a crashing stub adapter on one item yields an error line and the run completes; `harness_gold` present only for Oracle, `harness_seed` only for Random (stub adapter records opts); `limit` recorded in header.
 **GREEN gate:** `mix test test/eval/harness_test.exs --no-start` both seeds; full suite both seeds.
 
 ### H4 — Mix task and self-test  (model: Sonnet) — **starts after H3** (S-2 decided, see §10.2)
 
 **Closes:** F09.9, F09.8 (CLI `normalize`), F09.5 (recording; real hosts are F10).
 **Files:** create `lib/mix/tasks/kerf.eval.decide.ex`, `lib/kerf/eval/harness/cli.ex` (`parse_args/1` → `{:ok, %{command, …}} | {:error, msg}`, never raises; adapter alias table `http → Kerf.Decide.Adapter.HTTP`, `random`, `oracle`, `Elixir.*` → `Module.safe_concat`), `lib/kerf/eval/harness/selftest.ex` (`run(out_dir, opts) :: {:ok, summary} | {:error, failures}`: synthetic manifest unless `--manifest`; random run+score, oracle run+score twice; asserts random `fail` on F09.1, F09.7 and on **raw** ECE > 0.08 for every noul/choice question, while random's scaled F09.2 result is reported in the summary and not asserted (S-2 decision); oracle `pass` on every gate except F09.5 `skipped`; two oracle runs normalized-identical and reports identical; writes all artefacts under `out_dir`).
-**RED tests:** `test/eval/harness/cli_test.exs` (every subcommand's required flags, bad adapter alias → error, `--limit` parsed; every output path flag that resolves inside `File.cwd!()` → `{:error, msg}` naming the flag, a `System.tmp_dir!()` path accepted — §3 repo-root refusal), `test/eval/harness/selftest_test.exs` (runs `Selftest.run/2` into a tmp dir on `Synthetic.build(n: 60, pairs: 6)`; asserts the summary; asserts artefact files exist and the oracle report sha256s match) — this is the F09.9 self-test itself, run in CI.
+**RED tests:** `test/eval/harness/cli_test.exs` (every subcommand's required flags, bad adapter alias → error, `--limit` parsed; every output path flag that resolves inside `File.cwd!()` → `{:error, msg}` naming the flag, a `System.tmp_dir!()` path accepted — §3 repo-root refusal), `test/eval/harness/selftest_test.exs` (runs `Selftest.run/2` into a tmp dir on `Synthetic.build(n: 60, pairs: 6)` (66 items, 11 calibration); asserts the summary; asserts artefact files exist and the oracle report sha256s match) — this is the F09.9 self-test itself, run in CI.
 **GREEN gate:** `mix test test/eval/harness/cli_test.exs test/eval/harness/selftest_test.exs --no-start` both seeds; full suite both seeds; then owner runs `mix kerf.eval.decide selftest --out-dir ~/Projects/kerf/private/eval/decide/selftest/` once and files the summary (step-3 entry gate: "F09.9 self-test passes before any real model is run").
 
 ---
@@ -473,7 +494,8 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 |---|---|---|---|---|---|
 | 2026-10-20 | — | plan written | — | — | owner review |
 | 2026-10-20 | — | plan approved by owner 2026-10-20 (with changes 1–8: SQL precedence, `--db` read-back, nil `doc_id`, S-2 ruling, repo plan path, worktree commands, private-tree output constraint, RED failure-kind check) | 9aa38b0 | — | executors may start D1 and H1 |
-| 2026-10-20 | — | commit-review corrections applied (addendum 03 r2: A3.7, A3.11, A3.12 → S-10, S-15) | — | — | awaiting owner go to dispatch D1 and H1 |
+| 2026-10-20 | — | commit-review corrections applied (addendum 03 r2: A3.7, A3.11, A3.12 → S-10, S-15) | 8b77863 | — | owner go received 16:36; D1 and H1 dispatched |
+| 2026-10-20 | D1 | blocked before RED: S-16..S-19 raised by kerf-eval-data | 9f075f0 (cherry-picked to main as efc09db) | — | lead rulings below; D1 unblocked |
 
 ### 10.2 Spec disagreements and corrections (stop and write here; never diverge silently)
 
@@ -559,4 +581,29 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
   `by` argument; the struct comment says `"wido"`. Proposed: a module constant `"wido"` (F08.2
   "assigned by Wido"); the RED would assert `labelled_by == "wido"`. The alternative is a
   `put_label/5` with an explicit labeller, which is an interface change.
+- **Lead rulings on S-16..S-19 (kerf-lead 2026-10-20; plan-level, owner may veto before D1 GREEN):**
+  - S-16 → **(b)**. `question_set` stays a plain map and a plain JSON object; the order lives only in
+    `Kerf.Eval.Manifest.QuestionSet.order/0`; `validate/1` adds `:question_set_keys` (keys must equal
+    `order/0` as a set); every consumer iterates `order/0`, never the map. The harness's
+    `Kerf.Eval.Harness.Questions` keeps its own compile-time copy of the same list for H1 (which must
+    not depend on D1) and H3's RED asserts the two lists are equal. §2.1, §2.3, D1, H3 updated.
+  - S-17 → accepted with one correction and a size ruling (owner 2026-10-20). The commit reviewer
+    showed the proposal's `min(50, round(0.2 · eligible))` never reaches 50 at the default size
+    (34 or 44), so "identical split after `freeze/4`" was unsatisfiable. Reasoning: F08.1 counts
+    exported mails and F08.3 counts pairs — they were never the same population — so `n` counts
+    real items, `pairs` appends synthetic b-items (default build 220 + 24 = 244 items, 196
+    eligible), `counts.total` includes synthetic items and the freeze "≥ 200" uses
+    `counts.total − counts.pairs`. `Manifest.assign_split/3` is the shared pure function;
+    `freeze/4` calls it with n = 50 after the thresholds; `Synthetic.build/1` skips the thresholds
+    and calls it with `n_cal = if real >= 200, do: 50, else: max(1, round(0.2 * eligible))`;
+    `frozen: false` returns the unfrozen manifest; the default-size build through `freeze/4` yields
+    the identical split. Propagated: H3 10 items, D4 14, H4 66 (§6, §7).
+  - S-18 → accepted: quota population is the eligible (non-pair) pool, `quota_s = n · n_s / N_eligible`,
+    largest-remainder rounding, each stratum ∈ {⌊quota_s⌋, ⌈quota_s⌉}, total exactly n.
+  - S-19 → accepted: module constant `@labelled_by "wido"`; `put_label/4` unchanged; RED asserts it.
+  - Worktrees: `mix deps.get` in a fresh worktree is a lock-only fetch and is allowed; `mix.lock`
+    must remain unchanged in every RED/GREEN commit (the lead's owner-block check covers it).
+- **S-20 (note)** The private notes say executor worktrees live under `.claude/worktrees/<name>/`;
+  the actual layout is the plan's sibling directories (`../kerf-eval-data`, `../kerf-eval-harness`).
+  Owner to reconcile the private notes; executors follow the plan.
 
