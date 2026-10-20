@@ -376,7 +376,11 @@ defmodule Kerf.Eval.ManifestTest do
       File.write!(path, "abc")
 
       assert Manifest.sha256(path) ==
-               "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+               {:ok, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"}
+    end
+
+    test "sha256 of a missing path is {:error, _}" do
+      assert {:error, _} = Manifest.sha256(Path.join(tmp_dir!(), "none.txt"))
     end
   end
 
