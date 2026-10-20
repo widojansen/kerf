@@ -370,6 +370,43 @@ defmodule Kerf.Eval.ManifestTest do
     end
   end
 
+  # S-26: a hand-edited question definition is a violation, never a raise, and
+  # one bad definition is reported once, not once per labelled item.
+  describe "question definition shape (S-26)" do
+    defp load_with_question_edit(question, key, value) do
+      path = tmp_path!()
+      assert :ok = Manifest.save(Synthetic.build(), path)
+      decoded = path |> File.read!() |> Jason.decode!()
+      edited = put_in(decoded, ["question_set", question, key], value)
+      File.write!(path, Jason.encode!(edited))
+      Manifest.load(path)
+    end
+
+    defp assert_def_invalid_once(result, question) do
+      assert {:error, [{:question_def_invalid, nil, {^question, _}} | _] = violations} = result
+      refute Enum.any?(violations, &match?({:unknown_question_type, _, _}, &1))
+    end
+
+    test "load: category options that are not a list → :question_def_invalid first, no fan-out" do
+      "category"
+      |> load_with_question_edit("options", "business")
+      |> assert_def_invalid_once("category")
+    end
+
+    test "load: urgency levels that are not a list → :question_def_invalid first, no fan-out" do
+      "urgency"
+      |> load_with_question_edit("levels", "12345")
+      |> assert_def_invalid_once("urgency")
+    end
+
+    test "validate/1 twin: client options that are not a list → :question_def_invalid first" do
+      m = Synthetic.build()
+      client = Map.put(m.question_set["client"], "options", "none")
+      m = %{m | question_set: Map.put(m.question_set, "client", client)}
+      assert_def_invalid_once(Manifest.validate(m), "client")
+    end
+  end
+
   describe "sha256/1" do
     test "is the lowercase hex SHA-256 of the file bytes" do
       path = Path.join(tmp_dir!(), "abc.txt")
