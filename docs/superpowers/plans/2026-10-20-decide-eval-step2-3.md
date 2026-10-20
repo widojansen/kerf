@@ -362,8 +362,8 @@ Opus tasks (D1, H2) are started with `--model opus` for that task's session, or 
 owner to switch the model before messaging the task.
 
 Dependency: **H3 and H4 need D1 merged** (struct + `Synthetic`). H1 and H2 need nothing from D.
-Order of starts: D1 and H1 immediately; H2 right after H1; D2/D3/D4 after D1; H3 after D1 lands
-on `main`; H4 after H3 (S-2 is decided: see §10.2).
+Order of starts: D1 and H1 immediately; H2 right after H1; H1b after H2 (S-22); D2/D3/D4 after D1;
+H3 after D1 lands on `main` and after H1b; H4 after H3 (S-2 is decided: see §10.2).
 
 ---
 
@@ -437,11 +437,20 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 **RED tests:** `test/eval/harness/score_test.exs` with hand-built lines: ECE of a perfectly calibrated 2-bin set is 0 and of a 0.9-confident/0.5-accurate set is 0.4; `bin` edge rule (`p = 1.0` → bin 9, `0.1` → bin 1); temperature fit returns `T < 1` for under-confident correct probs and `T > 1` for over-confident, applied probs still sum to 1 ± 1e-9; flip rate counts only `order_index 1..5` vs 0 and splits by tier; contrastive pass/fail per §2.4 rule; coverage counts errors and missing lines; isolation means and agreement; latency percentiles (nearest-rank) and `null` when `latency_skipped`; gates `pending` when baseline nil or `limit` set; histograms 10 bins per question with `model_id` from header; `to_json` byte-identical for maps built in different key orders.
 **GREEN gate:** `mix test test/eval/harness/score_test.exs --no-start` both seeds; full suite both seeds.
 
-### H3 — Harness orchestration over a manifest  (model: Sonnet) — **starts after D1 is on `main`**
+### H1b — Permutations by functional Fisher–Yates, no `Enum.shuffle`, no Task  (model: Sonnet) — **after H2, before H3** (owner pre-push review of df95c9d, S-22)
+
+**Closes:** F09.8 (order permutations depend only on the `:exsss` algorithm and the seed tuple, not on `Enum.shuffle` internals or on a spawned process).
+**Files:** modify `lib/kerf/eval/harness/questions.ex` only (`orders_for/5`; public signature unchanged).
+**Behaviour:** `orders_for(question, seed, item_index, question_index, n)` returns `n` orders of the question's labels (manifest order). `order_index 0` is the identity. For each `order_index` in `1..n-1`: `state0 = :rand.seed_s(:exsss, {seed, item_index * 64 + question_index, order_index})`; then a Fisher–Yates over the identity list `a` of length `k` — for `i` from `k - 1` down to `1`: `{j, state} = :rand.uniform_s(i + 1, state)` (`j ∈ 1..i+1`), swap `a[i]` and `a[j - 1]` — with the state threaded through every step. No `Task`, no `Enum.shuffle`, no `:rand.seed/2`: the caller's process-dictionary `:rand` state is never read or written.
+**RED tests:** `test/eval/harness/questions_test.exs`: (1) `expected_order/5` becomes an independent re-statement of exactly the Fisher–Yates above with the same seeding, written in the test and never calling `lib/`; the existing seeded-permutation assertions keep using it (they go red against the current `Enum.shuffle` implementation). (2) `orders_for/5` leaves the caller's `:rand` state untouched: `:rand.seed(:exsss, {1, 2, 3})`, `before = :rand.export_seed()`, call `orders_for/5`, `assert :rand.export_seed() == before` (the D1 `assign_split/3` purity pattern). (3) Golden: `orders_for(category_question, 7, 3, 2, 6)` equals a literal list of 6 orders written into the test; the literal is produced once by the test's own `expected_order/5` during the RED run and pasted in, so a future drift of either the algorithm or the seeding fails loudly. The RED commit message quotes the three test names.
+**GREEN:** implementation only, no edits under `test/`; commit `refactor: Questions.orders_for/5 functional Fisher–Yates over :rand.uniform_s (SPEC_H F09.8, S-22)`.
+**GREEN gate:** `mix test test/eval/harness/questions_test.exs test/eval/harness/ test/eval/adapters/ --no-start` both seeds; full suite both seeds; dialyzer 0 new.
+
+### H3 — Harness orchestration over a manifest  (model: Sonnet) — **starts after D1 is on `main` and after H1b**
 
 **Closes:** F09.3/F09.4/F09.6 (request generation), F09.8 (deterministic order), F08.4 (refuses an unready manifest).
 **Files:** create `lib/kerf/eval/harness.ex` — `run(manifest, opts) :: {:ok, %{header, lines, end}} | {:error, term}` with `opts`: `adapter`, `adapter_opts`, `seed`, `permutations` (6), `isolation_items` (30: the first 30 eval items by id), `limit`, `skip_latency`, `sink` (fn line -> :ok, default no-op; the mix task streams to disk). Builds the state string and provenance per §2.6; asks main requests per order, separate requests, isolation probes with token `"KERF-" <> (Base.encode16(:crypto.hash(:sha256, Integer.to_string(seed)), case: :lower) |> binary_part(0, 12))` — parenthesised so the 12 hex chars follow the prefix (A3.12; the H3 RED asserts `token =~ ~r/\AKERF-[0-9a-f]{12}\z/`); never calls an adapter directly (test greps `lib/kerf/eval/harness.ex` for `.ask(` other than `Kerf.Decide.ask`). The H3 RED also asserts `Kerf.Eval.Harness.Questions.order() == Kerf.Eval.Manifest.QuestionSet.order()` (S-16).
-**RED tests:** `test/eval/harness_test.exs` using `Kerf.Eval.Manifest.Synthetic.build(n: 8, pairs: 2)` (10 items, 1 calibration): line count = 10 × (6×5 + 5) + 2 × min(isolation_items, eval items) isolation lines (with `isolation_items: 30` and 9 eval items: 350 + 18 = 368 answer lines); order of lines as §2.3; `order_index 0` is identity; same seed → identical normalized output across two runs (F09.8); unfrozen or late-tiered manifest → `{:error, …}` (F08.4); a crashing stub adapter on one item yields an error line and the run completes; `harness_gold` present only for Oracle, `harness_seed` only for Random (stub adapter records opts); `limit` recorded in header. **Owner pins (2026-10-20):** `harness_gold` is atom-keyed (`%{category: …, needs_reply: …, urgency: 1..5, deadline_present: …, client: …}` plus `secret_present:` for probes), converted from the manifest's string keys through the fixed Phase B list (`Questions.order/0`), never `String.to_atom/1`; `harness_seed` is the ready 3-tuple `{seed, item_index * 64 + question_index, order_index}` computed by the harness, passed through to Random as-is (the RED asserts both shapes on the recorded opts).
+**RED tests:** `test/eval/harness_test.exs` using `Kerf.Eval.Manifest.Synthetic.build(n: 8, pairs: 2)` (10 items, 1 calibration): line count = 10 × (6×5 + 5) + 2 × min(isolation_items, eval items) isolation lines (with `isolation_items: 30` and 9 eval items: 350 + 18 = 368 answer lines); order of lines as §2.3; `order_index 0` is identity; same seed → identical normalized output across two runs (F09.8); unfrozen or late-tiered manifest → `{:error, …}` (F08.4); a crashing stub adapter on one item yields an error line and the run completes; `harness_gold` present only for Oracle, `harness_seed` only for Random (stub adapter records opts); `limit` recorded in header. **Owner pins (2026-10-20):** `harness_gold` is atom-keyed (`%{category: …, needs_reply: …, urgency: 1..5, deadline_present: …, client: …}` plus `secret_present:` for probes), converted from the manifest's string keys through the fixed Phase B list (`Questions.order/0`), never `String.to_atom/1`; `harness_seed` is the ready 3-tuple `{seed, item_index * 64 + question_index, order_index}` computed by the harness, passed through to Random as-is (the RED asserts both shapes on the recorded opts). **Owner pins (2026-10-20, pre-push review of df95c9d):** the run header's `adapter` field is the module's `inspect/1` string (`"Kerf.Eval.Adapters.Random"`), never `Atom.to_string/1` (which yields `"Elixir.…"`); the harness hands `Run.header/1`, `Run.answer_line/1` and `Run.end_line/1` plain maps, never structs — `Run.jsonable/1` does not handle structs. The H3 RED asserts the header's `adapter` string for a stub adapter and that the harness passes maps (a struct in the header input is an error, not a silent encode).
 **GREEN gate:** `mix test test/eval/harness_test.exs --no-start` both seeds; full suite both seeds.
 
 ### H4 — Mix task and self-test  (model: Sonnet) — **starts after H3** (S-2 decided, see §10.2)
@@ -504,6 +513,10 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 | 2026-10-20 | H1 | GREEN authorized by owner 17:57; relayed to kerf-eval-harness (RED rebased to eb64130, same content) | eb64130 | — | H3 pins on harness_gold / harness_seed added to §7 |
 | 2026-10-20 | D1 | RED gated by lead: task files 0/111 passed, 111 RuntimeError skeleton raises (F08.1 ×8, F08.2 ×7, F08.5 ×90, F08.7 ×6), identical failure locations both seeds; full suite 1328/1439 passed, 111 failed (only the 5 D1 test files), 14 excluded, both seeds; compile: exactly the 3 Postgrex warnings; diff vs 891d0ee = 11 files, owner block only, mix.lock unchanged | 6eee017 | 1 / 99999 | awaiting owner GREEN authorization; skeleton bodies raise via apply(:erlang, :error, …) to dodge none() type warnings — accepted, GREEN replaces them |
 | 2026-10-20 | H1 | GREEN gated by lead: task files 70/70 both seeds; full suite 1398 passed, 0 failed, 14 excluded, both seeds; diff eb64130..8c96c5a touches 4 lib files only, nothing under test/, mix.lock unchanged; compile: the 3 Postgrex warnings; dialyzer 26 = pre-existing, none in lib/kerf/eval | 8c96c5a | 1 / 99999 | ready for owner merge to main (fast-forward) |
+| 2026-10-20 | H1 | merged to main by owner (rebased: RED 4b7e3a8, GREEN df95c9d) and pushed | df95c9d | — | pre-push review → task H1b and H3 header pins (S-22) |
+| 2026-10-20 | D1 | RED amendment (frozen manifests refuse mutation, owner finding) re-gated by lead: task files 0/118 passed, 118 RuntimeError skeleton raises (F08.1 ×8, F08.2 ×7, F08.5 ×97, F08.7 ×6), the 7 new tests all raise F08.5, identical failure locations both seeds; full suite seed 1: 1328/1446 passed, 118 failed (only the 5 D1 files), 14 excluded; seed 99999: 1327/1446, 119 failed = the 118 D1 + `test/monitor/alerting_test.exs:135` (capture_log race on a 100 ms sleep; the file passes on 7 consecutive reruns at seed 99999 — pre-existing flake, same class as the process_health item in addendum 02 accepted_gaps, hygiene sitting); compile: exactly the 3 Postgrex warnings; diff 6eee017..964ff43 = 1 test file (+62), nothing under lib/, mix.lock unchanged | 964ff43 | 1 / 99999 | awaiting owner GREEN authorization |
+| — | H1b | RED — pending, starts after H2 GREEN is gated | — | — | — |
+| — | H1b | GREEN — pending | — | — | — |
 
 ### 10.2 Spec disagreements and corrections (stop and write here; never diverge silently)
 
@@ -619,4 +632,14 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 - **S-20 (note)** The private notes say executor worktrees live under `.claude/worktrees/<name>/`;
   the actual layout is the plan's sibling directories (`../kerf-eval-data`, `../kerf-eval-harness`).
   Owner to reconcile the private notes; executors follow the plan.
+- **S-22 (owner pre-push review of df95c9d, 2026-10-20; task H1b)** H1 GREEN's `orders_for/5`
+  shuffles with `Enum.shuffle/1` inside a short-lived `Task` so the caller's process-dictionary
+  `:rand` state is not disturbed. That is correct today but ties F09.8 reproducibility to two things
+  outside the spec: `Enum.shuffle/1`'s algorithm (an Elixir implementation detail that may change
+  between releases) and a process spawn per call. Ruling: permutations are a functional Fisher–Yates
+  over `:rand.uniform_s/2` with the state seeded by `:rand.seed_s(:exsss, {seed, item_index * 64 +
+  question_index, order_index})` and threaded through, so an order depends only on OTP's `:exsss`
+  and the seed tuple (A3.11). The test suite pins the algorithm with an independent re-statement and
+  a golden list. Scheduled after H2 and before H3 so H3's run files are produced by the final
+  algorithm (→ addendum 03).
 
