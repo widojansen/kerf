@@ -523,4 +523,40 @@ CLI: `mix kerf.eval.export --out PATH --overrides PATH --clients PATH [--since 1
 - **S-14 (read-back, D2)** The production database name is not asserted anywhere in code or tests;
   D2's executor verifies it with `SELECT current_database();` over read-only ssh and it becomes the
   default of `--db`. The private deployment guide's value is a hint, not a source.
+- **S-16 (contradiction, D1 blocked — kerf-eval-data 2026-10-20)** §2.1 types `question_set` as
+  `%{String.t() => question_def}` and says "key order = Phase B order"
+  (`category, needs_reply, urgency, deadline_present, client`); H1 builds questions "in key order"
+  and D1's RED asserts "Phase B keys in order". An Elixir map cannot carry that order: maps of
+  ≤ 32 keys iterate in term order. Verified on Elixir 1.20.1/OTP 28 — `Map.keys/1` and `Enum.map/2`
+  over that literal both give `["category", "client", "deadline_present", "needs_reply", "urgency"]`,
+  and `Jason.decode/1` returns a plain map, so the order is also lost on load. Every consumer of
+  "key order" gets alphabetical order. This is the frozen shared interface (manifest struct +
+  `manifest.json` schema), so it needs a plan decision, not an executor one. Candidates:
+  (a) `question_set :: [{String.t(), question_def}]` (keyword-style list; JSON as an array of
+  `{"name", …}` objects); (b) keep the map and add a fixed `QuestionSet.order/0` (the Phase B key
+  list) that every consumer iterates instead of the map (JSON object; order is by convention, not
+  data); (c) `Jason.OrderedObject` in the struct (decoded with `objects: :ordered_objects`, which
+  turns *every* object in the file ordered unless the loader re-maps the rest). Executor's
+  recommendation: (b). It is the smallest change, H1 already atomizes "from the fixed Phase B key
+  list only", and the manifest stays a plain JSON object. D1 RED waits for the ruling.
+- **S-17 (gap, same interface — needs ruling with S-16)** `Manifest.Synthetic.build/1` is
+  "frozen", but H3 (`n: 8, pairs: 2`), D4 (`n: 12, pairs: 2`) and H4 (`n: 60, pairs: 6`) ask for
+  sizes `freeze/4` refuses (< 200 items, < 20 pairs, and 50 calibration items is impossible at
+  n = 8). The plan doesn't say how Synthetic assigns `split` below the freeze thresholds. H4's
+  temperature fit needs calibration items at n = 60. Proposed: Synthetic bypasses the freeze
+  thresholds but uses the same stratified, seeded selection with
+  `calibration = min(50, round(0.2 · eligible))` (eligible = non-pair items), and the default
+  (n = 220, pairs = 24) must pass `freeze/4` unchanged, *including* the language mix, so the
+  defaults exercise the real freeze path. The D1 RED would assert only the default case plus
+  "small n: frozen, validates, ready_for_run?/1 :ok, ≥ 1 calibration item, no pair item in
+  calibration".
+- **S-18 (ambiguity, D1)** §2.1 "stratified by (language, tier) with largest-remainder rounding"
+  doesn't say what the quota population is: all items, or the non-pair items that can actually be
+  chosen. The two give different per-stratum quotas. Proposed: the eligible (non-pair) pool,
+  `quota_s = 50 · n_s / N_eligible`. The RED would assert each stratum's count ∈
+  {⌊quota_s⌋, ⌈quota_s⌉} and a total of exactly 50.
+- **S-19 (ambiguity, D1)** `put_label(t, item_id, labels, now)` "sets labelled_at/by" but has no
+  `by` argument; the struct comment says `"wido"`. Proposed: a module constant `"wido"` (F08.2
+  "assigned by Wido"); the RED would assert `labelled_by == "wido"`. The alternative is a
+  `put_label/5` with an explicit labeller, which is an interface change.
 
