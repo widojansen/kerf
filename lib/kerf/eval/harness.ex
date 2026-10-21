@@ -34,14 +34,15 @@ defmodule Kerf.Eval.Harness do
 
   @spec run(Manifest.t(), keyword()) :: {:ok, run_result()} | {:error, term()}
   def run(manifest, opts) do
-    adapter = Keyword.fetch!(opts, :adapter)
     sink = Keyword.get(opts, :sink, fn _line -> :ok end)
 
-    with :ok <- Manifest.ready_for_run?(manifest),
+    with {:ok, adapter} <- required_option(opts, :adapter),
+         {:ok, seed} <- required_option(opts, :seed),
+         :ok <- Manifest.ready_for_run?(manifest),
          {:ok, sha256} <- manifest_sha256(opts[:manifest_path]),
          {:ok, info} <- adapter_info(adapter),
          {:ok, questions} <- Questions.from_question_set(manifest.question_set) do
-      ctx = context(manifest, adapter, questions, opts)
+      ctx = context(manifest, adapter, seed, questions, opts)
       header = header(manifest, ctx, sha256, info, opts)
       sink.(header)
 
@@ -66,6 +67,16 @@ defmodule Kerf.Eval.Harness do
 
   # ---------- set-up ----------
 
+  defp required_option(opts, key) do
+    case Keyword.fetch(opts, key) do
+      {:ok, value} -> {:ok, value}
+      :error -> {:error, {:missing_option, key}}
+    end
+  end
+
+  # Manifest.sha256/1 calls File.read/1, which raises on nil.
+  defp manifest_sha256(nil), do: {:error, {:manifest_sha256, :no_manifest_path}}
+
   defp manifest_sha256(path) do
     case Manifest.sha256(path) do
       {:ok, hex} -> {:ok, hex}
@@ -80,8 +91,7 @@ defmodule Kerf.Eval.Harness do
     end
   end
 
-  defp context(manifest, adapter, questions, opts) do
-    seed = Keyword.fetch!(opts, :seed)
+  defp context(manifest, adapter, seed, questions, opts) do
     limit = opts[:limit]
     isolation_items = Keyword.get(opts, :isolation_items, 30)
     indexed = Enum.with_index(manifest.items)
