@@ -667,6 +667,33 @@ defmodule Kerf.Eval.ExportTest do
       assert length(manifest.items) == 2
     end
 
+    test "--hashes-out writes the header and the SHA-256 of the exported senders (F08.6)" do
+      {dir, args} = ready_args()
+      {_agent, opts} = recorders()
+      hashes_out = Path.join(dir, "hashes.txt")
+
+      assert {:ok, %{hashes_out: ^hashes_out}} =
+               Export.run(args ++ ["--hashes-out", hashes_out], opts)
+
+      assert [header | lines] = hashes_out |> File.read!() |> String.split("\n", trim: true)
+      assert header == "# sha256 of addresses in the decide set"
+
+      expected =
+        ["user1@example.invalid", "user2@example.invalid"]
+        |> Enum.map(&(:crypto.hash(:sha256, &1) |> Base.encode16(case: :lower)))
+        |> Enum.sort()
+
+      assert lines == expected
+    end
+
+    test "without --hashes-out no hash file is written" do
+      {dir, args} = ready_args()
+      {_agent, opts} = recorders()
+
+      assert {:ok, _} = Export.run(args, opts)
+      refute File.exists?(Path.join(dir, "hashes.txt"))
+    end
+
     test "a malformed argv is an error before any seam is reached" do
       {agent, opts} = recorders()
       assert {:error, _} = Export.run(["--bogus"], opts)
