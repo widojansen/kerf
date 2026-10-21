@@ -585,6 +585,95 @@ defmodule Kerf.Eval.ExportTest do
     end
   end
 
+  describe "ssh_command/3 refuses unsafe host and db (S-30)" do
+    test "a host that ssh would read as an option is an error" do
+      assert {:error, _} = Export.ssh_command("-oProxyCommand=x", "kerf_prod", "SELECT 1")
+    end
+
+    test "a db that would break out of the remote command is an error" do
+      assert {:error, _} = Export.ssh_command("spark", "x; rm -rf", "SELECT 1")
+    end
+
+    test "a host with whitespace is an error" do
+      assert {:error, _} = Export.ssh_command("a b", "kerf_prod", "SELECT 1")
+    end
+  end
+
+  describe "Export.run/2 (F08.1, S-30, S-33)" do
+    # Both seams record into one Agent, so a test can prove that neither the
+    # runner (ssh) nor query/1 was reached.
+    defp recorders do
+      {:ok, agent} = Agent.start_link(fn -> %{runner: [], query: 0} end)
+
+      runner = fn argv ->
+        Agent.update(agent, &%{&1 | runner: &1.runner ++ [argv]})
+        {json_line(1, "nl") <> "\n" <> json_line(2, "de") <> "\n", 0}
+      end
+
+      query_fn = fn opts ->
+        Agent.update(agent, &%{&1 | query: &1.query + 1})
+        Export.query(opts)
+      end
+
+      {agent, [runner: runner, query_fn: query_fn]}
+    end
+
+    defp ready_args do
+      dir = tmp_dir!()
+
+      File.write!(
+        Path.join(dir, "overrides.jsonl"),
+        ~s({"doc_id":"#{uuid(1)}","label_true":"#{category()}","note":"n"}\n)
+      )
+
+      File.write!(Path.join(dir, "clients.txt"), "client-a\nclient-b\n")
+
+      {dir,
+       [
+         "--out",
+         Path.join(dir, "manifest.json"),
+         "--overrides",
+         Path.join(dir, "overrides.jsonl"),
+         "--clients",
+         Path.join(dir, "clients.txt")
+       ]}
+    end
+
+    test "a bad --host or --db never reaches the runner or query/1" do
+      for {flag, value} <- [
+            {"--db", "x; rm -rf"},
+            {"--host", "a b"},
+            {"--host", "-oProxyCommand=x"}
+          ] do
+        {_dir, args} = ready_args()
+        {agent, opts} = recorders()
+
+        assert {:error, _} = Export.run(args ++ [flag, value], opts)
+        assert %{runner: [], query: 0} = Agent.get(agent, & &1)
+      end
+    end
+
+    test "a benign argv runs once through both seams and writes a loadable manifest" do
+      {dir, args} = ready_args()
+      {agent, opts} = recorders()
+      out = Path.join(dir, "manifest.json")
+
+      assert {:ok, %{manifest_path: ^out, rows: 2}} =
+               Export.run(args ++ ["--host", "spark2", "--db", "other_db"], opts)
+
+      assert %{runner: [["ssh", "spark2", remote]], query: 1} = Agent.get(agent, & &1)
+      assert remote =~ "-d other_db"
+      assert {:ok, manifest} = Manifest.load(out)
+      assert length(manifest.items) == 2
+    end
+
+    test "a malformed argv is an error before any seam is reached" do
+      {agent, opts} = recorders()
+      assert {:error, _} = Export.run(["--bogus"], opts)
+      assert %{runner: [], query: 0} = Agent.get(agent, & &1)
+    end
+  end
+
   # -- mix kerf.eval.freeze argv ---------------------------------------------
 
   describe "Mix.Tasks.Kerf.Eval.Freeze.parse_args/1 (F08.4)" do

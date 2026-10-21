@@ -36,7 +36,7 @@ defmodule Kerf.Eval.Export do
   @spec query(keyword()) :: String.t()
   def query(_opts), do: not_implemented("F08.1 query")
 
-  @spec ssh_command(String.t(), String.t(), String.t()) :: [String.t()]
+  @spec ssh_command(String.t(), String.t(), String.t()) :: [String.t()] | {:error, term()}
   def ssh_command(_host, _db, _sql), do: not_implemented("F08.1 ssh_command")
 
   @spec fetch_rows(keyword()) :: {:ok, [row()]} | {:error, term()}
@@ -50,6 +50,11 @@ defmodule Kerf.Eval.Export do
 
   @spec build_manifest([row()], %{String.t() => String.t()}, keyword()) :: Manifest.t()
   def build_manifest(_rows, _overrides, _opts), do: not_implemented("F08.7 build_manifest")
+
+  @spec run([String.t()], keyword()) ::
+          {:ok, %{manifest_path: Path.t(), rows: non_neg_integer()}}
+          | {:error, String.t() | term()}
+  def run(_argv, _opts), do: not_implemented("F08.1 run")
 
   @spec parse_args([String.t()]) :: {:ok, config()} | {:error, String.t()}
   def parse_args(_argv), do: not_implemented("F08.1 parse_args")
