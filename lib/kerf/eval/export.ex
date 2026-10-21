@@ -11,7 +11,7 @@ defmodule Kerf.Eval.Export do
   """
 
   alias Kerf.Eval.Manifest
-  alias Kerf.Eval.Manifest.{Item, Language, Overrides, QuestionSet}
+  alias Kerf.Eval.Manifest.{Item, Language, Overrides, PII, QuestionSet}
 
   @type row :: %{
           doc_id: String.t(),
@@ -320,7 +320,8 @@ defmodule Kerf.Eval.Export do
             overrides_sha256: overrides_sha
           )
 
-        with :ok <- Manifest.save(manifest, config.out) do
+        with :ok <- write_hashes(config.hashes_out, selected),
+             :ok <- Manifest.save(manifest, config.out) do
           {:ok,
            %{
              manifest_path: config.out,
@@ -331,6 +332,17 @@ defmodule Kerf.Eval.Export do
            }}
         end
       end
+    end
+  end
+
+  # The hash list lets the PII guard find these senders in tracked files; the
+  # path was already checked against the repo root.
+  defp write_hashes(nil, _rows), do: :ok
+
+  defp write_hashes(path, rows) do
+    case rows |> Enum.map(& &1.from) |> PII.hash_addresses() |> PII.write_hashes(path) do
+      :ok -> :ok
+      {:error, reason} -> {:error, {:hashes_write_failed, reason}}
     end
   end
 

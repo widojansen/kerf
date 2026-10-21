@@ -10,7 +10,8 @@ defmodule Mix.Tasks.Kerf.Eval.Export do
 
   `--out`, `--raw` and `--hashes-out` are refused inside the repo root: the
   files hold mail. An existing `--out` is never overwritten, because it may
-  hold labels. `--hashes-out` is accepted but not written yet (PII guard, D3).
+  hold labels. `--hashes-out` receives the SHA-256 of every exported sender
+  address, for the PII guard (`KERF_EVAL_HASHES`).
   The work happens in `Kerf.Eval.Export.run/2`; this task only prints.
   """
   use Mix.Task
@@ -29,8 +30,6 @@ defmodule Mix.Tasks.Kerf.Eval.Export do
   end
 
   defp report(result) do
-    if result.hashes_out, do: Mix.shell().info("--hashes-out is not written yet (D3).")
-
     Mix.shell().info(
       "[kerf.eval.export] #{result.rows} rows fetched, #{result.selected} selected, " <>
         "#{result.overrides} overrides -> #{result.manifest_path}"
