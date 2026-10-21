@@ -532,6 +532,59 @@ defmodule Kerf.Eval.ExportTest do
     end
   end
 
+  describe "Export.parse_args/1 validation (F08.1, S-30)" do
+    test "refuses --raw inside the repo root" do
+      args = base_args() ++ ["--raw", Path.join(File.cwd!(), "raw.jsonl")]
+      assert {:error, msg} = Export.parse_args(args)
+      assert msg =~ "--raw"
+    end
+
+    test "refuses a relative --raw (it resolves inside the repo root)" do
+      assert {:error, msg} = Export.parse_args(base_args() ++ ["--raw", "raw.jsonl"])
+      assert msg =~ "--raw"
+    end
+
+    test "accepts --raw under the tmp dir" do
+      raw = Path.join(tmp_dir!(), "raw.jsonl")
+      assert {:ok, cfg} = Export.parse_args(base_args() ++ ["--raw", raw])
+      assert cfg.raw == raw
+    end
+
+    test "rejects a --host or --db that would reach ssh or the remote shell" do
+      for {flag, value} <- [
+            {"--db", "x; rm -rf"},
+            {"--db", "-x"},
+            {"--host", "a b"},
+            {"--host", "-oProxyCommand=x"}
+          ] do
+        assert {:error, msg} = Export.parse_args(base_args() ++ [flag, value])
+        assert is_binary(msg)
+        assert msg =~ flag
+      end
+    end
+
+    test "still accepts benign host and db names" do
+      for {host, db} <- [{"spark", "kerf_prod"}, {"db-1.local", "other_db"}] do
+        assert {:ok, cfg} = Export.parse_args(base_args() ++ ["--host", host, "--db", db])
+        assert {cfg.host, cfg.db} == {host, db}
+      end
+    end
+
+    test "rejects a malformed --since" do
+      for since <- ["yesterday", "180", "-5d", "d", ""] do
+        assert {:error, msg} = Export.parse_args(base_args() ++ ["--since", since])
+        assert is_binary(msg)
+      end
+    end
+
+    test "accepts a well-formed --since" do
+      for since <- ["180d", "30d"] do
+        assert {:ok, cfg} = Export.parse_args(base_args() ++ ["--since", since])
+        assert cfg.since == since
+      end
+    end
+  end
+
   # -- mix kerf.eval.freeze argv ---------------------------------------------
 
   describe "Mix.Tasks.Kerf.Eval.Freeze.parse_args/1 (F08.4)" do
