@@ -115,6 +115,7 @@ defmodule Kerf.Eval.Manifest.Synthetic do
     item = %Item{
       id: item_id(i),
       doc_id: "doc-" <> pad(i),
+      source_id: "src-" <> pad(i),
       language: language,
       state: %{
         from: "user#{i}@example.invalid",
@@ -170,6 +171,7 @@ defmodule Kerf.Eval.Manifest.Synthetic do
           a
           | id: item_id(n + k),
             doc_id: nil,
+            source_id: nil,
             synthetic_of: a.id,
             state: %{a.state | body: "#{a.state.body} (#{fact})"},
             labels: labels,

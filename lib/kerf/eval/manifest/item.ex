@@ -7,11 +7,17 @@ defmodule Kerf.Eval.Manifest.Item do
   has `doc_id: nil` and `synthetic_of` set (A3.9). `state` holds PII and only
   ever exists in the private tree. `labels` keys are the `QuestionSet.order/0`
   names; only the category label carries a source (F08.7).
+
+  `source_id` is the kb_documents.source_id beside `doc_id` (nil on synthetic
+  items). `seed_category` carries the golden-override category from the export
+  (S-29) until labelling fills the full `labels` map.
   """
 
   @enforce_keys [:id]
   defstruct id: nil,
             doc_id: nil,
+            source_id: nil,
+            seed_category: nil,
             synthetic_of: nil,
             language: "und",
             language_source: "heuristic",
@@ -40,6 +46,8 @@ defmodule Kerf.Eval.Manifest.Item do
   @type t :: %__MODULE__{
           id: String.t(),
           doc_id: String.t() | nil,
+          source_id: String.t() | nil,
+          seed_category: String.t() | nil,
           synthetic_of: String.t() | nil,
           language: String.t(),
           language_source: String.t(),
