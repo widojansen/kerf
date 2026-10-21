@@ -147,6 +147,32 @@ defmodule Kerf.Eval.PIIGuardTest do
                Enum.sort([{deep, 3}, {top, 1}])
     end
 
+    test "skips an unreadable file without raising" do
+      dir = tmp_dir!()
+      hit = Path.join(dir, "readable.md")
+      locked = Path.join(dir, "locked.md")
+      File.write!(hit, "person@example.invalid\n")
+      File.write!(locked, "nothing to see\n")
+      File.chmod!(locked, 0o000)
+      on_exit(fn -> File.chmod(locked, 0o644) end)
+
+      assert PII.scan([dir], [hex("person@example.invalid")]) == [{hit, 1}]
+    end
+
+    test "the result carries no address" do
+      dir = tmp_dir!()
+      File.write!(Path.join(dir, "notes.md"), "person@example.invalid\n")
+
+      result = PII.scan([dir], [hex("person@example.invalid")])
+
+      assert result != []
+
+      refute Enum.any?(
+               result,
+               &(inspect(&1) =~ ~r/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/)
+             )
+    end
+
     test "prints nothing" do
       dir = tmp_dir!()
       File.write!(Path.join(dir, "notes.md"), "person@example.invalid\n")

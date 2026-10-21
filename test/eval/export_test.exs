@@ -675,6 +675,7 @@ defmodule Kerf.Eval.ExportTest do
       assert {:ok, %{hashes_out: ^hashes_out}} =
                Export.run(args ++ ["--hashes-out", hashes_out], opts)
 
+      assert File.exists?(hashes_out)
       assert [header | lines] = hashes_out |> File.read!() |> String.split("\n", trim: true)
       assert header == "# sha256 of addresses in the decide set"
 
