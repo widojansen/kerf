@@ -179,4 +179,19 @@ defmodule Kerf.Eval.Manifest.SyntheticTest do
       assert :ok = Manifest.validate(m)
     end
   end
+
+  describe "source_id (D2, owner addition 2026-10-21)" do
+    test "real items carry src-<n> mirroring doc-<n>; synthetic pair items carry nil" do
+      m = Synthetic.build(n: 12, pairs: 2)
+
+      for item <- real(m) do
+        assert %{source_id: source_id} = item
+        assert source_id == "src-" <> String.replace_prefix(item.doc_id, "doc-", "")
+      end
+
+      for item <- synthetic(m) do
+        assert %{source_id: nil} = item
+      end
+    end
+  end
 end

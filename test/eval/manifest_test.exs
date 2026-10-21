@@ -834,4 +834,25 @@ defmodule Kerf.Eval.ManifestTest do
     m = Synthetic.build()
     assert m.question_set == QuestionSet.phase_b(["client-a", "client-b", "client-c"])
   end
+
+  describe "source_id on items (D2, owner addition 2026-10-21)" do
+    test "a manifest with source_id set survives save/2 → load/1" do
+      m = Synthetic.build(n: 12, pairs: 2, frozen: false)
+      [first | _] = real_items(m)
+
+      m = %{
+        m
+        | items:
+            Enum.map(m.items, fn item ->
+              if item.id == first.id, do: Map.put(item, :source_id, "src-roundtrip"), else: item
+            end)
+      }
+
+      path = tmp_path!()
+      assert :ok = Manifest.save(m, path)
+      assert {:ok, loaded} = Manifest.load(path)
+      item = Enum.find(loaded.items, &(&1.id == first.id))
+      assert %{source_id: "src-roundtrip"} = item
+    end
+  end
 end
