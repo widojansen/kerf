@@ -413,6 +413,10 @@ defmodule Kerf.Eval.Harness.CLI do
     ]
   end
 
+  @spec file_sink(IO.device(), Path.t()) :: (map() -> :ok | {:error, term()})
+  def file_sink(_device, _path),
+    do: apply(:erlang, :error, [RuntimeError.exception("CLI.file_sink/2 not implemented (RED)")])
+
   defp write_temperatures(nil, _report), do: :ok
 
   defp write_temperatures(path, report),

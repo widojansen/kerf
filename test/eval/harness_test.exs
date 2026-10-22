@@ -732,4 +732,59 @@ defmodule Kerf.Eval.HarnessTest do
 
     assert sunk([]) == [header | lines] ++ [run_end]
   end
+
+  # ---------- sink write errors (S-35 (b), F09.6, F09.8) ----------
+  #
+  # Sink contract: (map -> :ok | {:error, term}). The first {:error, reason}
+  # ends run/2 with {:error, reason}: no further sink call, and run_end is never
+  # passed, so a truncated run file never carries run_end.
+
+  describe "a sink {:error, reason} aborts the run (S-35 (b))" do
+    @write_failed {:error, {:write_failed, "/x", :enospc}}
+
+    test "an error on the third call is returned as is; exactly three calls, none run_end",
+         %{tmp_dir: dir} do
+      m = manifest()
+
+      assert Harness.run(m, opts(saved(m, dir), adapter: Oracle, sink: failing_sink(3))) ==
+               @write_failed
+
+      lines = sunk([])
+      assert length(lines) == 3
+      refute Enum.any?(lines, &(&1["type"] == "run_end"))
+    end
+
+    test "an error on the header ends the run after that one call", %{tmp_dir: dir} do
+      m = manifest()
+
+      assert Harness.run(m, opts(saved(m, dir), adapter: Oracle, sink: failing_sink(1))) ==
+               @write_failed
+
+      assert [%{"type" => "run_manifest"}] = sunk([])
+    end
+
+    test "an error on run_end itself is returned too", %{tmp_dir: dir} do
+      m = manifest()
+      path = saved(m, dir)
+      {:ok, %{lines: lines}} = Harness.run(m, opts(path, adapter: Oracle))
+      calls = length(lines) + 2
+
+      assert Harness.run(m, opts(path, adapter: Oracle, sink: failing_sink(calls))) ==
+               @write_failed
+
+      assert %{"type" => "run_end"} = List.last(sunk([]))
+    end
+  end
+
+  # Forwards every line to the test process; returns @write_failed on call n, :ok otherwise.
+  defp failing_sink(n) do
+    parent = self()
+    calls = :counters.new(1, [])
+
+    fn line ->
+      :counters.add(calls, 1, 1)
+      send(parent, {:sunk, line})
+      if :counters.get(calls, 1) == n, do: @write_failed, else: :ok
+    end
+  end
 end

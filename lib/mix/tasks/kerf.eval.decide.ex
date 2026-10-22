@@ -34,6 +34,13 @@ defmodule Mix.Tasks.Kerf.Eval.Decide do
     end
   end
 
+  @spec run([String.t()], keyword()) :: :ok
+  def run(_argv, _opts),
+    do:
+      apply(:erlang, :error, [
+        RuntimeError.exception("Mix.Tasks.Kerf.Eval.Decide.run/2 not implemented (RED)")
+      ])
+
   defp report(%{command: :run} = result),
     do: info("#{result.answers} answers, #{result.errors} errors -> #{result.out}")
 

@@ -595,6 +595,99 @@ defmodule Kerf.Eval.Harness.CLITest do
     end
   end
 
+  # ---------- run hardening (S-35, plan §7 H4b) ----------
+
+  describe "parse_args/1 — --force (S-35 (a))" do
+    test "run accepts --force; it defaults to false" do
+      assert {:ok, %{force: true}} =
+               CLI.parse_args(run_argv("/m/manifest.json", "/o/run.jsonl", ["--force"]))
+
+      assert {:ok, %{force: false}} = CLI.parse_args(run_argv("/m/manifest.json", "/o/run.jsonl"))
+    end
+
+    test "score, normalize and selftest refuse --force, naming it" do
+      tmp = System.tmp_dir!()
+
+      for argv <- [
+            score_argv("/m/manifest.json", "/r/run.jsonl", tmp),
+            ["normalize", "--run", "/r/run.jsonl", "--out", Path.join(tmp, "n.jsonl")],
+            ["selftest", "--out-dir", Path.join(tmp, "selftest")]
+          ] do
+        assert {:error, message} = CLI.parse_args(argv ++ ["--force"]), hd(argv)
+        assert message =~ "--force", hd(argv)
+      end
+    end
+  end
+
+  describe "run/1 — an existing --out (S-35 (a), F09.8)" do
+    @stale "stale bytes, not a run\n"
+
+    test "is refused before the manifest is loaded; the file is unchanged" do
+      dir = tmp_dir!()
+      out = Path.join(dir, "run.jsonl")
+      File.write!(out, @stale)
+      missing_manifest = Path.join(dir, "no-manifest.json")
+
+      assert {:error, "" <> message} = CLI.run(run_argv(missing_manifest, out))
+      assert message =~ ~r/exists; refusing to overwrite/
+      assert File.read!(out) == @stale
+    end
+
+    test "is refused over a ready manifest; nothing else is written" do
+      manifest = saved_manifest()
+      dir = tmp_dir!()
+      out = Path.join(dir, "run.jsonl")
+      File.write!(out, @stale)
+
+      assert {:error, "" <> message} = CLI.run(run_argv(manifest, out))
+      assert message =~ ~r/exists; refusing to overwrite/
+      assert File.read!(out) == @stale
+      assert File.ls!(dir) == ["run.jsonl"]
+    end
+
+    test "is replaced with --force" do
+      manifest = saved_manifest()
+      dir = tmp_dir!()
+      out = Path.join(dir, "run.jsonl")
+      File.write!(out, @stale)
+
+      assert {:ok, result} = CLI.run(run_argv(manifest, out, ["--force"]))
+      assert {:ok, {_header, lines, run_end}} = Run.read(out)
+      assert run_end["answers"] == length(lines)
+      assert result.answers == length(lines)
+      refute File.read!(out) =~ @stale
+      assert File.ls!(dir) == ["run.jsonl"]
+    end
+  end
+
+  describe "file_sink/2 (S-35 (b), F09.6)" do
+    test "a write error is {:error, {:write_failed, path, reason}}" do
+      path = Path.join(tmp_dir!(), "read-only.jsonl")
+      File.write!(path, "")
+      {:ok, device} = File.open(path, [:read])
+      on_exit(fn -> File.close(device) end)
+
+      sink = CLI.file_sink(device, path)
+
+      assert {:error, {:write_failed, ^path, _reason}} =
+               sink.(Run.end_line(%{"answers" => 0, "errors" => 0}))
+    end
+
+    test "a successful write is :ok and appends Run.encode(line) <> \"\\n\"" do
+      path = Path.join(tmp_dir!(), "run.jsonl")
+      {:ok, device} = File.open(path, [:write, :binary])
+      first = Run.end_line(%{"answers" => 1, "errors" => 0})
+      second = Run.end_line(%{"answers" => 2, "errors" => 1})
+
+      sink = CLI.file_sink(device, path)
+      assert sink.(first) == :ok
+      assert sink.(second) == :ok
+      :ok = File.close(device)
+
+      assert File.read!(path) == Run.encode(first) <> "\n" <> Run.encode(second) <> "\n"
+    end
+  end
+
   # ---------- the mix task ----------
 
   describe "mix kerf.eval.decide" do
