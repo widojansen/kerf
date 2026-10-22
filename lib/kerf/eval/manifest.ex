@@ -454,8 +454,12 @@ defmodule Kerf.Eval.Manifest do
     with :ok <- not_frozen(manifest, item_id),
          {:ok, item} <- fetch_item(manifest, item_id),
          :ok <- no_violations(label_violations(item_id, labels, manifest)) do
+      # S-29: "adjudicated" only while the owner's category is still the
+      # override the item was seeded with.
       source =
-        if item.label_sources["category"] == "adjudicated", do: "adjudicated", else: "new"
+        if item.seed_category != nil and labels["category"] == item.seed_category,
+          do: "adjudicated",
+          else: "new"
 
       updated = %{
         item

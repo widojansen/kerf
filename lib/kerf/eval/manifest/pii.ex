@@ -55,7 +55,9 @@ defmodule Kerf.Eval.Manifest.PII do
     lines = hashes |> Enum.sort() |> Enum.map(&(&1 <> "\n"))
     tmp = "#{path}.tmp-#{System.unique_integer([:positive])}"
 
+    # The list identifies real senders, so it is private to the owner (S-35).
     with {:write, :ok} <- {:write, File.write(tmp, [@header, "\n" | lines])},
+         {:chmod, :ok} <- {:chmod, File.chmod(tmp, 0o600)},
          {:rename, :ok} <- {:rename, File.rename(tmp, path)} do
       :ok
     else
