@@ -18,6 +18,9 @@ config :kerf, Kerf.Telemetry.Logger,
 
 config :logger, level: :debug
 
-# SPEC_H §2.8: mounts the eval labelling page (dev only; prod.exs and
-# runtime.exs never set :eval_ui).
-config :kerf, :eval_ui, manifest_path: System.get_env("KERF_EVAL_MANIFEST")
+# SPEC_H §2.8, S-36: :eval_ui is the compile-time switch that mounts the eval
+# labelling page (dev and test only; prod.exs and runtime.exs set neither key).
+# The manifest path is runtime-only, so a different KERF_EVAL_MANIFEST never
+# needs a recompile.
+config :kerf, :eval_ui, true
+config :kerf, :eval_manifest_path, System.get_env("KERF_EVAL_MANIFEST")

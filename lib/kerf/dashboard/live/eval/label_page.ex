@@ -1,7 +1,8 @@
 defmodule Kerf.Dashboard.Live.Eval.LabelPage do
   @moduledoc """
   SPEC_H F08.1–F08.4 — the owner's labelling page. Mounted only where
-  `config :kerf, :eval_ui` is set (plan §2.8).
+  `config :kerf, :eval_ui` is true (plan §2.8); the manifest path is read at
+  runtime from `:eval_manifest_path` (S-36).
 
   The page is a thin form over `Kerf.Eval.Manifest`: every event calls the
   matching `put_*`/`add_synthetic_item`/`mark_pair`, then `save/2`, then reloads
@@ -68,12 +69,7 @@ defmodule Kerf.Dashboard.Live.Eval.LabelPage do
 
   # -- state -------------------------------------------------------------------
 
-  defp manifest_path do
-    case Application.get_env(:kerf, :eval_ui) do
-      config when is_list(config) -> Keyword.get(config, :manifest_path)
-      _ -> nil
-    end
-  end
+  defp manifest_path, do: Application.get_env(:kerf, :eval_manifest_path)
 
   defp reload(%{assigns: %{path: nil}} = socket), do: assign(socket, manifest: nil)
 
