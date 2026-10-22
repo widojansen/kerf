@@ -51,9 +51,15 @@ defmodule Kerf.Dashboard.Eval.LabelPageTest do
   end
 
   defp point_page_at!(path) do
-    previous = Application.get_env(:kerf, :eval_ui)
-    Application.put_env(:kerf, :eval_ui, manifest_path: path)
-    on_exit(fn -> Application.put_env(:kerf, :eval_ui, previous) end)
+    previous = Application.get_env(:kerf, :eval_manifest_path)
+    Application.put_env(:kerf, :eval_manifest_path, path)
+
+    on_exit(fn ->
+      case previous do
+        nil -> Application.delete_env(:kerf, :eval_manifest_path)
+        value -> Application.put_env(:kerf, :eval_manifest_path, value)
+      end
+    end)
   end
 
   defp load!(path) do
@@ -68,7 +74,7 @@ defmodule Kerf.Dashboard.Eval.LabelPageTest do
   end
 
   # The form posts every field as a string.
-  defp form_labels(overrides \\ %{}) do
+  defp form_labels(overrides) do
     Map.merge(
       %{
         "category" => hd(categories()),
