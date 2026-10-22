@@ -8,7 +8,9 @@ defmodule Kerf.Eval.Harness do
   request and a state request carrying the secret token. Lines follow the
   §2.3 order; every request goes through `Kerf.Decide.ask/3` and nothing else.
   An adapter failure becomes error lines and the run continues; `run/2` never
-  raises.
+  raises. `opts[:sink]` receives each line as it is produced and returns `:ok`
+  or `{:error, reason}`; the first error is `run/2`'s result and no `run_end`
+  follows it (S-35).
   """
 
   alias Kerf.Decide.{OptionSet, State}
@@ -44,25 +46,46 @@ defmodule Kerf.Eval.Harness do
          {:ok, questions} <- Questions.from_question_set(manifest.question_set) do
       ctx = context(manifest, adapter, seed, questions, opts)
       header = header(manifest, ctx, sha256, info, opts)
-      sink.(header)
 
-      lines =
-        Enum.flat_map(ctx.scope, fn {item, item_index} ->
-          item_lines = item_lines(ctx, item, item_index)
-          Enum.each(item_lines, sink)
-          item_lines
-        end)
+      with :ok <- sink.(header),
+           {:ok, lines} <- sink_items(ctx, sink) do
+        run_end =
+          Run.end_line(%{
+            "finished_at" => now(),
+            "answers" => length(lines),
+            "errors" => Enum.count(lines, &(&1["error"] != nil))
+          })
 
-      run_end =
-        Run.end_line(%{
-          "finished_at" => now(),
-          "answers" => length(lines),
-          "errors" => Enum.count(lines, &(&1["error"] != nil))
-        })
-
-      sink.(run_end)
-      {:ok, %{header: header, lines: lines, end: run_end}}
+        with :ok <- sink.(run_end), do: {:ok, %{header: header, lines: lines, end: run_end}}
+      end
     end
+  end
+
+  # The first sink {:error, reason} ends the run: no further line is asked for or
+  # passed, so a truncated run file never carries run_end (F09.6, F09.8, S-35).
+  defp sink_items(ctx, sink) do
+    ctx.scope
+    |> Enum.reduce_while({:ok, []}, fn {item, item_index}, {:ok, acc} ->
+      item_lines = item_lines(ctx, item, item_index)
+
+      case sink_all(item_lines, sink) do
+        :ok -> {:cont, {:ok, [item_lines | acc]}}
+        {:error, _reason} = error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, acc} -> {:ok, acc |> Enum.reverse() |> Enum.concat()}
+      error -> error
+    end
+  end
+
+  defp sink_all(lines, sink) do
+    Enum.reduce_while(lines, :ok, fn line, :ok ->
+      case sink.(line) do
+        :ok -> {:cont, :ok}
+        {:error, _reason} = error -> {:halt, error}
+      end
+    end)
   end
 
   # ---------- set-up ----------

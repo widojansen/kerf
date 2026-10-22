@@ -47,7 +47,8 @@ defmodule Kerf.Eval.Harness.CLI do
       permutations: :integer,
       isolation_items: :integer,
       limit: :integer,
-      skip_latency: :boolean
+      skip_latency: :boolean,
+      force: :boolean
     ],
     score: [
       manifest: :string,
@@ -159,7 +160,8 @@ defmodule Kerf.Eval.Harness.CLI do
          permutations: Map.get(opts, :permutations, 6),
          isolation_items: Map.get(opts, :isolation_items, 30),
          limit: opts[:limit],
-         skip_latency: Map.get(opts, :skip_latency, false)
+         skip_latency: Map.get(opts, :skip_latency, false),
+         force: Map.get(opts, :force, false)
        }}
     end
   end
@@ -295,8 +297,10 @@ defmodule Kerf.Eval.Harness.CLI do
                              --adapter http|random|oracle|Elixir.Module
                              [--base-url URL] [--allow-remote] [--timeout MS]
                              [--permutations 6] [--isolation-items 30] [--limit N] [--skip-latency]
+                             [--force]
 
     Runs a frozen manifest through the adapter and writes the run JSONL to exactly --out.
+    An existing --out is refused unless --force, which replaces it.
     --limit N runs the first N items in manifest order;
     isolation items are chosen from the eval items in that scope.
     A limited run marks every gate "pending".
@@ -339,9 +343,10 @@ defmodule Kerf.Eval.Harness.CLI do
   end
 
   defp execute(%{command: :run} = config) do
-    with {:ok, manifest} <- Manifest.load(config.manifest),
+    with :ok <- refuse_existing(config),
+         {:ok, manifest} <- Manifest.load(config.manifest),
          :ok <- Manifest.ready_for_run?(manifest),
-         {:ok, file} <- File.open(config.out, [:write, :binary]) do
+         {:ok, file} <- open_out(config) do
       result =
         try do
           Harness.run(manifest, harness_opts(config, file))
@@ -398,6 +403,24 @@ defmodule Kerf.Eval.Harness.CLI do
     Selftest.run(config.out_dir, [seed: config.seed] ++ manifest)
   end
 
+  # F09.8: a run file is never overwritten by accident. The check comes before the
+  # manifest is loaded; :exclusive closes the gap between the check and the open.
+  defp refuse_existing(%{force: true}), do: :ok
+
+  defp refuse_existing(%{out: out}),
+    do: if(File.exists?(out), do: {:error, refusal(out)}, else: :ok)
+
+  defp open_out(%{force: true, out: out}), do: File.open(out, [:write, :binary])
+
+  defp open_out(%{out: out}) do
+    case File.open(out, [:write, :binary, :exclusive]) do
+      {:error, :eexist} -> {:error, refusal(out)}
+      other -> other
+    end
+  end
+
+  defp refusal(out), do: "#{out} exists; refusing to overwrite it"
+
   # Lines are streamed to --out as they are produced (plan §2.7).
   defp harness_opts(config, file) do
     [
@@ -409,13 +432,21 @@ defmodule Kerf.Eval.Harness.CLI do
       isolation_items: config.isolation_items,
       limit: config.limit,
       skip_latency: config.skip_latency,
-      sink: fn line -> IO.binwrite(file, Run.encode(line) <> "\n") end
+      sink: file_sink(file, config.out)
     ]
   end
 
+  # :file.write/2, not IO.binwrite/2: binwrite raises on a write error instead of
+  # returning it (S-35 note 5).
   @spec file_sink(IO.device(), Path.t()) :: (map() -> :ok | {:error, term()})
-  def file_sink(_device, _path),
-    do: apply(:erlang, :error, [RuntimeError.exception("CLI.file_sink/2 not implemented (RED)")])
+  def file_sink(device, path) do
+    fn line ->
+      case :file.write(device, Run.encode(line) <> "\n") do
+        :ok -> :ok
+        {:error, reason} -> {:error, {:write_failed, path, reason}}
+      end
+    end
+  end
 
   defp write_temperatures(nil, _report), do: :ok
 

@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Kerf.Eval.Decide do
 
       mix kerf.eval.decide run       --manifest M --out run.jsonl --adapter http|random|oracle|Elixir.Mod \\
                                      --seed N [--base-url URL] [--allow-remote] [--timeout MS] \\
-                                     [--permutations 6] [--isolation-items 30] [--limit N] [--skip-latency]
+                                     [--permutations 6] [--isolation-items 30] [--limit N] [--skip-latency] [--force]
       mix kerf.eval.decide score     --manifest M --run run.jsonl --report report.json --summary report.md \\
                                      [--baseline-accuracy F] [--host-class decoder|encoder] \\
                                      [--temperature-out temperatures.json]
@@ -13,19 +13,28 @@ defmodule Mix.Tasks.Kerf.Eval.Decide do
       mix kerf.eval.decide selftest  --out-dir DIR [--manifest M|synthetic] [--seed N]
 
   `--limit N` runs the first N items in manifest order; isolation items are
-  chosen from the eval items in that scope. Output paths inside the repo root
-  are refused. The work happens in `Kerf.Eval.Harness.CLI.run/1`; this task
-  only prints.
+  chosen from the eval items in that scope. An existing run `--out` is refused
+  unless `--force`. Output paths inside the repo root are refused. The work
+  happens in `Kerf.Eval.Harness.CLI.run/1`; this task only prints.
   """
   use Mix.Task
 
   alias Kerf.Eval.Harness.CLI
 
   @impl Mix.Task
-  def run(argv) do
+  def run(argv), do: run(argv, [])
+
+  # opts[:starter] (default &Application.ensure_all_started/1) is a test seam (S-35).
+  @spec run([String.t()], keyword()) :: :ok
+  def run(argv, opts) do
     Mix.Task.run("app.config")
+    starter = Keyword.get(opts, :starter, &Application.ensure_all_started/1)
+
     # The HTTP adapter's Req needs its Finch pool; the Kerf app itself stays stopped.
-    {:ok, _apps} = Application.ensure_all_started(:req)
+    case starter.(:req) do
+      {:ok, _apps} -> :ok
+      {:error, reason} -> Mix.raise("kerf.eval.decide: starting :req failed: #{inspect(reason)}")
+    end
 
     case CLI.run(argv) do
       {:ok, result} -> report(result)
@@ -33,13 +42,6 @@ defmodule Mix.Tasks.Kerf.Eval.Decide do
       {:error, reason} -> Mix.raise("kerf.eval.decide failed: #{inspect(reason)}")
     end
   end
-
-  @spec run([String.t()], keyword()) :: :ok
-  def run(_argv, _opts),
-    do:
-      apply(:erlang, :error, [
-        RuntimeError.exception("Mix.Tasks.Kerf.Eval.Decide.run/2 not implemented (RED)")
-      ])
 
   defp report(%{command: :run} = result),
     do: info("#{result.answers} answers, #{result.errors} errors -> #{result.out}")
