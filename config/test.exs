@@ -64,3 +64,7 @@ config :kerf, Kerf.Telemetry.Logger,
 config :kerf, Oban, testing: :manual
 
 config :logger, level: :warning
+
+# SPEC_H §2.8: mounts the eval labelling page; tests inject a tmp manifest
+# path with Application.put_env.
+config :kerf, :eval_ui, manifest_path: nil

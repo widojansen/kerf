@@ -38,6 +38,10 @@ defmodule Kerf.Eval.ManifestTest do
     %{m | items: Enum.map(m.items, fn item -> if item.id == id, do: fun.(item), else: item end)}
   end
 
+  defp categories do
+    Enum.take(Kerf.Decide.OptionSet.labels(Kerf.Decide.OptionSet.triage_categories()), 2)
+  end
+
   defp item!(m, id), do: Enum.find(m.items, &(&1.id == id)) || flunk("no item #{id}")
 
   defp codes(violations), do: Enum.map(violations, &elem(&1, 0))
@@ -444,13 +448,55 @@ defmodule Kerf.Eval.ManifestTest do
       assert item!(m2, a.id).label_sources == %{"category" => "new"}
     end
 
-    test "keeps an \"adjudicated\" category source (F08.7)" do
+    # S-29: the category source is "adjudicated" iff the owner's category still
+    # equals the override the item was seeded with; anything else is "new".
+    test "keeps \"adjudicated\" when the label equals seed_category (F08.7, S-29)" do
+      [seed, _] = categories()
       m = Synthetic.build(frozen: false)
       [a | _] = unpaired_real(m)
-      m = update_item(m, a.id, &%{&1 | label_sources: %{"category" => "adjudicated"}})
-      labels = %{a.labels | "urgency" => rem(a.labels["urgency"], 5) + 1}
-      assert {:ok, m2} = Manifest.put_label(m, a.id, labels, @now)
+
+      m =
+        update_item(
+          m,
+          a.id,
+          &%{&1 | labels: nil, seed_category: seed, label_sources: %{"category" => "adjudicated"}}
+        )
+
+      assert {:ok, m2} = Manifest.put_label(m, a.id, %{a.labels | "category" => seed}, @now)
       assert item!(m2, a.id).label_sources == %{"category" => "adjudicated"}
+    end
+
+    test "a label differing from seed_category is \"new\" and leaves seed_category alone (S-29)" do
+      [seed, other] = categories()
+      m = Synthetic.build(frozen: false)
+      [a | _] = unpaired_real(m)
+
+      m =
+        update_item(
+          m,
+          a.id,
+          &%{&1 | labels: nil, seed_category: seed, label_sources: %{"category" => "adjudicated"}}
+        )
+
+      assert {:ok, m2} = Manifest.put_label(m, a.id, %{a.labels | "category" => other}, @now)
+      item = item!(m2, a.id)
+      assert item.label_sources == %{"category" => "new"}
+      assert item.seed_category == seed
+    end
+
+    test "a nil seed_category is \"new\" even if the source said \"adjudicated\" (S-29)" do
+      m = Synthetic.build(frozen: false)
+      [a | _] = unpaired_real(m)
+
+      m =
+        update_item(
+          m,
+          a.id,
+          &%{&1 | seed_category: nil, label_sources: %{"category" => "adjudicated"}}
+        )
+
+      assert {:ok, m2} = Manifest.put_label(m, a.id, a.labels, @now)
+      assert item!(m2, a.id).label_sources == %{"category" => "new"}
     end
 
     test "rejects urgency \"3\" with :label_wrong_type" do

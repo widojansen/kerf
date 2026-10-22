@@ -17,3 +17,7 @@ config :kerf, Kerf.Telemetry.Logger,
   ch_opts: nil
 
 config :logger, level: :debug
+
+# SPEC_H §2.8: mounts the eval labelling page (dev only; prod.exs and
+# runtime.exs never set :eval_ui).
+config :kerf, :eval_ui, manifest_path: System.get_env("KERF_EVAL_MANIFEST")

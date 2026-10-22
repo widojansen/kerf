@@ -77,6 +77,13 @@ defmodule Kerf.Eval.PIIGuardTest do
       assert read == Enum.sort(hashes)
     end
 
+    test "the hash file is mode 0o600 (S-35)" do
+      path = Path.join(tmp_dir!(), "hashes.txt")
+
+      assert :ok = PII.write_hashes([hex("a@example.invalid")], path)
+      assert Bitwise.band(File.stat!(path).mode, 0o777) == 0o600
+    end
+
     test "leaves no tmp file next to the target" do
       dir = tmp_dir!()
       assert :ok = PII.write_hashes([hex("a@example.invalid")], Path.join(dir, "hashes.txt"))
