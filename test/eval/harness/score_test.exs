@@ -1248,4 +1248,153 @@ defmodule Kerf.Eval.Harness.ScoreTest do
     refute a == b
     assert drop.(a) == drop.(b)
   end
+
+  # ---------- calibration diagnostics (H4c, S-2b) ----------
+  #
+  # Score.fit_diagnostics/1 takes fit_temperature/1's [{probs, gold_index}] samples.
+  # The fitted NLL sum is nll/2's sum at the fitted T; the uninformative baseline sum
+  # is n · ln K (K = length of the probability vector, 2 for a Noul). The likelihood-
+  # ratio statistic is 2 · (baseline sum − fitted sum); the fit beats the baseline iff
+  # it exceeds 3.841 (χ²₁ 95 %). ece[question] carries the five keys beside raw,
+  # scaled and n; the twelve top-level report keys are unchanged.
+
+  @diagnostic_keys ~w(calibration_n calibration_nll fit_better fitted_t lr_statistic)
+
+  defp under_confident, do: List.duplicate({[0.6, 0.4], 0}, 9) ++ [{[0.6, 0.4], 1}]
+
+  defp over_confident,
+    do: List.duplicate({[0.9, 0.1], 0}, 7) ++ List.duplicate({[0.9, 0.1], 1}, 3)
+
+  defp three_class,
+    do:
+      List.duplicate({[0.8, 0.1, 0.1], 0}, 6) ++
+        List.duplicate({[0.8, 0.1, 0.1], 1}, 2) ++ List.duplicate({[0.8, 0.1, 0.1], 2}, 2)
+
+  # Σ −ln(scaled p_gold) at T, the scaled probs from apply_temperature/2.
+  defp nll_sum(samples, t) do
+    samples
+    |> Enum.map(fn {probs, gold} ->
+      -:math.log(Enum.at(Score.apply_temperature(probs, t), gold))
+    end)
+    |> Enum.sum()
+  end
+
+  describe "fit_diagnostics/1 (H4c)" do
+    test "the fitted T, the sample count, the mean NLL and the LR statistic of each set" do
+      for {name, samples, k, fit_better} <- [
+            {"under-confident", under_confident(), 2, true},
+            {"over-confident", over_confident(), 2, false},
+            {"three-class", three_class(), 3, false}
+          ] do
+        t = Score.fit_temperature(samples)
+        n = length(samples)
+        fitted = nll_sum(samples, t)
+
+        diagnostics = Score.fit_diagnostics(samples)
+
+        assert diagnostics.fitted_t == t, name
+        assert diagnostics.calibration_n == n, name
+        assert_in_delta diagnostics.calibration_nll, fitted / n, 1.0e-6, name
+        assert_in_delta diagnostics.lr_statistic, 2 * (n * :math.log(k) - fitted), 1.0e-6, name
+        assert diagnostics.fit_better == fit_better, name
+      end
+    end
+
+    test "no samples: T 1.0, n 0, no NLL, no statistic, not better" do
+      assert Score.fit_diagnostics([]) == %{
+               fitted_t: 1.0,
+               calibration_n: 0,
+               calibration_nll: nil,
+               lr_statistic: nil,
+               fit_better: false
+             }
+    end
+  end
+
+  describe "fit_better?/1 (H4c)" do
+    test "true only above the χ²₁ 95 % critical value 3.841" do
+      assert Score.fit_better?(5.0) == true
+      assert Score.fit_better?(3.841) == false
+      assert Score.fit_better?(3.0) == false
+      assert Score.fit_better?(nil) == false
+    end
+  end
+
+  # needs_reply: 4 calibration items (gold true, true, true, false) and 6 eval items;
+  # deadline_present: eval lines only, so its fit has no samples.
+  defp diagnostics_report do
+    calibration =
+      for {id, gold, p_yes} <- [
+            {"it-c01", true, 0.7},
+            {"it-c02", true, 0.6},
+            {"it-c03", true, 0.8},
+            {"it-c04", false, 0.65}
+          ],
+          do: {item(id, %{split: "calibration", labels: labels(%{"needs_reply" => gold})}), p_yes}
+
+    eval =
+      for {id, gold, p_yes} <- [
+            {"it-e01", true, 0.7},
+            {"it-e02", false, 0.4},
+            {"it-e03", true, 0.9},
+            {"it-e04", false, 0.2},
+            {"it-e05", true, 0.55},
+            {"it-e06", false, 0.6}
+          ],
+          do: {item(id, %{labels: labels(%{"needs_reply" => gold})}), p_yes}
+
+    needs_reply =
+      for {item, p_yes} <- calibration ++ eval do
+        noul_line(%{
+          "item_id" => item.id,
+          "doc_id" => item.doc_id,
+          "split" => item.split,
+          "gold" => item.labels["needs_reply"],
+          "result" => noul_result(p_yes)
+        })
+      end
+
+    deadline =
+      for {item, _p_yes} <- eval do
+        noul_line(%{
+          "item_id" => item.id,
+          "doc_id" => item.doc_id,
+          "question" => "deadline_present",
+          "gold" => false,
+          "result" => noul_result(0.3)
+        })
+      end
+
+    items = Enum.map(calibration ++ eval, &elem(&1, 0))
+    Score.score(header(), needs_reply ++ deadline, items, [])
+  end
+
+  describe "score/4 ECE diagnostics (H4c)" do
+    test "ece[question] carries the five diagnostics beside raw, scaled and n" do
+      report = diagnostics_report()
+      entry = report["ece"]["needs_reply"]
+
+      assert entry |> Map.keys() |> Enum.sort() == Enum.sort(~w(n raw scaled) ++ @diagnostic_keys)
+      assert entry["fitted_t"] == report["temperature"]["needs_reply"]
+      assert entry["calibration_n"] == 4
+      assert entry["n"] == 6
+      assert is_float(entry["calibration_nll"])
+      assert is_float(entry["lr_statistic"])
+      assert entry["fit_better"] == Score.fit_better?(entry["lr_statistic"])
+    end
+
+    test "a question without calibration lines: n 0, no NLL, no statistic, not better" do
+      entry = diagnostics_report()["ece"]["deadline_present"]
+
+      assert entry["n"] == 6
+      assert entry["calibration_n"] == 0
+      assert entry["calibration_nll"] == nil
+      assert entry["lr_statistic"] == nil
+      assert entry["fit_better"] == false
+    end
+
+    test "the twelve top-level report keys are unchanged" do
+      assert diagnostics_report() |> Map.keys() |> Enum.sort() == Enum.sort(@report_keys)
+    end
+  end
 end

@@ -167,4 +167,72 @@ defmodule Kerf.Eval.Harness.ReportTest do
 
     refute Report.to_markdown(failing) == Report.to_markdown(report())
   end
+
+  # ---------- calibration diagnostics in the ECE table (H4c, S-2b) ----------
+
+  @ece_header "| question | raw | scaled | T | n | cal n | cal NLL | LR | fit |"
+
+  # report() with the five H4c keys inside ece["category"].
+  defp diagnosed_report(overrides) do
+    entry =
+      Map.merge(
+        %{
+          "raw" => 0.03,
+          "scaled" => 0.001,
+          "n" => 40,
+          "fitted_t" => 0.25,
+          "calibration_n" => 50,
+          "calibration_nll" => 0.6420,
+          "lr_statistic" => 5.0,
+          "fit_better" => true
+        },
+        overrides
+      )
+
+    put_in(report()["ece"]["category"], entry)
+  end
+
+  defp ece_row(report, question) do
+    [_before, ece] = report |> Report.to_markdown() |> String.split("## ECE")
+    [row] = ece |> String.split("\n") |> Enum.filter(&String.starts_with?(&1, "| #{question} |"))
+    row
+  end
+
+  test "to_markdown/1 ECE table has the nine-column header" do
+    lines = diagnosed_report(%{}) |> Report.to_markdown() |> String.split("\n")
+
+    assert @ece_header in lines
+  end
+
+  test "to_markdown/1 flags a fit that does not beat the uninformative baseline, with LR" do
+    row = ece_row(diagnosed_report(%{"lr_statistic" => 2.5, "fit_better" => false}), "category")
+
+    assert row =~ "fit not better than uninformative (LR = 2.500)"
+  end
+
+  test "to_markdown/1 prints ok for a fit that beats the baseline" do
+    row = ece_row(diagnosed_report(%{"lr_statistic" => 5.0, "fit_better" => true}), "category")
+
+    assert row =~ "| ok |"
+    refute row =~ "fit not better"
+  end
+
+  test "to_markdown/1 prints LR = n/a when there were no calibration samples" do
+    report =
+      diagnosed_report(%{
+        "calibration_n" => 0,
+        "calibration_nll" => nil,
+        "lr_statistic" => nil,
+        "fit_better" => false
+      })
+
+    assert ece_row(report, "category") =~ "fit not better than uninformative (LR = n/a)"
+  end
+
+  test "to_json/1 is byte-identical across key orders with the diagnostics present" do
+    report = diagnosed_report(%{"lr_statistic" => 2.5, "fit_better" => false})
+
+    assert json(report) == json(rebuilt_reversed(report))
+    assert Jason.decode!(json(report)) == report
+  end
 end

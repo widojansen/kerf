@@ -110,6 +110,24 @@ defmodule Kerf.Eval.Harness.Score do
     :math.exp(golden_section(nll, lo, hi, @golden_iterations))
   end
 
+  @spec fit_diagnostics([{[float()], non_neg_integer()}]) :: %{
+          fitted_t: float(),
+          calibration_n: non_neg_integer(),
+          calibration_nll: float() | nil,
+          lr_statistic: float() | nil,
+          fit_better: boolean()
+        }
+  def fit_diagnostics(_samples),
+    do:
+      apply(:erlang, :error, [
+        RuntimeError.exception("Score.fit_diagnostics/1 not implemented (RED)")
+      ])
+
+  @spec fit_better?(float() | nil) :: boolean()
+  def fit_better?(_lr_statistic),
+    do:
+      apply(:erlang, :error, [RuntimeError.exception("Score.fit_better?/1 not implemented (RED)")])
+
   @spec apply_temperature([float()], float()) :: [float()]
   def apply_temperature(probs, t) do
     probs |> Enum.map(&(:math.log(&1 + @epsilon) / t)) |> softmax()
