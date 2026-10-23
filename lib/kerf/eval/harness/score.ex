@@ -34,13 +34,14 @@ defmodule Kerf.Eval.Harness.Score do
     eval_main0 = Enum.filter(main0, &(split_of(by_id, &1) == "eval"))
     calibration_main0 = Enum.filter(main0, &(split_of(by_id, &1) == "calibration"))
 
-    temperature = temperatures(calibration_main0, by_id)
+    diagnostics = temperatures(calibration_main0, by_id)
+    temperature = Map.new(diagnostics, fn {question, d} -> {question, d.fitted_t} end)
 
     report = %{
       "schema_version" => @schema_version,
       "run" => run_section(header, opts),
       "accuracy" => accuracy(answers, items),
-      "ece" => ece_section(eval_main0, by_id, temperature),
+      "ece" => ece_section(eval_main0, by_id, diagnostics),
       "temperature" => temperature,
       "flip_rate" => flip_rate(answers),
       "isolation" => isolation(answers),
@@ -101,14 +102,7 @@ defmodule Kerf.Eval.Harness.Score do
   @spec fit_temperature([{[float()], non_neg_integer()}]) :: float()
   def fit_temperature([]), do: 1.0
 
-  def fit_temperature(samples) do
-    logs =
-      Enum.map(samples, fn {probs, gold} -> {Enum.map(probs, &:math.log(&1 + @epsilon)), gold} end)
-
-    nll = fn log_t -> nll(logs, :math.exp(log_t)) end
-    {lo, hi} = @log_t_range
-    :math.exp(golden_section(nll, lo, hi, @golden_iterations))
-  end
+  def fit_temperature(samples), do: samples |> log_samples() |> fit_logs()
 
   @spec fit_diagnostics([{[float()], non_neg_integer()}]) :: %{
           fitted_t: float(),
@@ -117,16 +111,41 @@ defmodule Kerf.Eval.Harness.Score do
           lr_statistic: float() | nil,
           fit_better: boolean()
         }
-  def fit_diagnostics(_samples),
-    do:
-      apply(:erlang, :error, [
-        RuntimeError.exception("Score.fit_diagnostics/1 not implemented (RED)")
-      ])
+  def fit_diagnostics([]),
+    do: %{
+      fitted_t: 1.0,
+      calibration_n: 0,
+      calibration_nll: nil,
+      lr_statistic: nil,
+      fit_better: false
+    }
 
+  # The likelihood-ratio statistic compares the fitted NLL sum with the
+  # uninformative baseline (uniform over K options, ln K per sample).
+  def fit_diagnostics(samples) do
+    logs = log_samples(samples)
+    t = fit_logs(logs)
+    fitted = nll(logs, t)
+    n = length(samples)
+
+    baseline =
+      samples |> Enum.map(fn {probs, _gold} -> :math.log(length(probs)) end) |> Enum.sum()
+
+    lr = 2 * (baseline - fitted)
+
+    %{
+      fitted_t: t,
+      calibration_n: n,
+      calibration_nll: fitted / n,
+      lr_statistic: lr,
+      fit_better: fit_better?(lr)
+    }
+  end
+
+  # χ²₁ at 95%: 3.841 itself is not better.
   @spec fit_better?(float() | nil) :: boolean()
-  def fit_better?(_lr_statistic),
-    do:
-      apply(:erlang, :error, [RuntimeError.exception("Score.fit_better?/1 not implemented (RED)")])
+  def fit_better?(nil), do: false
+  def fit_better?(lr_statistic), do: lr_statistic > 3.841
 
   @spec apply_temperature([float()], float()) :: [float()]
   def apply_temperature(probs, t) do
@@ -405,16 +424,17 @@ defmodule Kerf.Eval.Harness.Score do
                else: (_ -> [])
         end)
 
-      {question, fit_temperature(samples)}
+      {question, fit_diagnostics(samples)}
     end)
   end
 
-  defp ece_section(lines, by_id, temperature) do
+  defp ece_section(lines, by_id, diagnostics) do
     lines
     |> calibrated()
     |> Enum.group_by(& &1["question"])
     |> Map.new(fn {question, group} ->
-      t = Map.get(temperature, question, 1.0)
+      diagnostic = Map.get_lazy(diagnostics, question, fn -> fit_diagnostics([]) end)
+      t = diagnostic.fitted_t
 
       pairs =
         Enum.flat_map(group, fn line ->
@@ -428,7 +448,12 @@ defmodule Kerf.Eval.Harness.Score do
        %{
          "raw" => ece(Enum.map(pairs, &elem(&1, 0))),
          "scaled" => ece(Enum.map(pairs, &elem(&1, 1))),
-         "n" => length(pairs)
+         "n" => length(pairs),
+         "fitted_t" => t,
+         "calibration_n" => diagnostic.calibration_n,
+         "calibration_nll" => diagnostic.calibration_nll,
+         "lr_statistic" => diagnostic.lr_statistic,
+         "fit_better" => diagnostic.fit_better
        }}
     end)
   end
@@ -570,6 +595,18 @@ defmodule Kerf.Eval.Harness.Score do
     exps = Enum.map(xs, &:math.exp(&1 - m))
     total = Enum.sum(exps)
     Enum.map(exps, &(&1 / total))
+  end
+
+  defp log_samples(samples),
+    do:
+      Enum.map(samples, fn {probs, gold} -> {Enum.map(probs, &:math.log(&1 + @epsilon)), gold} end)
+
+  defp fit_logs([]), do: 1.0
+
+  defp fit_logs(logs) do
+    nll = fn log_t -> nll(logs, :math.exp(log_t)) end
+    {lo, hi} = @log_t_range
+    :math.exp(golden_section(nll, lo, hi, @golden_iterations))
   end
 
   defp nll(logs, t) do

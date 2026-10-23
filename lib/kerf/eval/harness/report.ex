@@ -38,13 +38,14 @@ defmodule Kerf.Eval.Harness.Report do
       "",
       "## ECE",
       "",
-      "| question | raw | scaled | T | n |",
-      "|---|---|---|---|---|"
+      "| question | raw | scaled | T | n | cal n | cal NLL | LR | fit |",
+      "|---|---|---|---|---|---|---|---|---|"
     ])
     |> Kernel.++(
       rows(report["ece"], fn q, e ->
-        "| #{q} | #{fmt(e["raw"])} | #{fmt(e["scaled"])} | " <>
-          "#{fmt((report["temperature"] || %{})[q])} | #{fmt(e["n"])} |"
+        "| #{q} | #{fmt(e["raw"])} | #{fmt(e["scaled"])} | #{fmt(e["fitted_t"])} | " <>
+          "#{fmt(e["n"])} | #{fmt(e["calibration_n"])} | #{fmt(e["calibration_nll"])} | " <>
+          "#{fmt(e["lr_statistic"])} | #{fit_flag(e)} |"
       end)
     )
     |> Enum.join("\n")
@@ -55,6 +56,14 @@ defmodule Kerf.Eval.Harness.Report do
     "| #{id} | #{gate["status"]} | #{fmt(gate["value"])} | #{fmt(gate["threshold"])} | " <>
       "#{fmt(gate["detail"])} |"
   end
+
+  defp fit_flag(%{"fit_better" => true}), do: "ok"
+
+  defp fit_flag(e),
+    do: "fit not better than uninformative (LR = #{lr(e["lr_statistic"])})"
+
+  defp lr(nil), do: "n/a"
+  defp lr(x), do: :erlang.float_to_binary(x / 1, decimals: 3)
 
   defp rows(nil, _fun), do: []
   defp rows(section, fun), do: section |> Enum.sort() |> Enum.map(fn {k, v} -> fun.(k, v) end)
