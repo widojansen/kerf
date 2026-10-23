@@ -1,0 +1,48 @@
+{
+  "spec": "SPEC_H",
+  "addendum": 4,
+  "title": "Steps 2–3 closed: plan rulings S-22 … S-37 made binding; F09.2 reading rule; follow-ups",
+  "date": "2026-10-23",
+  "status": "binding — supersedes the cited SPEC_H / addendum text; earlier files are not edited inline",
+  "plan": "docs/superpowers/plans/2026-10-20-decide-eval-step2-3.md §10.1–10.2 (full text of every S-entry lives there)",
+  "state": {
+    "executor_tasks": "D1, D1b, D2, D3, D4, D4b, H1, H1b, H2, H3, H4, H4b, H4c — all RED→GREEN gated, on main; full suite 1814/1814 both seeds; dialyzer baseline 4 (0 new); compile warnings: 3 Postgrex only",
+    "f09_9": "Self-test passed on the M5 (H-9, 2026-10-21, main 92b6e07; oracle report sha256 d332ce144cb8e514ea57f258b6bd3cf780acf94f22ddb8aedf1167e387755945). Step-3 entry gate met.",
+    "owner_items_open": "H-1 labelling, H-2 clients.txt, H-3 freeze, H-4 copy to Spark, H-5 address hashes + KERF_EVAL_HASHES; F10 dispatch waits on the frozen manifest",
+    "working_method": "lead/executor model in use since 2026-10-20 (kerf-lead; kerf-eval-data, kerf-eval-harness in sibling worktrees); Claude Desktop writes specs/addenda and reviews plans and RED tests"
+  },
+
+  "corrections": [
+    {"id": "A4.1", "supersedes": "F09.3 / F09.8 permutation mechanics (A3.11 text)", "text": "Option orders are a functional Fisher–Yates over :rand.uniform_s/2, state from :rand.seed_s(:exsss, {seed, item_index * 64 + question_index, order_index}) threaded through; no Enum.shuffle, no process spawn; a golden literal of six orders is pinned in the tests so algorithm drift fails loudly. (S-22)"},
+    {"id": "A4.2", "supersedes": "F08.1 sha256/1 signature", "text": "Kerf.Eval.Manifest.sha256/1 :: {:ok, hex} | {:error, reason}; the run header's manifest_sha256 comes from {:ok, hex} and an error aborts the run before any request. Every public Manifest function returns violation lists; nothing raises, including validate/1 on a malformed question_set (manifest-level :question_def_invalid, emitted once, heads the list). (S-23b, S-26)"},
+    {"id": "A4.3", "supersedes": "F08.4 / F08.5 (immutability)", "text": "A frozen manifest refuses every mutation (:frozen) and a second freeze; ready_for_run?/1 rejects labelled_at or tiered_at after frozen_at. (owner amendments to D1)"},
+    {"id": "A4.4", "supersedes": "F08.7 (seeding)", "text": "Item.seed_category holds the golden-overrides category; labels stay nil until the owner labels. label_sources[\"category\"] is derived: \"adjudicated\" iff seed_category is set and equals the label, else \"new\". An overruled override is no longer an adjudication. (S-29)"},
+    {"id": "A4.5", "supersedes": "F09.1 gate semantics (A3.3)", "text": "F09.1 = fail when category easy-tier accuracy < 0.90 regardless of baseline; pending only when easy passes and --baseline-accuracy is nil; pass when both clauses hold. (S-25b)"},
+    {"id": "A4.6", "supersedes": "F09.9 (S-2 / A3.2) — root cause recorded", "text": "On the H-9 default synthetic run (244 items, 50 calibration, 194 eval) random failed scaled F09.2 on needs_reply only (0.109, T = 4.15). The log T ∈ [−4, 4] bound was not the cause (the two questions at the bound passed) and the Noul base-rate floor (|0.459 − 0.5| ≈ 0.04) was not the main cause. Cause: NLL temperature fitting on 50 calibration samples of an uninformative model overfits chance correlation to a finite T. A3.2's \"reported, not asserted\" stands for the correct reason. The bound is not widened. (S-2b)"},
+    {"id": "A4.7", "supersedes": "F09.2 report content (§2.4 ece entry)", "text": "ece[question] additionally carries fitted_t, calibration_n, calibration_nll, lr_statistic = 2·(baseline_nll_sum − fitted_nll_sum) against Σ ln K, and fit_better = lr_statistic > 3.841 (χ²₁ 95 %, conservative at the T→∞ boundary). report.md shows T, n and the flag beside every scaled ECE. Top-level report keys, temperatures.json and the gate itself are unchanged. (H4c)"},
+    {"id": "A4.8", "supersedes": "F10 reporting (new reading rule)", "text": "F10 and DECISION_FAMILY.md report raw ECE, fitted T and scaled ECE per question. A scaled pass with a raw fail is \"calibratable, not calibrated\": the model may ship only with its T in config (A3.4's temperatures.json) and F07 drift monitoring is what shows whether T holds. A profile-likelihood band on log T (H4d) is built only if F10's numbers are ambiguous. (S-37)"},
+    {"id": "A4.9", "supersedes": "F08.1 export details", "text": "Export is Kerf.Eval.Export.run(argv, opts) with runner and query_fn seams; --db default \"kerf_prod\" (verified; the literal appears once); --host/--db must match ~r/\\A[A-Za-z0-9][\\w.-]*\\z/ at argv parse and again in ssh_command/3; malformed --since is rejected at parse; --raw and every output path refuse the repo root; rows and items carry source_id beside doc_id; override ids are cast ::uuid[]; the override OR is parenthesised inside the AND chain. (S-27, S-30, S-33)"},
+    {"id": "A4.10", "supersedes": "F09 CLI host policy (A3.x H4 pins)", "text": "mix kerf.eval.decide mirrors the adapter: loopback and tailnet 100.64.0.0/10 need no flag; any other host needs --allow-remote <host> with an exact match, never a wildcard. The model servers are unauthenticated: the run header's adapter_opts.base_url and info.model_id are the record of which host answered. (S-34)"},
+    {"id": "A4.11", "supersedes": "F09 CLI run safety", "text": "run refuses an existing --out unless --force and opens it exclusively; the sink checks :file.write/2 and a write error aborts the run without a run_end and removes the partial file; :req start failure is a Mix error. Follow-up (not done): write-to-temp-then-rename under --force so a failed forced run keeps the previous file. (S-35)"},
+    {"id": "A4.12", "supersedes": "§2.8 labelling-page config", "text": "config :kerf, :eval_ui is a compile-time boolean (dev/test true, absent from prod and runtime); config :kerf, :eval_manifest_path (KERF_EVAL_MANIFEST) is runtime-only, read in mount/3. The hashes file is written 0o600 and lives only in the private tree. (S-36, S-35(d))"},
+    {"id": "A4.13", "supersedes": "A1 learnings — data model", "text": "An email_triage table exists in kerf_prod (FK document_id → kb_documents.id); taxonomy.ex was right and the private notes were wrong. kb_feedback still holds the triage rows the digest reads. Both are real; the eval code touches neither. (S-27)"}
+  ],
+
+  "later_red_candidates": [
+    "Manifest question-definition shape check is re-run per put_label/4 call (hoist; no-op on the validate path)",
+    "inside?/2 repo-root refusal does not resolve symlinks",
+    "HTTP adapter info/0 reports \"http:unconfigured\" without app config — derive model_id from the base URL",
+    "--force: temp+rename instead of truncate-at-open",
+    "H4d profile-likelihood band on log T (only if F10 is ambiguous)",
+    "Step 5 pairs already recorded in A2.1/A2.2: canonical-JSON state_hash; Server trap_exit/EXIT handling, Process.exit kill, handle_continue guard, redirect_error URI.merge edge"
+  ],
+
+  "hygiene_sitting_not_spec_h": [
+    "Timing flakes (pre-existing): alerting_test:135, process_health_test:90/147, four routing_config fsevents watcher tests — convert to message-ordering assertions",
+    "18 test-compile warnings on main outside eval code (deprecated charlists, quoted atoms, unused imports/variables/private defaults) — one test-only commit",
+    "Format failures on main: router.ex, config/dev.exs, config/test.exs, router_test.exs — owner-run mix format on those files only",
+    "Dialyzer baseline 4: unreachable catch-all clauses in system_page.ex:90, ollama_provider.ex:163, provider.ex:175, vllm_provider.ex:330",
+    "mix hex.audit: 41 advisories across 10 packages, 19 HIGH (bandit 6 HIGH serves the dashboard; mint/req carry outbound calls); one bump per commit, owner-run; req 0.5→0.7 among them",
+    "Private notes: S-20 worktree layout (sibling dirs), S-27 email_triage"
+  ]
+}
